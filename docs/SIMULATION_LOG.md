@@ -4290,153 +4290,153 @@ v3   answers: can the past be left behind at all?      — done, see classes A/B
 v4   answers: can what was left be used for the future? — experiment 027
 ```
 
-## 实验 027 —— Novel-Task Transfer（下一阶段，未开始）
+## Experiment 027 — Novel-Task Transfer (next phase, not started)
 
-**唯一的研究问题：**
+**The single research question:**
 
-> 两只起点完全相同、过去经历不同、后来已经形成持久差异的 agent，
-> 在第一次面对一个**双方都从未见过的新问题**时，
-> 会不会因为过去不同而**学得不同、选择不同、或适应路径不同**？
+> When two agents with identical starting points but different pasts, who have since developed persistent differences,
+> face for the first time **a new problem neither of them has ever seen**,
+> will their different pasts make them **learn differently, choose differently, or adapt along different paths**?
 
-### ★ 不许再硬塞进 v3 ★
+### ★ No more forcing this into v3 ★
 
-026 已经给出证据：**v3 的 food / material / shelter 世界不是一个好用的
-generalization test bed**。四个 probe 全部在**碰 final seeds 之前**
-被机制审计拦下 —— 它们实际上**替我们省掉了一次错误的"确认实验"**。
+026 has already supplied the evidence: **v3's food / material / shelter world is not a usable
+generalization test bed**. All four probes were stopped by the mechanism audit **before any final seed was touched**
+— they effectively **saved us from running one wrong "confirmatory experiment"**.
 
-### v4 的明确设计要求（由 026 的失败反推，不是"让模型更复杂"）
+### Explicit design requirements for v4 (read backwards from 026's failures, not "make the model more complex")
 
-v3 缺的是一条**原生通道**：
+What v3 lacks is a **native pathway**:
 
 ```
-外部新规则  →  agent 原生感知  →  自己评估  →  自己选择
+new external rule  →  native perception by the agent  →  its own evaluation  →  its own choice
 ```
 
-v3 只有 `score()` 这一层反应式打分，**没有在场因果学习**，
-所以任何"新契约"都只能靠实验层偷偷给 `score()` 加分来实现 ——
-**那是把结论写进去，不是测出来。**
+v3 has only the reactive scoring layer of `score()`, with **no online causal learning**,
+so any "new contract" can only be implemented by having the experiment layer quietly add points to `score()` —
+**that writes the conclusion in rather than measuring it.**
 
-配套要求（同样来自 026 的实测，不是凭空加）：
+The accompanying requirements (also taken from 026's measurements, not invented):
 
-| 要求 | 来源 |
+| Requirement | Source |
 |---|---|
-| 至少一个**不决定生死**的经济 | 规则 65（动食物只能压出生存差异） |
-| **近乎全员参与**（≥70%） | 规则 68（乘性加成对不做该动作的人恒为 0） |
-| **不被正反馈塌成双峰**、有连续中间态 | 规则 71 修订版 + 规则 73 |
-| 多种**都能活**的有效策略 | 规则 64（否则是生存分裂不是策略分岔） |
-| 两个发育世界**同等新颖** | 规则 67（books 那种不对称不行） |
+| At least one economy that is **not life-or-death** | Rule 65 (touching food only squeezes out survival differences) |
+| **Near-universal participation** (≥70%) | Rule 68 (a multiplicative bonus is identically 0 for those who never perform the action) |
+| **Not collapsed into bimodality by positive feedback**, with a continuous middle state | Rule 71 (revised) + rule 73 |
+| Several effective strategies that **all survive** | Rule 64 (otherwise it is a survival split, not a strategy fork) |
+| **Equally novel** to both developmental worlds | Rule 67 (the books-style asymmetry is not allowed) |
 
-### 027 可以直接继承的资产
+### Assets 027 can inherit directly
 
-- `novel_situation.py` 机制层：sibling 分叉（规则 61）、完整可执行状态
-  序列化与突变测试（规则 63）、状态拉平、non-destructive gate（规则 60）
-- **group-blind feasibility calibration 这套纪律本身** —— 这是 026 最大的产出：
-  **在烧掉 final block 之前证明"这个实验测不了它想测的东西"**
-- 规则 55–77（确定性、可判定性、窗口口径、饱和度量、突变检验……）
-- **种子账本：`60000–61499` 因 026 封存而从未使用，仍然干净**
+- The mechanism layer of `novel_situation.py`: the sibling fork (rule 61), full executable state
+  serialisation with mutation testing (rule 63), state levelling, and the non-destructive gate (rule 60)
+- **The discipline of group-blind feasibility calibration itself** — 026's largest output:
+  **proving, before a final block is burned, that "this experiment cannot measure what it means to measure"**
+- Rules 55–77 (determinism, decidability, window conventions, saturation measures, mutation checks, …)
+- **The seed ledger: `60000–61499` was never used because 026 was sealed, and is still clean**
 
-### ⚠ 027 开始时要先做的一件事
+### ⚠ One thing to do first when 027 begins
 
-v4 一旦分叉，**v3 的全部结论不自动继承**。
-必须先回答：**v4 还有没有原来的 persistence architecture？**
-（照 023 的做法：同种子重验 H1 / P1 / P2 / 情节记忆 no-op。）
-**不重验就把 v3 的结论挂到 v4 上，是方法学错误。**
+Once v4 forks, **none of v3's conclusions carry over automatically**.
+The first question to answer: **does v4 still have the original persistence architecture?**
+(Following 023's approach: re-verify H1 / P1 / P2 / the episodic-memory no-op on the same seeds.)
+**Hanging v3's conclusions on v4 without re-verification is a methodological error.**
 
 ---
 
-## 这条线最终的位置
+## Where this line finally stands
 
-> v3 证明了 **experience leaves persistent differences**。
+> v3 demonstrated that **experience leaves persistent differences**.
 >
-> 027 要问的是更强的那个问题 ——
-> **过去是否真正塑造了一个 artificial agent 以后面对未知世界的方式。**
+> 027 asks the stronger question —
+> **whether the past genuinely shapes how an artificial agent later faces an unknown world.**
 
 
 ---
 
-# ★★ 实验 027 —— Novel-Task Transfer + Reversal · FINAL ★★
+# ★★ Experiment 027 — Novel-Task Transfer + Reversal · FINAL ★★
 
-**seeds 60000–61499，只跑一次，已执行完毕（2026-08-17）。**
-模型：**v4 = `v3_frozen/` 核心（逐字节不动）+ `novel_task.py`**
-参数指纹 `26778f672e9e7009`（α=0.05 β=0.05 τ=0.20）
-记录：`final_027_result.txt` + `final_027_console.txt`（两份，全文抄录如下）
+**seeds 60000–61499, run exactly once, already completed (2026-08-17).**
+Model: **v4 = the `v3_frozen/` core (byte-for-byte unchanged) + `novel_task.py`**
+Parameter fingerprint `26778f672e9e7009` (α=0.05 β=0.05 τ=0.20)
+Records: `final_027_result.txt` + `final_027_console.txt` (both transcribed in full below)
 
-## 结果（逐项从文件抄，未凭记忆）
+## Results (copied item by item from the files, not from memory)
 
 ```
 n = 1428 / 1500
-attrition   rich = 0.0000   poor = 0.0480   keep = 0.9520   ✓ 通过 90% 闸
+attrition   rich = 0.0000   poor = 0.0480   keep = 0.9520   ✓ passes the 90% gate
 
-臂           指标                              配对差均值        95% CI              p
+arm         metric                       mean diff              95% CI        p
 main        H2 restricted switch latency   -0.0798  [-0.1632, -0.0035]   0.0464  *
 main        H1 trial 1–10 exploration      +0.0006  [-0.0002, +0.0015]   0.1375
-hist_blind  两项                            +0.0000   逐位为零
-trait_level 两项                            +0.0000   逐位为零
+hist_blind  both metrics                   +0.0000   bitwise zero
+trait_level both metrics                   +0.0000   bitwise zero
 
-可判定性诊断（8 个分析种子）
-  H2  下界范围 [-0.1632, -0.1611]  MC SD 0.0009  判显著 8/8
-  H1  下界范围 [-0.0003, -0.0002]  MC SD 0.0000  判显著 0/8
+decidability diagnostics (8 analysis seeds)
+  H2  lower-bound range [-0.1632, -0.1611]  MC SD 0.0009  judged significant 8/8
+  H1  lower-bound range [-0.0003, -0.0002]  MC SD 0.0000  judged significant 0/8
 ```
 
-## ★ 判读（按修订 01 的三值规则）★
+## ★ Reading (under the three-valued rule of amendment 01) ★
 
-> ### PRIMARY H2 = ◐ 统计上存在 history effect，但**功能意义未建立**
+> ### PRIMARY H2 = ◐ a history effect exists statistically, but **functional significance is not established**
 >
-> `Δ = −0.0798 trial`，95% CI `[−0.1632, −0.0035]` **排除 0**，
-> 但**整段落在 ±1 trial 的 practical-equivalence region 之内**。
+> `Δ = −0.0798 trial`, 95% CI `[−0.1632, −0.0035]` **excludes 0**,
+> but **the whole interval lies inside the ±1 trial practical-equivalence region**.
 
-- 方向：`d = L_rich − L_poor < 0` → **丰富世界出身的球在反转后切换略快**
-- 幅度：**0.08 trial**，量程 0–36，约 **0.22%**，约 **0.01 SD**
-- 8/8 个分析种子都判 CI 排除 0 → **不是蒙特卡洛噪声**，是真的可检出
-- **但它小到没有功能意义。**
+- Direction: `d = L_rich − L_poor < 0` → **balls raised in the rich world switch slightly faster after the reversal**
+- Magnitude: **0.08 trial** on a 0–36 range, about **0.22%**, about **0.01 SD**
+- All 8 analysis seeds judge the CI to exclude 0 → **not Monte Carlo noise**; it really is detectable
+- **But it is far too small to carry any functional meaning.**
 
-**secondary H1 不获支持**（CI 含 0，p=0.1375）。
-⛔ 按预注册，H1 不得替代 primary。
+**The secondary H1 is not supported** (the CI contains 0, p=0.1375).
+⛔ Per the preregistration, H1 may not stand in for the primary.
 
-**两个 pathway-isolation control 逐位为零** —— 无泄漏，
-history effect 按设计经 `curiosity/caution → novelty_style → β_i` 进入任务。
+**Both pathway-isolation controls are bitwise zero** — no leakage;
+the history effect enters the task by design through `curiosity/caution → novelty_style → β_i`.
 
-## ★ 规则 79：修订 01 正好救下了这一次 ★
+## ★ Rule 79: amendment 01 saved this run just in time ★
 
-如果没有 SESOI，这份结果会被写成：
+Without the SESOI this result would have been written up as:
 
-> ~~"H2 显著（p = 0.046），developmental history 改变了 reversal adaptation。"~~
+> ~~"H2 is significant (p = 0.046); developmental history changed reversal adaptation."~~
 
-而真相是：**在 n=1428 下，0.08 个 trial 的差异就足以"显著"。**
-量程是 36 个 trial。
+Whereas the truth is: **at n=1428, a difference of 0.08 trial is already enough to be "significant".**
+The range is 36 trials.
 
-**SESOI 是在彩排之后、看 final 之前加的，而且是从 pooled latency 尺度
-（mean 18.04 / SD 8.15 / 最小自然单位 1 trial）推的，不是从组间对比推的。**
-它是这次唯一挡住"大样本把微小差异包装成发现"的东西。
+**The SESOI was added after the rehearsal and before the final run was seen, and it was derived from the pooled
+latency scale (mean 18.04 / SD 8.15 / smallest natural unit 1 trial), not from the between-group contrast.**
+It is the only thing that stopped a large sample from dressing a minuscule difference up as a discovery.
 
-⚠ 一个诊断输出的弱点（记下，不改）：可判定性诊断打印的是**下界**范围，
-而本例中决定"CI 是否排除 0"的是**上界**（−0.0035，贴着 0）。
-`判显著 8/8` 已覆盖实质（8 个种子都排除 0），但打印的区间不是关键那一端。
-下次应打印**离 0 最近的那一端**。
+⚠ A weakness in one diagnostic output (recorded, not changed): the decidability diagnostic prints the **lower-bound** range,
+whereas here what decides "does the CI exclude 0" is the **upper bound** (−0.0035, hugging 0).
+`judged significant 8/8` covers the substance (all 8 seeds exclude 0), but the printed interval is not the end that matters.
+Next time it should print **whichever end lies closest to 0**.
 
-## 027 能写什么 / 不能写什么
+## What 027 may and may not claim
 
 | | |
 |---|---|
-| ✅ 可写 | 在一个双方都从未见过的新任务中，**检测到**由发育史带来的 reversal adaptation 差异（rich 略快），但**幅度低于预设的功能显著性门槛**，因此**不声称有实际量级的迁移效应** |
-| ✅ 可写 | 该效应按设计经 `curiosity/caution → novelty style` 进入任务；两个 pathway-isolation control 逐位为零 |
-| ⛔ 不可写 | ~~developmental history transferred to learning and adaptation in a jointly novel task~~ —— **功能门槛未过，这句话现在不能写** |
-| ⛔ 不可写 | *generalized individuality*（本来就要等第二个正交任务） |
-| ⛔ 不可写 | H1 的任何主张（未获支持） |
-| ⛔ 不可写 | "搜索了所有历史载体" —— 任务没给别的载体输入口 |
+| ✅ May write | In a task neither group had ever seen, a difference in reversal adaptation attributable to developmental history was **detected** (rich slightly faster), but its **magnitude falls below the pre-specified functional-significance threshold**, so **no transfer effect of practical size is claimed** |
+| ✅ May write | The effect enters the task by design through `curiosity/caution → novelty style`; both pathway-isolation controls are bitwise zero |
+| ⛔ May not write | ~~developmental history transferred to learning and adaptation in a jointly novel task~~ — **the functional threshold was not passed, so this sentence cannot be written now** |
+| ⛔ May not write | *generalized individuality* (which in any case had to wait for a second orthogonal task) |
+| ⛔ May not write | Any claim about H1 (not supported) |
+| ⛔ May not write | "all historical carriers were searched" — the task offers no input port for any other carrier |
 
-## 这次实验最有信息量的地方
+## The most informative part of this experiment
 
-**不是"有没有效应"，而是"效应有多大"。**
+**Not "is there an effect" but "how big is the effect".**
 
-v3 已经证明**过去能留下**（final H1 = 1.142，稳健性 78.3%）。
-027 现在说明：那些留下来的差异，**确实能被一个全新任务读到**
-（8/8 个分析种子都判可检出），
-**但通过预先指定的通用探索接口传进去之后，只剩 0.08 个 trial** ——
-在功能上接近于无。
+v3 had already shown that **the past can persist** (final H1 = 1.142, robustness 78.3%).
+027 now shows that those persisting differences **can indeed be read by an entirely new task**
+(all 8 analysis seeds judge them detectable),
+**but once passed through the pre-specified general exploration interface, only 0.08 of a trial remains** —
+functionally close to nothing.
 
-> **过去留下的东西很实在；
-> 它经由这条特定接口迁移到未知未来的部分，非常微弱。**
+> **What the past leaves behind is very real;
+> the part of it that transfers through this particular interface into an unknown future is very faint.**
 
 这是一个**信息量很高的阴性/边界结果**，而不是失败：
 它把"个体差异能否影响未来"从一个模糊的大问题，
