@@ -5339,74 +5339,74 @@ The `Δp` convention = relative to a **no-memory** counterfactual, with decision
 active-memory exposure holds at ~7/80 across the whole grid → memory is still event-triggered ✓
 ```
 
-### 三条判据（读数口径为本文件所定，**非预注册值**）
+### Three criteria (the reading conventions are set by this file, **not preregistered values**)
 
 ```
-① 不饱和            推后落入 p≤0.05 或 ≥0.95 的比例 ≤ 5%
-② 有实质不过强      median|Δp| ≥ 0.02 且 P(翻转偏好) ≤ 25%
+① not saturated     share pushed into p≤0.05 or ≥0.95 ≤ 5%
+② real but not too strong   median|Δp| ≥ 0.02 and P(pref. flip) ≤ 25%
 ③ event-triggered   active exposure ≤ 20/80
 
    λ      ①        ②                        ③
- 0.25   通过    ✗ med 0.018（微不足道）      通过
- 0.50   通过    通过 med 0.036 flip 6.6%     通过
- 1.00   通过    通过 med 0.072 flip 13.4%    通过
- 2.00   通过    通过 med 0.135 flip 24.8%    通过（flip 正踩在 25% 边上）
- 4.00   ✗ 12.7%  ✗                          通过
- 8.00   ✗ 46.3%  ✗                          通过
+ 0.25   pass    ✗ med 0.018 (negligible)     pass
+ 0.50   pass    pass med 0.036 flip 6.6%     pass
+ 1.00   pass    pass med 0.072 flip 13.4%    pass
+ 2.00   pass    pass med 0.135 flip 24.8%    pass (flip sits right on the 25% line)
+ 4.00   ✗ 12.7%  ✗                          pass
+ 8.00   ✗ 46.3%  ✗                          pass
 ```
 
-**合格带 = λ ∈ {0.50, 1.00, 2.00}**
+**Admissible band = λ ∈ {0.50, 1.00, 2.00}**
 
-### 建议（★ 本文件不替使用者冻结 ★）
+### Recommendation (★ this file does not freeze anything on the user's behalf ★)
 
-> **λ = 1.00** —— 合格带的中心，两侧都不贴边。
-> 0.25 低于"不是微不足道"这条线；2.00 正踩在翻转率 25% 的边上且已开始饱和
-> （0.6%）；4.00 起硬饱和。λ=1 时 median|Δp| 0.072、flip 13.4%、饱和 0.0%、
-> exposure 6.73/80。
+> **λ = 1.00** — the centre of the admissible band, close to neither edge.
+> 0.25 falls below the "not negligible" line; 2.00 sits right on the 25% flip-rate edge and has begun to saturate
+> (0.6%); from 4.00 upward it saturates hard. At λ=1: median|Δp| 0.072, flip 13.4%, saturation 0.0%,
+> exposure 6.73/80.
 
-⚠ 三条判据的**数值阈值也需要拍板** —— 它们是本文件的读数口径，不是预注册值。
+⚠ The **numeric thresholds of the three criteria also need a decision** — they are this file's reading conventions, not preregistered values.
 
-⛔ 本文件没有、也无法计算：Stable vs Volatile ΔC / latency /
-哪个 λ 最能拉开两个 group。condition label 在输入处即被丢弃。
+⛔ This file does not and cannot compute: Stable vs Volatile ΔC / latency /
+which λ separates the two groups best. The condition label is discarded at the input.
 
-### 复现方式（新增）
+### How to reproduce (new)
 
 - `memory_lambda_calibration.py` → `memory_lambda_calibration_result.txt` / `_console.txt`
-- `memory_acquisition_probe.py` 已冻结 ANOMALY_AT=36 / LEN=8 / T=66，
-  并新增 extensive / intensive margin 报表（规则 91）
+- `memory_acquisition_probe.py` has frozen ANOMALY_AT=36 / LEN=8 / T=66
+  and added an extensive / intensive margin report (rule 91)
 
 ---
 
-## ★★ λ 正式冻结 + OWN/DELETE/SWAP/SHUFFLE rehearsal（2026-08-18）★★
+## ★★ λ formally frozen + the OWN/DELETE/SWAP/SHUFFLE rehearsal (2026-08-18) ★★
 
-### 冻结（★ 从这一刻起不再因为任何 Stable/Volatile outcome 改动 ★）
+### Frozen (★ from this moment on, never changed for any Stable/Volatile outcome ★)
 
 ```
-SATURATION_MAX       = 0.05    # p ≤ .05 或 ≥ .95
+SATURATION_MAX       = 0.05    # p ≤ .05 or ≥ .95
 MEDIAN_ABS_DP_MIN    = 0.02
 PREF_FLIP_MAX        = 0.25
 ACTIVE_EXPOSURE_MAX  = 20      # /80 trials
 MEMORY_LAMBDA        = 1.00
 ```
 
-admissible 必须**同时**满足四条，且 exposure 一条用 **max 而不是 mean**：
+Admissibility requires **all four** conditions at once, with the exposure one using **max rather than mean**:
 
 ```
 max( E[m10], E[m50], E[m90] ) ≤ 20/80
 ```
 
-> **event-triggeredness 不应该允许"某一种 memory sign 已接近常驻，
-> 却被另外两种平均掉"。** λ=1 的最大 exposure 只有 6.95/80，判定不受影响
-> （已重跑确认：合格带仍是 {0.5, 1.0, 2.0}）。
+> **Event-triggeredness must not allow "one memory sign is already nearly always on
+> but gets averaged away by the other two".** The maximum exposure at λ=1 is only 6.95/80, so the verdict is unaffected
+> (re-run and confirmed: the admissible band is still {0.5, 1.0, 2.0}).
 
-这四个数是 **engineering admissibility gates，不是 scientific significance
-thresholds**：5% 饱和 = 记忆不该把超过 1/20 的 eligible decision 推成近乎确定性；
-median|Δp| ≥ .02 = 连 2 个百分点都推不动就谈不上进入决策；
-flip ≤ 25% = 最多四次里一次翻面，有影响但不是记忆说了算；
-exposure ≤ 20/80 = 把 event-triggered 钉死成"最多参与四分之一任务"
-（实测仅 ~7/80，这条主要防未来架构漂移）。
+These four numbers are **engineering admissibility gates, not scientific significance
+thresholds**: 5% saturation = memory must not push more than 1 in 20 eligible decisions to near-certainty;
+median|Δp| ≥ .02 = if it cannot move even 2 percentage points it never really enters the decision;
+flip ≤ 25% = at most one reversal in four — influential, but memory does not have the last word;
+exposure ≤ 20/80 = pinning event-triggeredness down to "taking part in at most a quarter of the task"
+(measured at only ~7/80; this one mainly guards against future architectural drift).
 
-### ★ 规则 92：selection rule 必须连"怎么选的"一起写死 ★
+### ★ Rule 92: a selection rule must freeze "how the choice was made" along with the choice ★
 
 > **Lambda was calibrated without condition labels or downstream transfer
 > outcomes. Values were required to satisfy prespecified interface-capacity
@@ -5414,80 +5414,80 @@ exposure ≤ 20/80 = 把 event-triggered 钉死成"最多参与四分之一任�
 > and retrieval exposure. Among admissible values, the log-scale midpoint of
 > the admissible range was selected.**
 >
-> 合格带 {0.5, 1.0, 2.0} 在倍增网格上，`1.0 = √(0.5×2)` 恰是 log 尺度中心 ——
-> **选的是"距离上下两个失效方向最远的"，不是"potency 最大的"**。
-> 代码里写了断言：λ 若不再等于合格带的 log 中心就直接报错。
+> The admissible band {0.5, 1.0, 2.0} lies on a doubling grid, and `1.0 = √(0.5×2)` is exactly its log-scale centre —
+> **what is chosen is "the point furthest from both failure directions", not "the most potent one"**.
+> An assertion in the code raises immediately if λ ever stops equalling the log centre of the admissible band.
 >
-> 这样即使 029 FINAL 是负结果，也没人能问"是不是换个 λ 就能阳"——
-> 答案是：**不知道，也不允许事后换**，λ 在看到 group transfer outcome 之前
-> 已经由接口性质冻结。
+> This way, even if 029 FINAL comes out negative, nobody can ask "would a different λ have turned it positive?" —
+> the answer being: **we do not know, and changing it after the fact is not allowed**; λ was frozen by interface
+> properties before any group transfer outcome was seen.
 
-λ=1 对应的实际接口行为：记忆被真正想起来时，典型情况把选择概率推动约
-**7 个百分点**（median|Δp| 0.0717，p90 0.1520），约 **13.4%** 的 eligible
-decision 因此跨过原偏好边界，**不把决策推到接近确定**（饱和 0.0%），
-且只在约 **8–9% 的任务时间**里在线（6.5–7.0 / 80）。
-—— 有能力影响决定，但既不是装饰品，也不是外挂控制器。
+The actual interface behaviour at λ=1: when a memory really is recalled, it typically moves the choice probability by about
+**7 percentage points** (median|Δp| 0.0717, p90 0.1520), about **13.4%** of eligible
+decisions therefore cross the original preference boundary, it **never pushes a decision close to certainty** (saturation 0.0%),
+and it is online for only about **8–9% of the task** (6.5–7.0 / 80).
+— capable of influencing a decision, yet neither an ornament nor a bolt-on controller.
 
 ---
 
-## ★ rehearsal：第一次把自然记忆接到 novel task（开发种子 0–399）★
+## ★ Rehearsal: naturally grown memory wired into the novel task for the first time (development seeds 0–399) ★
 
-### ⚠⚠ 先说清楚：本架构下 DELETE 与 SWAP 是**代数恒等式** ⚠⚠
+### ⚠⚠ To be clear up front: under this architecture DELETE and SWAP are **algebraic identities** ⚠⚠
 
-body 是常数（NeutralBody），发育史除记忆外**不携带任何东西**进入任务，
-于是同一种子的两个 condition **只差记忆**：
+The body is a constant (NeutralBody) and the developmental history carries **nothing but memory** into the task,
+so for any given seed the two conditions **differ only in memory**:
 
 ```
-DELETE   两边都空库 → 逐 trial 相同 → ΔC ≡ 0             （恒等，已断言通过）
-SWAP     记忆互换 → 就是 OWN 换个标签 → ΔC ≡ −ΔC(OWN)     （恒等，已断言通过）
+DELETE   both stores empty → identical trial by trial → ΔC ≡ 0        (identity, assertion passes)
+SWAP     memories exchanged → OWN with swapped labels → ΔC ≡ −ΔC(OWN)  (identity, assertion passes)
 ```
 
-> ### ★ 规则 93：只有一条通路时，DELETE / SWAP 退化为断言，不是证据 ★
-> 当发育史**只通过一条通路**进入测试时，"删掉它效应就没了"和
-> "换掉它结果就跟着换"在**构造上必然成立** —— 它们证明的是
-> **"没有第二条泄漏通路"**，不是"记忆有因果作用"。
+> ### ★ Rule 93: with only one pathway, DELETE / SWAP degenerate into assertions, not evidence ★
+> When the developmental history enters the test through **a single pathway**, "delete it and the effect disappears" and
+> "swap it and the result follows" hold **necessarily by construction** — what they prove is
+> **"there is no second leakage pathway"**, not "memory is causally effective".
 >
-> **要让 SWAP 成为非平凡检验，发育史必须还携带记忆以外的东西**
-> （例如 027/028 那条 trait 通路），否则 agent 的全部身份就是它的记忆。
-> 这是给真正 029 的一个设计结论。
+> **For SWAP to become a non-trivial test, the developmental history must carry something besides memory**
+> (the trait pathway of 027/028, for instance), or the agent's entire identity is its memory.
+> That is a design conclusion for the real 029.
 >
-> 本文件把它们当**断言**跑（不符即报错），**不当结果解释**。
+> This file runs them as **assertions** (raising on mismatch) and **does not interpret them as results**.
 
-### PRIMARY：ΔC = C(Volatile) − C(Stable)，同种子配对，★全人群★
+### PRIMARY: ΔC = C(Volatile) − C(Stable), paired on the same seed, ★ whole population ★
 
 ```
-臂          C Stable   C Volatile      ΔC        95% CI（描述性）    相对 OWN
+arm         C Stable   C Volatile      ΔC        95% CI (descr.)   rel. to OWN
 OWN          20.867      19.940      -0.927   [-1.202, -0.677]        1.00
-DELETE       20.545      20.545      +0.000   [+0.000, +0.000]        0.00   ←恒等
-SWAP         19.940      20.867      +0.927   [+0.680, +1.202]       -1.00   ←恒等
+DELETE       20.545      20.545      +0.000   [+0.000, +0.000]        0.00   ←identity
+SWAP         19.940      20.867      +0.927   [+0.680, +1.202]       -1.00   ←identity
 SHUFFLE      20.490      20.578      +0.087   [-0.068, +0.242]       -0.09   ★
 SWAP-XS      20.812      19.922      -0.890   [-1.140, -0.660]        0.96   ★
 ```
 
-### ★ 真正有信息量的两个控制 ★
+### ★ The two genuinely informative controls ★
 
-**SHUFFLE**（在 agent 自己的条目内打乱 `action_relation`：episode 数、
-stay/switch 条数、outcome 边际分布**全部保留**，只摧毁 action↔outcome 的关系）：
+**SHUFFLE** (shuffling `action_relation` within the agent's own entries: episode count,
+stay/switch counts and the marginal outcome distribution are **all preserved**; only the action↔outcome relation is destroyed):
 
-> ΔC 从 **−0.927 塌到 +0.087**（OWN 的 −9.4%），CI 跨 0。
-> **效应来自关系结构，不是记忆库的 marginal statistics。**
+> ΔC collapses from **−0.927 to +0.087** (−9.4% of OWN), with the CI spanning 0.
+> **The effect comes from the relational structure, not from the marginal statistics of the memory store.**
 
-**SWAP-XS**（种子 s 改用种子 s+200 的对侧记忆）：
+**SWAP-XS** (seed s uses the opposite-side memory of seed s+200):
 
-> ΔC = **−0.890**，保留 OWN 的 **96.0%**。
-> **效应由记忆内容携带，不靠"发育与测试共享同一个种子"的耦合。**
+> ΔC = **−0.890**, retaining **96.0%** of OWN.
+> **The effect is carried by the memory content, not by any coupling from development and test sharing a seed.**
 
 ### SECONDARY mechanistic
 
 ```
-臂         Δlatency   exposure S   exposure V   ACTIVE 段长 S/V
+arm        Δlatency   exposure S   exposure V   ACTIVE length S/V
 OWN         -1.962       6.92         6.65        6.81 / 6.56
 SHUFFLE     +0.275       6.82         6.70        6.72 / 6.60
 SWAP-XS     -1.810       6.82         6.55        6.71 / 6.45
 ```
-memory 全程保持 event-triggered（~6.6–6.9 / 80）。
+Memory stays event-triggered throughout (~6.6–6.9 / 80).
 
-### extensive margin 的两个定义**不要混用**
+### The two definitions of the extensive margin **must not be mixed**
 
 ```
 usable（m ≠ 0）          Stable 64.2%   Volatile 73.2%
