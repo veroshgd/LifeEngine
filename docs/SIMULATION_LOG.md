@@ -5798,53 +5798,53 @@ SESOI = 1.0
 
 > **Both blocks land between −0.8 and −0.9, and the N=1500 CI is already narrow.
 > So the most likely FINAL outcome is the second band (detectable, functional significance not established).**
-> 这**不是**改任何东西的理由 —— 恰恰相反，它证明 SESOI=1.0 不是照着结果定的。
-> 但起飞前必须知道：**大概率不会拿到"functionally meaningful"那一档。**
+> This is **not** a reason to change anything — quite the opposite: it shows SESOI=1.0 was not set to fit a result.
+> But it must be known before take-off: **the "functionally meaningful" band is unlikely to be reached.**
 
-**(c) extensive margin 有块间波动。** 预注册 §14 依开发块预测
-"Stable ≈ 66% / Volatile ≈ 73%"，彩排块实测 70.07% / 76.40%（约 +4pp）。
-**预注册不改**（已冻结），但判读时要知道这个量本身有 ±4pp 的块间变异。
-XSEED 保留比例同理：开发块 96.0%、彩排块 112.1%，都与"无 seed 耦合"一致。
+**(c) The extensive margin varies between blocks.** §14 of the preregistration predicted, from the development block,
+"Stable ≈ 66% / Volatile ≈ 73%"; the rehearsal block measured 70.07% / 76.40% (about +4pp).
+**The preregistration is not changed** (it is frozen), but the reading must allow for ±4pp of between-block variation in this quantity.
+The XSEED retention share tells the same story: 96.0% on the development block, 112.1% on the rehearsal block, both consistent with "no seed coupling".
 
-### 复现方式（新增）
+### How to reproduce (new)
 
-- `final_029.py`（`--rehearse` / `--final`）
-  → `final_029_rehearsal_result.txt`、`final_029_rehearsal_console.txt`
-- 预注册 sha256 `29e45930a07f2649c7958fdc0cd20a389005ca43e93287b9f69e2ccdcf867145`
+- `final_029.py` (`--rehearse` / `--final`)
+  → `final_029_rehearsal_result.txt`, `final_029_rehearsal_console.txt`
+- preregistration sha256 `29e45930a07f2649c7958fdc0cd20a389005ca43e93287b9f69e2ccdcf867145`
 
 ---
 
-## ★ 起飞前最后两处执行完整性 hardening（2026-08-18）★
+## ★ Two final execution-integrity hardenings before take-off (2026-08-18) ★
 
-**不是科学修改**：没有改 hypothesis / endpoint / SESOI / λ / seed / SHUFFLE 判据 /
-任何 treatment。
+**Not a scientific change**: no hypothesis / endpoint / SESOI / λ / seed / SHUFFLE criterion /
+treatment was modified.
 
-### ① 冻结清单漏了一个运行时依赖
+### ① The freeze list was missing a runtime dependency
 
-`final_029.py` 直接调用 `REH.BODY` 与 `REH.shuffled()`，
-但 `memory_transfer_rehearsal.py` **不在 `FROZEN_MODULES` 里** ——
-误改它 preflight 仍会全绿。已补入：
+`final_029.py` calls `REH.BODY` and `REH.shuffled()` directly,
+but `memory_transfer_rehearsal.py` was **not in `FROZEN_MODULES`** —
+so an accidental edit to it would still leave preflight all green. Now added:
 
 ```
 "memory_transfer_rehearsal.py": "b29b2d417fdaed52"
 ```
 
-**是否需要 amendment：不需要。** 预注册 §12.5 逐字写的是"各模块 sha256"，
-**没有枚举模块数**，所以补一个已有运行时依赖的 hash 不构成对预注册的偏离。
-（若正文当初写死"五个模块"，就必须补一份 implementation amendment。）
+**Does this need an amendment: no.** §12.5 of the preregistration says verbatim "the sha256 of each module"
+and **does not enumerate a module count**, so adding the hash of an existing runtime dependency is not a deviation from it.
+(Had the text frozen "five modules", an implementation amendment would have been required.)
 
-> ### ★ 规则 96：冻结清单必须覆盖【全部运行时依赖】，不是"主要那几个" ★
-> 漏掉一个被 import 的模块，等于给 preflight 开了一扇后门：
-> 它会全绿，而实际跑的代码已经变了。
-> 检查方法是看 runner 的 import 与属性访问，不是凭印象列文件。
+> ### ★ Rule 96: a freeze list must cover **every runtime dependency**, not "the main ones" ★
+> Missing one imported module leaves a back door in preflight:
+> it comes back all green while the code actually running has already changed.
+> The way to check is to read the runner's imports and attribute accesses, not to list files from memory.
 
-### ② G2 fail path 会让两句互相矛盾的话同时出现
+### ② The G2 fail path let two contradictory sentences appear together
 
-修改前：G2 失败会正确打印 *calibrated-interface validity compromised*，
-但随后**仍继续进入 SESOI 判读**，可能在同一份 FINAL 里再打印
+Before the change: a G2 failure correctly printed *calibrated-interface validity compromised*,
+but then **still proceeded to the SESOI reading**, potentially also printing, in the same FINAL,
 *Functionally meaningful memory-mediated transfer established.*
 
-已锁成一个总开关：
+Now locked behind a single master switch:
 
 ```
 primary_interpretable = g1_ok and g2_ok and g3_ok
@@ -5852,107 +5852,107 @@ primary_interpretable = g1_ok and g2_ok and g3_ok
 not primary_interpretable →
     verdict = "DESCRIPTIVE ONLY — confirmatory interpretation disabled
                because a preregistered validity gate failed."
-    own_transfer = False        → SHUFFLE 因此自动只作描述性
+    own_transfer = False        → SHUFFLE therefore becomes descriptive only
 ```
 
-**gate 失败时仍然落盘全部 raw outcome** —— FINAL block 已经烧掉，
-数据必须透明保存；但**不允许**再产生 primary success / functional success /
-SHUFFLE mediation 中的任何一条。
+**On a gate failure every raw outcome is still written to disk** — the FINAL block is already burned
+and the data must be preserved transparently; but it is **not permitted** to produce any of primary success /
+functional success / SHUFFLE mediation.
 
-⚠ 顺带把 G1/G3 失败从 `SystemExit` 改成**同一条路径**（作废但仍落盘），
-理由相同：块已烧掉就不该连记录都没有。"整批作废"的语义不变 ——
-作废指**不许作任何 confirmatory 声称**，不是删数据。
+⚠ G1/G3 failures were also moved from `SystemExit` onto **the same path** (voided but still written to disk),
+for the same reason: once a block is burned there should at least be a record. The meaning of "the whole batch is void" is unchanged —
+void means **no confirmatory claim may be made**, not that the data is deleted.
 
-> ### ★ 规则 97：validity gate 失败必须【禁用判读】，不能只【追加警告】 ★
-> 只打印一句"validity compromised"却让后面的三档判读照常输出，
-> 等于把互相矛盾的两句话留在同一份结果里，日后一定会被断章取义地引用。
-> 正确做法是设一个总开关，让**成功判读在物理上无法生成**。
+> ### ★ Rule 97: a validity-gate failure must **disable the reading**, not merely **append a warning** ★
+> Printing "validity compromised" while letting the three-band reading print as usual
+> leaves two contradictory sentences in one set of results, which will certainly be quoted out of context later.
+> The right approach is a master switch that makes a success reading **physically impossible to generate**.
 
-### ★ fail path 已实测，不是靠读代码 ★
+### ★ The fail path was actually exercised, not merely read off the code ★
 
-把 `SATURATION_MAX` 临时设成不可能满足的值、在已烧种子 0–59 上跑：
+Setting `SATURATION_MAX` temporarily to an unsatisfiable value and running on already-burned seeds 0–59:
 
 ```
-G2 判为失败                    ✓
-confirmatory 已禁用            ✓
+G2 judged as failed            ✓
+confirmatory disabled          ✓
 verdict = DESCRIPTIVE ONLY     ✓
-SHUFFLE 只作描述性              ✓
-"Functionally meaningful" 未出现        ✓
-"Detectable memory-mediated transfer" 未出现  ✓
-"≥75% attenuation established" 未出现   ✓
-raw outcome 仍然落盘            ✓
-分析顺序完整                    ✓
+SHUFFLE descriptive only       ✓
+"Functionally meaningful" absent             ✓
+"Detectable memory-mediated transfer" absent ✓
+"≥75% attenuation established" absent        ✓
+raw outcome still written      ✓
+analysis order intact          ✓
 ```
 
-### ★ 最终 rehearsal：五项要求全过 ★
+### ★ Final rehearsal: all five requirements pass ★
 
-`python final_029.py --rehearse`（10000–11499，N=1500）
+`python final_029.py --rehearse` (10000–11499, N=1500)
 
 ```
-① 所有 preflight 仍 ✓                        ✓
-② 现在显示 ★6 个★ 冻结模块                    ✓
-③ 10000–11499 的所有数值【逐位不变】          ✓（diff 只多"confirmatory
-   interpretation：启用"一行 + 两行断言措辞，数值一个不差）
-④ analysis order 不变
+① all preflight checks still ✓                ✓
+② now reports ★6★ frozen modules              ✓
+③ every number for 10000–11499 bitwise unchanged  ✓ (the diff adds only the
+   "confirmatory interpretation: enabled" line and two assertion lines; no number differs)
+④ analysis order unchanged
    1-acquisition→2-G2→3-validity→4-primary→5-sesoi→6-shuffle→7-xseed
    →8-integrity→9-secondary                   ✓
-⑤ 80000–81499 仍 untouched                    ✓
-   final_029_STARTED.lock 不存在               ✓
+⑤ 80000–81499 still untouched                ✓
+   final_029_STARTED.lock does not exist      ✓
 ```
 
-**状态：可以起飞。等一声"走"就跑 `python final_029.py --final`。**
+**Status: cleared for take-off. On the word "go", run `python final_029.py --final`.**
 
-⚠ 已知且不构成停飞理由：开发块 ΔC=−0.927、彩排块 −0.819，
-**两块都在 SESOI=1.0 下方** → FINAL 大概率落第二档。
-**正因为已经知道这点，更不能再碰 SESOI / λ / acquisition / task。**
-029 最有价值的结果很可能就是：
+⚠ Known, and not a reason to hold: ΔC = −0.927 on the development block and −0.819 on the rehearsal block,
+**both below SESOI=1.0** → FINAL will most likely land in the second band.
+**Precisely because this is known, SESOI / λ / acquisition / task must not be touched again.**
+The most valuable result of 029 may well be exactly this:
 
-> relational memory 确实可以迁移到表面陌生、结构相似的新问题，并因果性地
-> 减少错误；但这种收益**是否达到预注册的实际功能门槛**，
-> 由全新 FINAL block 独立裁决。
+> relational memory really can transfer to a surface-unfamiliar but structurally similar new problem and causally
+> reduce errors; but **whether that benefit reaches the preregistered practical functional threshold**
+> is adjudicated independently by a brand-new FINAL block.
 
 ---
 
-# ★★★ 实验 029 —— Memory-Mediated Transfer · FINAL ★★★
+# ★★★ Experiment 029 — Memory-Mediated Transfer · FINAL ★★★
 
-**2026-08-18 · 种子 `80000–81499`（N=1500）· 该 block 已永久 burned**
+**2026-08-18 · seeds `80000–81499` (N=1500) · this block is permanently burned**
 
-预注册：`MEMORY_TRANSFER029_PREREGISTRATION.md`，sha256 `29e45930a07f2649…`
-（runner 已校验）。`final_029.py` sha 前缀 `fb6a0cb672e33101`，
-6 个冻结模块 hash 全过，任务指纹 `26778f672e9e7009`。
-`final_029_STARTED.lock` 在**第一条 acquisition 轨迹之前**创建。用时 16.8s。
+Preregistration: `MEMORY_TRANSFER029_PREREGISTRATION.md`, sha256 `29e45930a07f2649…`
+(verified by the runner). `final_029.py` sha prefix `fb6a0cb672e33101`,
+all 6 frozen-module hashes pass, task fingerprint `26778f672e9e7009`.
+`final_029_STARTED.lock` was created **before the first acquisition trajectory**. Runtime 16.8 s.
 
-## 结果（逐项从 `final_029_result.txt` 抄，未凭记忆）
+## Results (copied item by item from `final_029_result.txt`, not from memory)
 
 ### 1. Acquisition / completeness
 
 ```
-memory completeness（primary extensive margin）  Stable 65.40%   Volatile 74.80%
+memory completeness (primary extensive margin)   Stable 65.40%   Volatile 74.80%
 non-zero evidence rate                          Stable 64.13%   Volatile 74.53%
-★ 所有 primary 分析使用全部 1500 × 2 个预定义 agent，含 incomplete 与 m=0 ★
+★ every primary analysis uses all 1500 × 2 predefined agents, including incomplete ones and m=0 ★
 ```
 
-### 2–3. Validity gates —— ★全部通过，confirmatory interpretation 启用★
+### 2–3. Validity gates — ★ all passed; confirmatory interpretation enabled ★
 
 ```
 G2  saturation 0.0000 ✓   median|Δp| 0.0737 ✓   flip 0.1476 ✓   max expo 6.36/80 ✓
-    （pooled m: n=3000，m=0 占 30.7%；eligible states 9324；label 在输入处丢弃）
-G1  异常前逐位相同 ✓，reward opportunity 逐位相等 ✓
+    (pooled m: n=3000, m=0 for 30.7%; eligible states 9324; the label is discarded at the input)
+G1  bitwise identical before the anomaly ✓, reward opportunity bitwise equal ✓
 G3  integrity assertions ✓
 ```
 
 ### 4. ★ PRIMARY ★
 
 ```
-臂              ΔC          95% CI
+arm             ΔC          95% CI
 OWN          -0.8833   [-1.0160, -0.7533]
-DELETE       +0.0000   [+0.0000, +0.0000]     ← 恒等
-SWAP         +0.8833   [+0.7540, +1.0160]     ← 恒等
+DELETE       +0.0000   [+0.0000, +0.0000]     ← identity
+SWAP         +0.8833   [+0.7540, +1.0160]     ← identity
 SHUFFLE      +0.0093   [-0.0733, +0.0913]
-XSEED-DONOR  -0.9240   [-1.0533, -0.7960]     保留 OWN 的 104.6%
+XSEED-DONOR  -0.9240   [-1.0533, -0.7960]     retains 104.6% of OWN
 ```
 
-### 5. ★★ SESOI 三档判读 ★★
+### 5. ★★ The three-band SESOI reading ★★
 
 ```
 95% CI [-1.0160, -0.7533]        SESOI = 1.0 post-change error
