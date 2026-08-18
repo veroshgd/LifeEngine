@@ -4588,10 +4588,10 @@ The frozen transform transports cleanly onto the confirmatory population.
 pre-task attrition diagnostic (not a binding gate):
 rich 0.00% · poor 4.60% · valid twins **1431/1500 = 95.40%**.
 
-## 2. 结果（逐项从文件抄）
+## 2. Results (copied item by item from the files)
 
 ```
-臂       E（配对差均值）        95% CI
+arm      E (paired)   95% CI
 A        -0.0391      [-0.0818, +0.0028]
 Bp       -0.0252      [-0.0783, +0.0245]
 Bm       +0.0433      [-0.0070, +0.1034]
@@ -4602,141 +4602,141 @@ Cm       -0.0370      [-0.0720, -0.0035]
  secondary R_B = 0.0252      95% CI [+0.0007, +0.0650]
 ```
 
-## 3. ★ PRIMARY 判读：CI 包含 0 ★
+## 3. ★ PRIMARY reading: the CI contains 0 ★
 
-> **没有证据表明 broader historical readout 比 027 的窄接口更强。**
-> `G = −0.0021 trial`，95% CI `[−0.0307, +0.0231]`。
+> **There is no evidence that a broader historical readout is stronger than 027's narrow interface.**
+> `G = −0.0021 trial`, 95% CI `[−0.0307, +0.0231]`.
 
-对应预注册 §6 的**第二种模式**：
+This corresponds to the **second pattern** in §6 of the preregistration:
 
-> **C ≈ A —— 更宽的历史 readout 没有增加 transfer；额外维度没有提供净增益。**
+> **C ≈ A — a wider historical readout did not increase transfer; the extra dimension gave no net gain.**
 
-⚠ **不许**简化成"宽接口无效"。等预算下**多读一份与 A 正交的历史成分，
-transfer magnitude 没有变化**，这是本实验的结论，不是关于"接口宽度"的普遍断言。
+⚠ This may **not** be shortened to "wide interfaces do not work". What was found is that, under an equal budget,
+reading one extra historical component orthogonal to A **left the transfer magnitude unchanged** — that is this experiment's conclusion, not a general claim about "interface width".
 
-### ★ min(·) 这一刀救下了一个会成立的错误结论 ★
+### ★ The min(·) rule saved us from a wrong conclusion that would have stood ★
 
 ```
 |E_Cp| = 0.0741      |E_Cm| = 0.0370      |E_A| = 0.0391
 min(|E_Cp|, |E_Cm|) = 0.0370  ≈  |E_A| = 0.0391   →  G ≈ 0
 ```
 
-**如果只看 C+，会得到 `0.0741 vs 0.0391`，接近两倍，
-而且 C+ 的 CI `[−0.1377, −0.0245]` 排除 0** ——
-足以写成"更宽的读取接口使 transfer 幅度翻倍"。
+**Looking only at C+ gives `0.0741 vs 0.0391`, nearly a factor of two,
+and C+'s CI `[−0.1377, −0.0245]` excludes 0** —
+enough to be written up as "a wider readout interface doubles the transfer magnitude".
 
-**但 C− 只有 0.0370。** 也就是说这个"增益"**完全取决于把 industry 残差
-按哪个符号接进去** —— 而那个符号我们**没有任何机制理由**可以事先指定。
+**But C− is only 0.0370.** In other words, that "gain" **depends entirely on which sign the industry residual
+is connected with** — and for that sign we have **no mechanistic reason whatsoever** to specify one in advance.
 
-> ### ★ 规则 83：无语义方向的成分，必须用 worst-sign 判据 ★
-> 预注册写死 `G = min(|E_C+|, |E_C−|) − |E_A|`，正是为了这一刻。
-> 若当初只跑一个符号（哪怕事前随机选定），**有 50% 的概率得到
-> "breadth gain 显著"的结论，而它完全是符号任意性的产物**。
+> ### ★ Rule 83: a component with no semantic direction must be judged by its worst sign ★
+> The preregistration froze `G = min(|E_C+|, |E_C−|) − |E_A|` precisely for this moment.
+> Had only one sign been run (even one picked at random beforehand), there would have been **a 50% chance of
+> concluding that the "breadth gain is significant" — a conclusion entirely produced by sign arbitrariness**.
 
-### joint bootstrap 的收益也直接可见
+### The benefit of the joint bootstrap is directly visible too
 
-`G` 的 CI 宽 **0.054**，而单臂 CI 宽约 **0.08** ——
-**差值的 CI 比任一单臂还窄**，正是同种子相关性被逐 replicate 抵消的结果。
-若用端点相减，宽度会是虚高的（对抗性测试实测 29.2×）。
+The CI for `G` is **0.054** wide, while a single-arm CI is about **0.08** wide —
+**the CI of the difference is narrower than either single arm**, exactly what happens when the same-seed correlation cancels replicate by replicate.
+Subtracting endpoints instead would inflate the width spuriously (measured at 29.2× in the adversarial test).
 
-## 4. ⚠ secondary R_B 的 CI 排除 0 **不构成证据**
+## 4. ⚠ The secondary R_B's CI excluding 0 **is not evidence**
 
-`R_B = min(|E_B+|, |E_B−|) = 0.0252`，CI `[+0.0007, +0.0650]`。
+`R_B = min(|E_B+|, |E_B−|) = 0.0252`, CI `[+0.0007, +0.0650]`.
 
-**CI 排除 0 在这里几乎是自动的** —— `R_B` 是绝对值的最小值，
-**按构造恒 ≥ 0**，bootstrap 分布整个落在 `[0, ∞)`，
-所以 2.5% 分位数只要不大量取到恰好 0，就必然 > 0。
+**Excluding 0 is almost automatic here** — `R_B` is the minimum of two absolute values,
+**≥ 0 by construction**, so the bootstrap distribution lies entirely in `[0, ∞)`,
+and the 2.5% quantile is bound to be > 0 unless exact zeros are drawn in bulk.
 
-> ### ★ 规则 84：非负统计量的"CI 排除 0"没有信息量 ★
-> 预注册定义了 `R_B` 却**没有为它写判读规则**（不像 `G` 有 SESOI）。
-> 这是预注册的一个缺口。**现在只能把 R_B 作描述性报告**，
-> 明确写"其 CI 排除 0 不构成 component transfer 的证据"，
-> **不得**事后补一个门槛把它变成阳性结论。
+> ### ★ Rule 84: "the CI excludes 0" carries no information for a non-negative statistic ★
+> The preregistration defined `R_B` but **wrote no reading rule for it** (unlike `G`, which has a SESOI).
+> That is a gap in the preregistration. **R_B can now only be reported descriptively**,
+> stating explicitly that "its CI excluding 0 is not evidence of component transfer",
+> and a threshold **must not** be added after the fact to turn it into a positive result.
 >
-> 描述性事实：`B+ = −0.0252`、`B− = +0.0433`，两个符号**方向相反**，
-> 幅度都远小于 1 trial 的功能门槛。
+> Descriptive facts: `B+ = −0.0252`, `B− = +0.0433` — the two signs point in **opposite directions**,
+> and both magnitudes are far below the 1-trial functional threshold.
 
-## 5. ★ A 臂：027 的窄接口效应**未能复制** ★
+## 5. ★ Arm A: 027's narrow-interface effect **failed to replicate** ★
 
 ```
-028 A 臂    E_A = -0.0391   95% CI [-0.0818, +0.0028]   ← CI 含 0
-027 原值    E   = -0.0798   95% CI [-0.1632, -0.0035]   ← CI 排除 0
+028 arm A   E_A = -0.0391   95% CI [-0.0818, +0.0028]   ← CI contains 0
+027 orig.   E   = -0.0798   95% CI [-0.1632, -0.0035]   ← CI excludes 0
 ```
 
-**点估计约为 027 的一半，且 CI 现在包含 0。**
+**The point estimate is about half of 027's, and the CI now contains 0.**
 
 > **027 narrow-interface effect did not replicate on the new sampling block.**
 
-这是 **sampling-level replication**（换了一整批新种子），
-**区别于** 027 内部那次 analysis-level Monte Carlo stability（规则 80）——
-后者只证明 `p=0.0464` 不是 bootstrap 抖动。
+This is a **sampling-level replication** (an entirely new block of seeds),
+**as distinct from** the analysis-level Monte Carlo stability inside 027 (rule 80) —
+the latter only showed that `p=0.0464` was not bootstrap jitter.
 
-⚠ 按预注册 §5，**A 的成败与 G 分开判**：A 未复制**不使 G 失效**，
-G 仍按自己的 CI + SESOI 判为"CI 包含 0"。
+⚠ Per §5 of the preregistration, **A's success or failure is judged separately from G**: A failing to replicate **does not invalidate G**,
+and G is still read by its own CI + SESOI as "the CI contains 0".
 
-## 6. 028 能写什么 / 不能写什么
+## 6. What 028 may and may not claim
 
 | | |
 |---|---|
-| ✅ | 在总 coupling budget 相同的条件下，**读取一份与 exploration 轴正交的额外历史成分，没有增加** novel-task transfer magnitude（G = −0.002，CI [−0.031, +0.023]） |
-| ✅ | 该结论对 industry 残差的**接入符号稳健**（worst-sign 判据） |
-| ✅ | **027 的窄接口效应在全新采样块上未能复制**（E_A CI 含 0，点估计减半） |
-| ⛔ | ~~宽接口无效~~ —— 只能说"这一份正交成分、在这个等预算设定下没有净增益" |
-| ⛔ | 任何基于 `R_B` CI 排除 0 的 component transfer 主张 |
+| ✅ | Under an equal total coupling budget, **reading an additional historical component orthogonal to the exploration axis did not increase** novel-task transfer magnitude (G = −0.002, CI [−0.031, +0.023]) |
+| ✅ | The conclusion is **robust to the sign** with which the industry residual is connected (worst-sign criterion) |
+| ✅ | **027's narrow-interface effect failed to replicate on an entirely new sampling block** (E_A's CI contains 0, the point estimate halved) |
+| ⛔ | ~~wide interfaces do not work~~ — only "this one orthogonal component, under this equal-budget setting, gave no net gain" |
+| ⛔ | Any component-transfer claim based on `R_B`'s CI excluding 0 |
 | ⛔ | *generalized individuality* |
 
-## 7. 027 + 028 合起来说明了什么
+## 7. What 027 and 028 show together
 
 ```
-v3     过去 → 持久行为差异                 明显（1.142，参数集合 78.3% 同向）
-027    持久差异 → 陌生任务功能迁移           极弱（0.08 trial，低于功能门槛）
-028    加宽历史读取接口（等预算）             没有改善（G ≈ 0）
-028-A  027 那个已经极弱的效应                 换一批种子就测不到了
+v3     past → persistent behavioural difference               large (1.142; 78.3% of the parameter set agree)
+027    persistent difference → function transfer in a strange taskvery weak (0.08 trial, below the functional threshold)
+028    widening the historical readout (equal budget)         no improvement (G ≈ 0)
+028-A  that already very weak 027 effect                      no longer measurable on a different block of seeds
 ```
 
-> ### ★ 核心命题（较 027 更强）★
+> ### ★ The core proposition (stronger than after 027) ★
 > **Persistent individuality ≠ automatically functional generalization.**
 >
-> 027 之后还可以说"也许是接口太窄"。
-> **028 在等 coupling budget 下加宽读取接口，没有带来任何增益；
-> 而且 027 那个原本就微弱的效应，在新采样块上没有复制出来。**
+> After 027 one could still say "perhaps the interface was simply too narrow".
+> **028 widened the readout interface at an equal coupling budget and gained nothing;
+> and 027's already faint effect did not replicate on a new sampling block.**
 >
-> 所以现在更准确的表述是：**这些持久差异，通过我们所能构造的
-> 这一类通用探索接口，几乎不携带可复制的功能迁移。**
+> So the more accurate statement now is: **through the class of general exploration interfaces we are able
+> to construct, these persistent differences carry almost no replicable functional transfer.**
 
 
 ---
 
-# 实验 029 —— Memory Transfer（设计中，未开始）
+# Experiment 029 — Memory Transfer (in design, not started)
 
-**2026-08-18 · 今天只做了一件事：开 `MEMORY_TRANSFER_DESIGN.md`**
+**2026-08-18 · only one thing was done today: opening `MEMORY_TRANSFER_DESIGN.md`**
 
-⚠ **那个文件不是预注册**，是设计草案，今天允许反复改。
-预注册（`NOVEL_TASK029_PREREGISTRATION.md`）等五个问题全部拍板、
-且 group-blind 校准通过之后才写。
+⚠ **That file is not a preregistration**; it is a design draft and may be revised freely today.
+The preregistration (`NOVEL_TASK029_PREREGISTRATION.md`) will only be written once all five questions have been
+settled and the group-blind calibration has passed.
 
-## 029 的问题（已写死）
+## The 029 question (frozen)
 
 > **Can structurally relevant past experience be retrieved and causally used
 > to adapt to a surface-novel problem?**
 
-## 与前面几个实验的分工
+## Division of labour with the earlier experiments
 
 ```
-025 / v3   过去能不能【留下】？                      ✓ 明显
-027        留下的 personality 会自动迁移吗？          极弱（0.08 trial）
-028        多读一些 personality history 能救吗？      没有（G ≈ 0）
-029        过去的经验能否被【真正检索】并用于类比？   ← 新问题
+025 / v3   can the past persist at all?                              ✓ clearly
+027        does the personality left behind transfer by itself?      very weakly (0.08 trial)
+028        does reading more personality history rescue it?          no (G ≈ 0)
+029        can past experience be genuinely retrieved and used by analogy?← the new question
 ```
 
-## 为什么 029 不能是 028 的续集
+## Why 029 cannot be a sequel to 028
 
-028 已经把"读得更宽"这条路走完了，而且 **027 A 在新 sampling block 上没有复制**。
-所以 029 换掉的必须是**通路的类型**，不是带宽：
+028 has walked the "read more broadly" route to its end, and **arm A of 027 did not replicate on a new sampling block**.
+So what 029 must change is the **type of pathway**, not its bandwidth:
 
 ```
-027 / 028   历史 → 我们替它读出的一个标量 → β → 探索加成
-029         历史 → 可寻址的条目 → agent 自己按相似度取用 → 决策
+027 / 028   history → one scalar we read out on its behalf → β → exploration bonus
+029         history → addressable entries → the agent retrieves by similarity itself → decision
 ```
 
 **如果 029 最后退化成"experimenter 挑一个更好的 readout"，它就是 028 的第三个臂，
