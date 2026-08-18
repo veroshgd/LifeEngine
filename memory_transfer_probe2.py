@@ -1,17 +1,17 @@
 """
-实验 029 —— memory_transfer_probe2.py（★ 识别性探针 v2：stateful retrieval ★）
-================================================================================
+Experiment 029 — memory_transfer_probe2.py (★ identifiability probe v2: stateful retrieval ★)
+=============================================================================================
 
-跑：  python memory_transfer_probe2.py
+Run:  python memory_transfer_probe2.py
 
-v1（`memory_transfer_probe.py`）**原封不动保留**，结果也不覆盖 ——
-那次失败本身是方法学记录的一部分。本文件 import v1 的记忆库、身体、阈值，
-**唯一改变的是检索机制**：one-shot → stateful。
+v1 (`memory_transfer_probe.py`) is **kept exactly as it was** and its results are not overwritten —
+that failure is itself part of the methodological record. This file imports v1's memory stores, bodies and thresholds;
+**the only thing changed is the retrieval mechanism**: one-shot → stateful.
 
 --------------------------------------------------------------------------------
-① (c) 判据修正：dominance criterion ★ 正式撤回 ★
+① Correction to criterion (c): the dominance criterion is ★ formally withdrawn ★
 --------------------------------------------------------------------------------
-    ⛔ 撤回：|memory effect| > |body effect|
+    ⛔ withdrawn: |memory effect| > |body effect|
 
 > Original SWAP dominance criterion failed at all tested λ, after which
 > inspection showed that the criterion compared an event-triggered channel
@@ -19,12 +19,12 @@ v1（`memory_transfer_probe.py`）**原封不动保留**，结果也不覆盖 �
 > criterion was therefore **retired before any Stable/Volatile outcome was
 > observed**.
 
-**撤回的理由不是"它没通过"，而是它测的不是我们想知道的东西。**
-它回答的是"memory 的终点效应是不是比 body 还大"，
-而 SWAP 该回答的是"**body 完全固定时，只换 memory，未来行为是否随记忆内容
-发生预测方向的改变**"。这是两个完全不同的 estimand。
+**The reason for withdrawing it is not that it failed, but that it measures the wrong thing.**
+It answers "is memory's endpoint effect larger than body's",
+whereas SWAP should answer "**with the body completely fixed, does swapping only the memory change future
+behaviour in the predicted direction**". Those are two entirely different estimands.
 
-### 新 SWAP（本文件实现）
+### The new SWAP (implemented in this file)
 
 ```
 M_C = L(Body C, Memory V) − L(Body C, Memory S)
@@ -32,111 +32,111 @@ M_K = L(Body K, Memory V) − L(Body K, Memory S)
 M   = (M_C + M_K) / 2
 ```
 
-关心：① M_C 与 M_K 方向是否一致  ② pooled M 是否在预注册方向
-      ③ 是否超过功能 SESOI（**今天不定 SESOI**）
-      ④ Body × Memory interaction 是否强到说明 memory 只在某一种 body 上工作
+Of interest: ① whether M_C and M_K agree in direction  ② whether pooled M is in the preregistered direction
+      ③ whether it exceeds a functional SESOI (**no SESOI is fixed today**)
+      ④ whether the Body × Memory interaction is strong enough to mean memory only works on one kind of body
 
-**body effect 只作 robustness diagnostic，不再是闸门。**
+**The body effect is only a robustness diagnostic and is no longer a gate.**
 
 --------------------------------------------------------------------------------
-② 规则 86 的方向修正 → 新规则 87
---------------------------------------------------------------------------------
-❌ 旧说法："比较之前必须 equal exposure。"
+② Directional correction to rule 86 → the new rule 87
+-----------------------------------------------------
+❌ Old wording: "there must be equal exposure before comparing."
 
-**memory 和 personality 本来就不该有相同 exposure。**
-人格是一直存在的 prior；记忆应该是**遇到相关情况时才被调用**。
-为了公平强行让 memory 80/80 trial 在线，反而会毁掉本设计最重要的理论特征
-—— **context-dependent retrieval**。
+**Memory and personality should not have the same exposure in the first place.**
+Personality is a prior that is always present; memory should be **invoked only when a relevant situation arises**.
+Forcing memory to be online for 80/80 trials in the name of fairness would destroy the most important theoretical
+feature of this design — **context-dependent retrieval**.
 
-> ### ★ 规则 87 ★
-> 对 event-triggered 机制，**不能直接拿 endpoint effect 与 always-on 机制
-> 比大小**；必须把 **exposure** 与 **per-opportunity influence** 分开报告。
+> ### ★ Rule 87 ★
+> For an event-triggered mechanism, **an endpoint effect must not be compared in size directly against an
+> always-on mechanism**; **exposure** and **per-opportunity influence** must be reported separately.
 
-所以 memory effect 拆成两个量：
+So the memory effect is split into two quantities:
 
 ```
-A. Exposure   E_i = #{retrieval-eligible trials}      ← 有多少次发言机会
-B. Potency    Δp_t = p_switch(M_V) − p_switch(M_S)    ← 每次发言能推多远
-              在**完全相同的 decision state** 上算
+A. Exposure   E_i = #{retrieval-eligible trials}      ← how many chances it gets to speak
+B. Potency    Δp_t = p_switch(M_V) − p_switch(M_S)    ← how far it can push each time it speaks
+              computed on **exactly the same decision state**
 ```
 
-Potency 的算法：用 **λ=0 的 memory-blind 轨迹冻结 decision states**
-（同 Q / 同 N / 同 current option / 同 surprise state），
-再 counterfactually 只换 Memory S / Memory V。
-这样才能区分"memory 很弱"与"memory 每次出手都有力、只是几乎没机会出手"。
+How potency is computed: **freeze the decision states from the memory-blind (λ=0) trajectory**
+(same Q / same N / same current option / same surprise state),
+then counterfactually swap in Memory S / Memory V only.
+Only that distinguishes "memory is weak" from "memory is forceful whenever it speaks, but almost never gets the chance".
 
 --------------------------------------------------------------------------------
-③ (a) stateful retrieval —— 不是"固定保持 N trial"
---------------------------------------------------------------------------------
-固定 N 会新增一个任意参数。改成 **retrieval → active memory state → resolution**：
+③ (a) stateful retrieval — not "held for a fixed N trials"
+----------------------------------------------------------
+A fixed N would add an arbitrary parameter. Instead: **retrieval → active memory state → resolution**:
 
 ```
 NORMAL
-  ↓  连续 persistent surprise（≥ SURPRISE_RUN_MIN，且手上策略过去很好）
-RETRIEVE   ← 记下此刻的 suspect strategy（"我怀疑的是这一个"）
-  ↓  m 进入 working decision state，接下来每次决策继续使用
+  ↓  a run of persistent surprises (≥ SURPRISE_RUN_MIN, with the strategy in hand having long been good)
+RETRIEVE   ← record the suspect strategy at this moment ("this is the one I doubt")
+  ↓  m enters the working decision state and continues to be used on each subsequent decision
 ACTIVE
-  ↓  ① 新策略拿到足够证据：Q[另一个] > Q[suspect]        →"哦，看来真的变了"
-  ↓  ② surprise 被解释：在 suspect 上连续 SURPRISE_RUN_MIN 次不再意外
-  ↓                                                     →"刚才只是偶然"
-RESOLVED → 清除 memory evidence，回到 NORMAL（以后可再次触发）
+  ↓  ① the new strategy gathers enough evidence: Q[the other] > Q[suspect]   → "ah, it really did change"
+  ↓  ② the surprise is explained: SURPRISE_RUN_MIN consecutive non-surprises on the suspect
+  ↓                                                     → "that was just chance"
+RESOLVED → clear the memory evidence and return to NORMAL (it can fire again later)
 ```
 
-**两个 resolution 条件都只用已有量**（Q、pe、`PE_THRESH`、`SURPRISE_RUN_MIN`），
-**没有新增任何参数**。②与入场条件对称：进场要连续 3 次意外，
-出场也要连续 3 次不意外。
+**Both resolution conditions use only existing quantities** (Q, pe, `PE_THRESH`, `SURPRISE_RUN_MIN`),
+**adding no new parameter**. ② is symmetric with the entry condition: entry needs 3 consecutive surprises,
+and exit needs 3 consecutive non-surprises.
 
-### ★ 关键：ACTIVE 期间 m 的作用对象是 suspect，不是"switch"这个动作 ★
+### ★ Key: while ACTIVE, m acts on the suspect, not on the "switch" action ★
 
-v1 每个 trial 都把 `+λm` 加在"switch"上。一旦推成了一次 switch，
-下一 trial 再加 `+λm` 就变成"再换回去"，语义是错的，会来回抖。
+v1 added `+λm` to "switch" on every trial. Once that has pushed one switch through,
+adding `+λm` again on the next trial means "switch back again" — semantically wrong, and it oscillates.
 
-记忆的内容是"**在这种情况下，离开那个可疑策略更划算**"。所以：
+What the memory contains is "**in this situation, leaving that suspect strategy pays better**". So:
 
 ```
-logit(switch) += λ · m · s        s = +1 若 switch 是【离开 suspect】
-                                  s = −1 若 switch 是【回到 suspect】
+logit(switch) += λ · m · s        s = +1 if switching means **leaving the suspect**
+                                  s = −1 if switching means **returning to the suspect**
 ```
 
-这才是"我想起来以前遇到过这种情况，因此我现在**怀疑规则变了**"——
-这个怀疑会一直持续到"看来真的变了"或"刚才只是偶然"。
+That is what "I remember meeting this situation before, so I now **suspect the rule changed**" means —
+and that suspicion persists until either "it really did change" or "that was just chance".
 
-⚠ `suspect` 是决策时的**工作变量**，**不是** Episode 里存的东西。
-记忆里依旧只有 stay/switch，没有任何选项身份（规则 85 不变）。
+⚠ `suspect` is a **working variable** at decision time; it is **not** stored in an Episode.
+Memory still holds only stay/switch and no option identity (rule 85 is unchanged).
 
 --------------------------------------------------------------------------------
-④ 顺手锁住一个隐藏问题：potential vs realized retrieval
---------------------------------------------------------------------------------
-`fired` 本身受前面 choice sequence 影响 —— 例如 cautious body 更容易连续 stay
-三次，于是更容易触发检索。**触发次数本身就是 task dynamics 的产物。**
+④ Locking down a hidden problem along the way: potential vs realized retrieval
+------------------------------------------------------------------------------
+`fired` is itself affected by the preceding choice sequence — a cautious body, for instance, stays three times in a row
+more easily and so triggers retrieval more easily. **The firing count is itself a product of task dynamics.**
 
 ```
-potential retrieval opportunity   在 memory-blind（λ=0）轨迹上定义 → 查机制 exposure
-realized retrieval                正式 memory-enabled 轨迹上实际发生 → 是结果的一部分
+potential retrieval opportunity   defined on the memory-blind (λ=0) trajectory → measures mechanism exposure
+realized retrieval                what actually happens on the memory-enabled trajectory → part of the outcome
 ```
 
-⛔ **绝对不许**只分析"成功想起了记忆"的 agent —— 那是 survivor conditioning。
-本文件所有汇总都用**全部 400 个种子**，不按是否触发筛选（有断言）。
+⛔ It is **absolutely forbidden** to analyse only the agents that "successfully recalled a memory" — that is survivor conditioning.
+Every summary in this file uses **all 400 seeds**, with no filtering by whether retrieval fired (asserted).
 
 --------------------------------------------------------------------------------
-⑤ 本次故意不动的东西
---------------------------------------------------------------------------------
+⑤ What is deliberately left untouched this round
+------------------------------------------------
 ```
-GOOD_THRESH=.60   PE_THRESH=.30   SURPRISE_RUN_MIN=3   任务仍只有一次 reversal
-seeds 0–399       λ 仍然只扫不选
-⛔ (b) 放宽 SURPRISE_RUN_MIN      ⛔ (d) 多 change-point 任务
+GOOD_THRESH=.60   PE_THRESH=.30   SURPRISE_RUN_MIN=3   the task still has a single reversal
+seeds 0–399       λ is still swept, not chosen
+⛔ (b) relaxing SURPRISE_RUN_MIN      ⛔ (d) a multi-change-point task
 ⛔ final seeds  ⛔ preregistration  ⛔ SESOI  ⛔ Stable/Volatile outcome
 ```
 
-**为什么先 (a) 不先 (b)**：v1 已证明触发时决策**没有饱和**
-（base p(switch) 中位数 0.208），所以不是"想起来太晚已经没得选"。
-把 `SURPRISE_RUN_MIN` 3→2 只是让记忆更早出现，
-**没有解决"一出现就被清掉"** —— 那是治数量，不是治机制。
+**Why (a) before (b)**: v1 already showed the decision is **not saturated** when retrieval fires
+(median base p(switch) 0.208), so it is not "remembered too late to have a choice".
+Taking `SURPRISE_RUN_MIN` from 3 to 2 only makes memory appear earlier and
+**does not fix "cleared as soon as it appears"** — that treats the quantity, not the mechanism.
 
-**为什么现在不做 (d)**：把一次 reversal 变成三次，exposure 自然变多，
-结果变强时我们分不清是"机制修好了"还是"同一个弱 one-shot 效应重复了三遍"。
-(d) 该在单 change-point 上把机制搞对之后再做，那时它是
-**dose-of-opportunity robustness test**。
+**Why not (d) now**: turning one reversal into three naturally increases exposure, and if the result strengthens
+we cannot tell "the mechanism was fixed" from "the same weak one-shot effect repeated three times".
+(d) belongs after the mechanism is right on a single change point, at which time it becomes a
+**dose-of-opportunity robustness test**.
 """
 
 import math
@@ -151,15 +151,15 @@ from memory_transfer_probe import (BODY_C, BODY_K, MEM_S, MEM_V,
                                    LAMBDA_GRID, PROBE_SEEDS, query_from_state)
 
 N_BOOT = 10000
-ANALYSIS_SEED = 8181            # 固定，分析层可复现
+ANALYSIS_SEED = 8181            # fixed, so the analysis layer is reproducible
 
 
-# ================================================================== v2 主循环
+# ================================================================== v2 main loop
 def run_stateful(body, memory, seed, lam, *, trace=False):
-    """stateful retrieval：RETRIEVE → ACTIVE → RESOLVED。
+    """stateful retrieval: RETRIEVE → ACTIVE → RESOLVED.
 
-    返回 choices/rewards + 每 trial 的 active 标记；trace=True 时另外返回
-    每个 ACTIVE trial 的冻结 decision state（供 potency 反事实计算）。
+    Returns choices/rewards + the active flag of each trial; with trace=True it additionally returns
+    the frozen decision state of each ACTIVE trial (for the counterfactual potency computation).
     """
     rows, us, a_good_first = NT.reward_table(seed)
     b = NT.BETA * NT.novelty_style(body)
@@ -167,7 +167,7 @@ def run_stateful(body, memory, seed, lam, *, trace=False):
     N = [0, 0]
     cur = None
     surprise_run = 0
-    suspect = None                 # None = NORMAL；否则 = ACTIVE，值为被怀疑的策略
+    suspect = None                 # None = NORMAL; otherwise ACTIVE, holding the suspected strategy
     calm_run = 0
     choices, rewards, active, states = [], [], [], []
 
@@ -179,16 +179,16 @@ def run_stateful(body, memory, seed, lam, *, trace=False):
             c = 0 if us[t] < 1.0 / (1.0 + math.exp(-d)) else 1
             is_active = False
         else:
-            # ---- NORMAL → RETRIEVE：入场条件与 v1 逐字相同 ----
+            # ---- NORMAL → RETRIEVE: the entry condition is word for word v1's ----
             if suspect is None and query_from_state(Q[cur], surprise_run):
-                suspect = cur          # ★ 记下"我怀疑的是这一个" ★
+                suspect = cur          # ★ record "this is the one I doubt" ★
                 calm_run = 0
 
             oth = 1 - cur
             is_active = suspect is not None
             if is_active:
                 m, _, _ = memory.evidence("previously_good_strategy")
-                s = 1.0 if cur == suspect else -1.0   # switch 是离开还是回到 suspect
+                s = 1.0 if cur == suspect else -1.0   # is switching leaving or returning to the suspect
             else:
                 m, s = 0.0, 0.0
 
@@ -201,19 +201,19 @@ def run_stateful(body, memory, seed, lam, *, trace=False):
         r = rows[t][c]
         pe = r - Q[c]
 
-        # 与 v1 完全相同的 surprise_run 口径（入场条件不动）
+        # Exactly v1's surprise_run convention (the entry condition is untouched)
         if cur is not None and c == cur and pe < -PE_THRESH:
             surprise_run += 1
         else:
             surprise_run = 0
 
-        # ---- ACTIVE → RESOLVED（两个条件都只用已有量，无新参数）----
+        # ---- ACTIVE → RESOLVED (both conditions use only existing quantities, no new parameter) ----
         if suspect is not None:
             if c == suspect:
                 calm_run = calm_run + 1 if pe >= -PE_THRESH else 0
-            if Q[1 - suspect] > Q[suspect]:        # ① 新策略拿到足够证据
+            if Q[1 - suspect] > Q[suspect]:        # ① the new strategy has gathered enough evidence
                 suspect, calm_run = None, 0
-            elif calm_run >= SURPRISE_RUN_MIN:     # ② surprise 被解释
+            elif calm_run >= SURPRISE_RUN_MIN:     # ② the surprise has been explained
                 suspect, calm_run = None, 0
 
         N[c] += 1
@@ -241,44 +241,44 @@ def post_correct(rec):
     return NT.correct_rate(rec, NT.REVERSAL_AT, NT.TRIALS)
 
 
-# ================================================================== 自检
+# ================================================================== self-checks
 def _test_memory_blind(runner):
     d = sum(1 for sd in PROBE_SEEDS
             if runner(BODY_C, MEM_S, sd, 0.0)["choices"]
             != runner(BODY_C, MEM_V, sd, 0.0)["choices"])
-    assert d == 0, f"✗ λ=0 时记忆仍影响决策（{d} 个种子）"
+    assert d == 0, f"✗ memory still affects the decision at λ=0 ({d} seeds)"
     return True
 
 
 def _test_v1_unchanged():
-    """★ v1 必须仍然逐位复现原来的失败 —— 不许被覆盖 ★"""
+    """★ v1 must still reproduce its original failure bit for bit — it must not be overwritten ★"""
     chg = sum(1 for sd in PROBE_SEEDS
               if P1.run(BODY_C, MEM_S, sd, 1.0)["choices"]
               != P1.run(BODY_C, MEM_V, sd, 1.0)["choices"])
     dl = statistics.fmean([latency(P1.run(BODY_C, MEM_V, sd, 1.0))
                            - latency(P1.run(BODY_C, MEM_S, sd, 1.0))
                            for sd in PROBE_SEEDS])
-    assert chg == 71, f"v1 轨迹改变数变了：{chg} ≠ 71（记录里的值）"
-    assert abs(dl - (-0.125)) < 1e-9, f"v1 Δlatency 变了：{dl}"
-    print(f"  ✓ v1 仍逐位复现原结果（λ=1：71/400 改变，Δlatency {dl:+.3f}）"
-          f" —— 失败记录没有被覆盖")
+    assert chg == 71, f"v1's changed-trajectory count moved: {chg} ≠ 71 (the value in the log)"
+    assert abs(dl - (-0.125)) < 1e-9, f"v1's Δlatency moved: {dl}"
+    print(f"  ✓ v1 still reproduces the original result bit for bit (λ=1: 71/400 changed, Δlatency {dl:+.3f})"
+          f" — the record of the failure has not been overwritten")
 
 
 def _test_no_survivor_conditioning(cells):
     for k, v in cells.items():
         assert len(v) == len(PROBE_SEEDS), \
-            f"✗ {k} 只汇总了 {len(v)}/{len(PROBE_SEEDS)} 个种子 —— survivor conditioning"
-    print(f"  ✓ 所有汇总都用全部 {len(PROBE_SEEDS)} 个种子，"
-          f"不按是否触发检索筛选")
+            f"✗ {k} summarised only {len(v)}/{len(PROBE_SEEDS)} seeds — survivor conditioning"
+    print(f"  ✓ every summary uses all {len(PROBE_SEEDS)} seeds,"
+          f" with no filtering by whether retrieval fired")
 
 
 # ================================================================== ① ② exposure
 def exposure_report():
-    """potential（λ=0 轨迹上定义）vs realized（memory-enabled 轨迹上实际发生）"""
+    """potential (defined on the λ=0 trajectory) vs realized (what happens on the memory-enabled trajectory)"""
     print("\n" + "=" * 78)
-    print("① ② EXPOSURE —— potential（λ=0 定义）vs realized（λ>0 实际）")
+    print("① ② EXPOSURE — potential (defined at λ=0) vs realized (actual at λ>0)")
     print("=" * 78)
-    print(f"{'机制':<14}{'body':<10}{'eligible 种子':>14}"
+    print(f"{'mechanism':<18}{'body':<10}{'eligible seeds':>16}"
           f"{'potential trial':>16}{'realized trial (λ=1)':>22}")
     print("-" * 78)
     out = {}
@@ -291,16 +291,16 @@ def exposure_report():
                   f"{statistics.fmean(pot):>16.2f}{statistics.fmean(rea):>22.2f}")
             out[(name, body.name)] = (elig, statistics.fmean(pot),
                                       statistics.fmean(rea))
-    print("\n⚠ potential 用 memory-blind 轨迹定义 —— 它是【机制 exposure】；")
-    print("  realized 受 choice sequence 反馈影响 —— 它是【结果的一部分】。")
+    print("\n⚠ potential is defined on the memory-blind trajectory — it is **mechanism exposure**;")
+    print("  realized is affected by choice-sequence feedback — it is **part of the outcome**.")
     return out
 
 
 # ================================================================== ③ potency
 def potency_report():
-    """在 λ=0 冻结的 decision state 上，只换 Memory S/V → Δp_switch"""
+    """On decision states frozen at λ=0, swap only Memory S/V → Δp_switch"""
     print("\n" + "=" * 78)
-    print("③ POTENCY —— 同一 decision state 下只换记忆，p(switch) 差多少")
+    print("③ POTENCY — with the decision state held fixed, how far does swapping the memory move p(switch)")
     print("=" * 78)
     mS = MEM_S.evidence("previously_good_strategy")[0]
     mV = MEM_V.evidence("previously_good_strategy")[0]
@@ -310,20 +310,20 @@ def potency_report():
         for sd in PROBE_SEEDS:
             r = runner(BODY_C, MEM_V, sd, 0.0, trace=True) if name.startswith("v2") \
                 else None
-            if r is None:      # v1 没有 trace 接口 → 用等价的被动重放
+            if r is None:      # v1 has no trace interface → use the equivalent passive replay
                 states += _v1_passive_states(BODY_C, sd)
             else:
                 states += r["states"]
         if not states:
-            print(f"{name:<14}  ⚠ 无 eligible 机会")
+            print(f"{name:<18}  ⚠ no eligible opportunities")
             continue
         sig = lambda z: 1.0 / (1.0 + math.exp(-max(-60.0, min(60.0, z))))  # noqa: E731
         base = [sig(z) for z, _ in states]
         sat = sum(1 for p in base if p >= 0.9 or p <= 0.1) / len(base)
         print(f"\n{name}   eligible opportunities = {len(states)}"
-              f"   （每种子 {len(states) / len(PROBE_SEEDS):.2f} 个）")
-        print(f"  base p(switch)：中位数 {statistics.median(base):.3f}"
-              f"   饱和比例（≤0.1 或 ≥0.9）{sat:.1%}")
+              f"   ({len(states) / len(PROBE_SEEDS):.2f} per seed)")
+        print(f"  base p(switch): median {statistics.median(base):.3f}"
+              f"   saturated share (≤0.1 or ≥0.9) {sat:.1%}")
         print(f"  {'λ':>6}  {'mean|Δp|':>10}  {'median|Δp|':>12}  {'p90|Δp|':>10}")
         for lam in LAMBDA_GRID:
             if lam == 0:
@@ -336,7 +336,7 @@ def potency_report():
 
 
 def _v1_passive_states(body, seed):
-    """v1 的被动重放：λ=0 轨迹上标出 v1 会触发的 trial 及其 base logit"""
+    """v1's passive replay: mark the trials v1 would fire on, and their base logit, along the λ=0 trajectory"""
     rows, us, _ = NT.reward_table(seed)
     b = NT.BETA * NT.novelty_style(body)
     Q, N = [NT.Q_INIT, NT.Q_INIT], [0, 0]
@@ -350,7 +350,7 @@ def _v1_passive_states(body, seed):
             oth = 1 - cur
             z = (val[oth] - val[cur]) / NT.TAU
             if query_from_state(Q[cur], run_):
-                st.append((z, 1.0))          # v1 永远加在"switch"上
+                st.append((z, 1.0))          # v1 always adds it to "switch"
             c = oth if us[t] < 1.0 / (1.0 + math.exp(-max(-60., min(60., z)))) else cur
         r = rows[t][c]
         pe = r - Q[c]
@@ -363,7 +363,7 @@ def _v1_passive_states(body, seed):
 
 # ================================================================== ④ ⑤ SWAP
 def new_swap(runner, lam, quiet=False):
-    """★ 新 SWAP ★ M_C / M_K / pooled M / interaction。**不再有 dominance 闸**"""
+    """★ The new SWAP ★ M_C / M_K / pooled M / interaction. **No dominance gate any more**"""
     L = {}
     for body in (BODY_C, BODY_K):
         for mem in (MEM_S, MEM_V):
@@ -384,13 +384,13 @@ def new_swap(runner, lam, quiet=False):
     n = len(PROBE_SEEDS)
     boot = []
     for _ in range(N_BOOT):
-        idx = [rng.randrange(n) for _ in range(n)]      # ★同一组种子下标★
+        idx = [rng.randrange(n) for _ in range(n)]      # ★one shared set of seed indices★
         boot.append((statistics.fmean([mc[i] for i in idx])
                      + statistics.fmean([mk[i] for i in idx])) / 2.0)
     boot.sort()
     lo, hi = boot[int(0.025 * N_BOOT)], boot[int(0.975 * N_BOOT)]
 
-    # body effect —— 仅作 robustness diagnostic，★不再是闸门★
+    # body effect — a robustness diagnostic only, ★no longer a gate★
     beff = statistics.fmean([
         statistics.fmean(L[(BODY_K.name, m.name)])
         - statistics.fmean(L[(BODY_C.name, m.name)]) for m in (MEM_S, MEM_V)])
@@ -401,10 +401,10 @@ def new_swap(runner, lam, quiet=False):
 
 def swap_report():
     print("\n" + "=" * 78)
-    print("④ NEW SWAP —— M = (M_C + M_K)/2   ⛔ dominance 判据已撤回 ⛔")
+    print("④ NEW SWAP — M = (M_C + M_K)/2   ⛔ the dominance criterion is withdrawn ⛔")
     print("=" * 78)
-    print(f"{'机制':<14}{'λ':>6}{'M_C':>9}{'M_K':>9}{'pooled M':>11}"
-          f"{'95% CI（描述性）':>24}{'方向一致':>10}{'interaction':>13}")
+    print(f"{'mechanism':<18}{'λ':>6}{'M_C':>9}{'M_K':>9}{'pooled M':>11}"
+          f"{'95% CI (descriptive)':>26}{'same direction':>16}{'interaction':>13}")
     print("-" * 78)
     res = {}
     for name, runner in RUNNERS.items():
@@ -416,21 +416,21 @@ def swap_report():
             print(f"{name:<14}{lam:>6.2f}{r['M_C']:>+9.3f}{r['M_K']:>+9.3f}"
                   f"{r['M']:>+11.3f}"
                   f"   [{r['ci'][0]:+.3f}, {r['ci'][1]:+.3f}]"
-                  f"{'是' if r['same_sign'] else '否':>10}"
+                  f"{'yes' if r['same_sign'] else 'no':>16}"
                   f"{r['inter']:>+13.3f}")
-    print("\n⚠ CI 是**描述性**的（seed cluster bootstrap，n_boot=10000，"
-          f"分析种子 {ANALYSIS_SEED}）。")
-    print("  今天**不定 SESOI**，所以不做功能意义判读。")
+    print("\n⚠ The CI is **descriptive** (seed cluster bootstrap, n_boot=10000,"
+          f" analysis seed {ANALYSIS_SEED}).")
+    print("  No SESOI is fixed today, so no functional-significance reading is made.")
     return res
 
 
 def downstream_report():
-    """⑤ latency / correct-rate 只作为 downstream consequence"""
+    """⑤ latency / correct rate are reported only as downstream consequences"""
     print("\n" + "=" * 78)
-    print("⑤ DOWNSTREAM —— 轨迹改变 + latency / 反转后正确率")
+    print("⑤ DOWNSTREAM — trajectory change + latency / post-reversal accuracy")
     print("=" * 78)
-    print(f"{'机制':<14}{'λ':>6}{'轨迹改变':>12}{'Δlatency(V−S)':>16}"
-          f"{'Δ反转后正确率':>16}")
+    print(f"{'mechanism':<18}{'λ':>6}{'trajectory changed':>20}{'Δlatency(V−S)':>16}"
+          f"{'Δpost-reversal accuracy':>25}")
     print("-" * 78)
     for name, runner in RUNNERS.items():
         for lam in LAMBDA_GRID:
@@ -452,21 +452,21 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     fp = NT.assert_frozen()
     print("=" * 78)
-    print("029 memory transfer probe v2 —— stateful retrieval（★仍是探针，不是实验★）")
+    print("029 memory transfer probe v2 — stateful retrieval (★still a probe, not an experiment★)")
     print("=" * 78)
-    print(f"任务底座：027 novel_task 指纹 {fp}（未改）  "
-          f"种子 {PROBE_SEEDS[0]}–{PROBE_SEEDS[-1]}  n={len(PROBE_SEEDS)}")
-    print(f"阈值未动：GOOD_THRESH={GOOD_THRESH} PE_THRESH={PE_THRESH} "
-          f"SURPRISE_RUN_MIN={SURPRISE_RUN_MIN}   单次 reversal   ★80000–81499 未碰★")
-    print("唯一改变：one-shot retrieval → stateful retrieval（RETRIEVE→ACTIVE→RESOLVED）")
+    print(f"task substrate: 027 novel_task fingerprint {fp} (unchanged)  "
+          f"seeds {PROBE_SEEDS[0]}–{PROBE_SEEDS[-1]}  n={len(PROBE_SEEDS)}")
+    print(f"thresholds untouched: GOOD_THRESH={GOOD_THRESH} PE_THRESH={PE_THRESH} "
+          f"SURPRISE_RUN_MIN={SURPRISE_RUN_MIN}   single reversal   ★80000–81499 untouched★")
+    print("Only change: one-shot retrieval → stateful retrieval (RETRIEVE→ACTIVE→RESOLVED)")
 
-    print("\n[ 工程自检 ]")
+    print("\n[ engineering self-check ]")
     _test_v1_unchanged()
     for nm, rn in RUNNERS.items():
         _test_memory_blind(rn)
-    print(f"  ✓ memory-blind（λ=0）：两套机制各 {len(PROBE_SEEDS)}/{len(PROBE_SEEDS)}"
-          f" 种子逐 trial 相同")
-    _ = new_swap(run_stateful, 1.0)          # 触发 survivor-conditioning 断言
+    print(f"  ✓ memory-blind (λ=0): each mechanism identical trial by trial on {len(PROBE_SEEDS)}/{len(PROBE_SEEDS)}"
+          f" seeds")
+    _ = new_swap(run_stateful, 1.0)          # triggers the survivor-conditioning assertion
 
     exposure_report()
     potency_report()
@@ -474,15 +474,15 @@ if __name__ == "__main__":
     downstream_report()
 
     print("\n" + "=" * 78)
-    print("★ 判读 ★")
+    print("★ Reading ★")
     print("=" * 78)
     v1 = sw[("v1 one-shot", 1.0)]
     v2 = sw[("v2 stateful", 1.0)]
     print(f"  λ=1  v1 one-shot  pooled M = {v1['M']:+.3f}"
-          f"  方向一致 {'是' if v1['same_sign'] else '否'}")
+          f"  same direction {'yes' if v1['same_sign'] else 'no'}")
     print(f"  λ=1  v2 stateful  pooled M = {v2['M']:+.3f}"
-          f"  方向一致 {'是' if v2['same_sign'] else '否'}")
-    print("\n  Directional SWAP check —— 看上表 M_C / M_K 是否同号")
-    print("  Dominance criterion（|memory|>|body|）—— ★ RETIRED，不再计算判读 ★")
-    print("\n⚠ 这仍然不是 029 scientific success：")
-    print("   记忆是手工造的、λ 没冻结、Stable/Volatile 根本还没跑。")
+          f"  same direction {'yes' if v2['same_sign'] else 'no'}")
+    print("\n  Directional SWAP check — see whether M_C / M_K above share a sign")
+    print("  Dominance criterion (|memory|>|body|) — ★ RETIRED, neither computed nor read ★")
+    print("\n⚠ This is still not 029 scientific success:")
+    print("   the memories are hand-built, λ is not frozen, and Stable/Volatile have not been run at all.")
