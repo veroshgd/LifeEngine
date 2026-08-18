@@ -5960,22 +5960,22 @@ XSEED-DONOR  -0.9240   [-1.0533, -0.7960]     retains 104.6% of OWN
 
 > ### ★ Detectable memory-mediated transfer, but functional significance not established. ★
 
-⚠ **CI 下界 −1.0160 已经越过 −1，但上界 −0.7533 没有** ——
-预注册的第三档要求**整个 CI 低于 −1**，所以判第二档。**不许**因为下界过线就
-说"接近功能显著"。
+⚠ **The CI's lower bound −1.0160 does cross −1, but the upper bound −0.7533 does not** —
+the preregistered third band requires the **entire CI below −1**, so this reads as the second band. It is **not permitted**
+to call it "close to functionally significant" merely because the lower bound crossed.
 
 ### 6. ★ SHUFFLE conditional retention ratio ★
 
 ```
 R = |ΔC_SHUFFLE| / |ΔC_OWN| = 0.0106      95% CI [0.0015, 0.1102]
-判据（§6.3 B）：CI 上界 < 0.25   →   ★满足★
+criterion (§6.3 B): CI upper bound < 0.25   →   ★satisfied★
 ```
 
-> **≥75% attenuation established：transfer 由关系结构承载。**
+> **≥75% attenuation established: the transfer is carried by the relational structure.**
 
-条件性判读的前提已满足（OWN 的 CI 完全 < 0，§6.3.2）。
+The precondition for the conditional reading is met (OWN's CI lies entirely < 0, §6.3.2).
 
-必须随结果写明的披露：
+The disclosure that must accompany the results:
 
 > The CI-upper interpretation in §6.3 was finalized after observing the
 > development rehearsal retention estimate R = 0.094, 95% CI [0.005, 0.261],
@@ -5984,108 +5984,108 @@ R = |ΔC_SHUFFLE| / |ΔC_OWN| = 0.0106      95% CI [0.0015, 0.1102]
 ### 7–9
 
 ```
-XSEED-DONOR   ΔC = -0.9240，保留 OWN 的 104.6% → 效应不靠发育-测试共享种子
-integrity     DELETE 1500/1500 ≡ 0 ✓    SWAP 1500/1500 ≡ −OWN ✓（代数恒等式，非证据）
+XSEED-DONOR   ΔC = -0.9240, retains 104.6% of OWN → the effect does not rely on a shared development/test seed
+integrity     DELETE 1500/1500 ≡ 0 ✓    SWAP 1500/1500 ≡ −OWN ✓ (algebraic identities, not evidence)
 secondary     Δlatency OWN -1.5733 / SHUFFLE +0.0527 / XSEED -1.8433
-              exposure 全程 6.2–6.3 / 80 → memory 始终 event-triggered
+              exposure 6.2–6.3 / 80 throughout → memory stays event-triggered
 ```
 
-## ★ 事前预测 vs 实际（照抄预注册 §14 对比）★
+## ★ A-priori predictions vs actuals (transcribed against §14 of the preregistration) ★
 
 ```
-项                     预测                          实际                    
-ΔC 方向                < 0（有方向预测）              −0.8833                ✓
-ΔC 是否越过 SESOI      未知（唯一真正未知项）          否，第二档              —
-G1 / G3                必过                          过                     ✓
-G2 capacity transport  预计通过                       过（四项均有余量）      ✓
-SHUFFLE R 点估计       ≈ 0.1                         0.0106                 ✓（更小）
-SHUFFLE CI 上界<0.25   不预设                        0.1102，满足            —
-XSEED-DONOR            保留 ≥ 80%                    104.6%                 ✓
+item                   predicted                     actual                 
+ΔC direction           < 0 (directional prediction)  −0.8833                ✓
+does ΔC cross the SESOIunknown (the only real unknown)no, second band        —
+G1 / G3                must pass                     passed                 ✓
+G2 capacity transport  expected to pass              passed w/ margin (4/4) ✓
+SHUFFLE R point est.   ≈ 0.1                         0.0106                 ✓ (smaller)
+SHUFFLE CI upper <0.25 not predicted                 0.1102, satisfied      —
+XSEED-DONOR            retains ≥ 80%                 104.6%                 ✓
 memory completeness    ≈ 66% / 73%                   65.40% / 74.80%        ✓
 ```
 
-**唯一未知的那一项落在第二档 —— 与三个块的一致趋势相符。**
+**The one genuinely unknown item lands in the second band — consistent with the trend across all three blocks.**
 
 ```
-开发块 0–399（N=400）        ΔC = -0.927   CI [-1.202, -0.677]
-彩排块 10000–11499（N=1500） ΔC = -0.819   CI [-0.939, -0.699]
-★FINAL 80000–81499（N=1500） ΔC = -0.883   CI [-1.016, -0.753]★
+development block 0–399 (N=400)       ΔC = -0.927   CI [-1.202, -0.677]
+rehearsal block 10000–11499 (N=1500)  ΔC = -0.819   CI [-0.939, -0.699]
+★FINAL block 80000–81499 (N=1500)     ΔC = -0.883   CI [-1.016, -0.753]★
 ```
 
-三个独立块 **−0.82 ~ −0.93**，高度一致。**起飞前已公开写下"大概率落第二档"，
-结果如此。这不是事后合理化。**
+Three independent blocks give **−0.82 to −0.93**, in close agreement. **"Most likely the second band" was written
+down publicly before take-off, and that is exactly what happened. This is not post-hoc rationalisation.**
 
-## ⚠⚠ 协议偏离：必须如实记录 ⚠⚠
+## ⚠⚠ Protocol deviation: it must be recorded truthfully ⚠⚠
 
-> ### ★ 规则 98：预注册写在哪个阶段做的检查，就必须在那个阶段做 ★
-> 预注册 §10 要求：**彩排阶段**换 8 个分析随机种子重跑，
-> 若判读会被分析种子左右，**在跑 FINAL 之前**改成加宽的三值判读。
+> ### ★ Rule 98: a check the preregistration assigns to a stage must be performed at that stage ★
+> §10 of the preregistration requires re-running with 8 different analysis seeds **during the rehearsal stage**,
+> and switching to a widened three-valued reading **before FINAL is run** if the reading turns out to depend on the analysis seed.
 >
-> **这一步在彩排阶段没有做。** 是在 FINAL 跑完之后才补做的。
-> 补做**不能**假装是按计划做的 —— 如实记为**协议偏离**。
+> **This step was not done at the rehearsal stage.** It was done retrospectively, after FINAL had already run.
+> A retrospective check **must not** be presented as having gone to plan — it is recorded honestly as a **protocol deviation**.
 
-补做结果（**描述性**，不改变任何判读；同 027 的 analysis-level MC stability，规则 80）：
+The retrospective results (**descriptive**, changing no reading; the same analysis-level MC stability as in 027, rule 80):
 
 ```
-分析种子    CI_lo     CI_hi     判读                      R CI 上界   <0.25
-  8181★   -1.0160   -0.7533   档2 可检出/功能意义未确立    0.1102      ✓
-     1    -1.0160   -0.7547   档2                        0.1083      ✓
-     2    -1.0167   -0.7573   档2                        0.1115      ✓
-     3    -1.0147   -0.7547   档2                        0.1102      ✓
-     4    -1.0160   -0.7560   档2                        0.1086      ✓
-     5    -1.0180   -0.7560   档2                        0.1111      ✓
-     6    -1.0147   -0.7560   档2                        0.1107      ✓
-     7    -1.0133   -0.7547   档2                        0.1090      ✓
+    seed     CI_lo     CI_hi   reading                   R upper   <0.25
+   8181★   -1.0160   -0.7533   band 2 detect./func n.e.   0.1102   ✓
+       1   -1.0160   -0.7547   band 2                     0.1083   ✓
+       2   -1.0167   -0.7573   band 2                     0.1115   ✓
+       3   -1.0147   -0.7547   band 2                     0.1102   ✓
+       4   -1.0160   -0.7560   band 2                     0.1086   ✓
+       5   -1.0180   -0.7560   band 2                     0.1111   ✓
+       6   -1.0147   -0.7560   band 2                     0.1107   ✓
+       7   -1.0133   -0.7547   band 2                     0.1090   ✓
 
-8/8 判读一致；8/8 R 判据一致
-CI_hi 的 MC SD = 0.00115
-距离 0 的边界 0.7533 = 655 × MC SD；距离 −1 的边界 0.2467 = 214 × MC SD
+8/8 readings agree; 8/8 R criteria agree
+MC SD of CI_hi = 0.00115
+distance to the 0 boundary 0.7533 = 655 × MC SD; distance to the −1 boundary 0.2467 = 214 × MC SD
 ```
 
-**判读离两条 bright line 都极远（远超预注册要求的 10 × MC SD），
-所以这次偏离没有造成实质风险 —— 但下一个实验必须按阶段执行。**
+**The reading sits far from both bright lines (well beyond the 10 × MC SD the preregistration asks for),
+so this deviation created no substantive risk — but the next experiment must follow the stages as written.**
 
-## 029 能写什么 / 不能写什么
+## What 029 may and may not claim
 
 | | |
 |---|---|
-| ✅ | 真实发育经历自然长出的 **relational memory**，经一条**独立校准（group-blind）的接口**，在表面陌生、结构相似的新问题中**因果性地减少了错误**（ΔC = −0.88，CI [−1.02, −0.75]） |
-| ✅ | 该效应**由关系结构承载**：保持 episode 数、stay/switch 条数与 outcome 边际不变、只打乱 action↔outcome 关系后，**≥75% 的 transfer 消失**（R = 0.011，CI 上界 0.110 < 0.25） |
-| ✅ | 效应**不靠发育与测试共享种子**（XSEED-DONOR 保留 104.6%） |
-| ✅ | **功能意义未确立** —— 未达到预注册的 1-error 门槛 |
-| ⛔ | ~~functionally meaningful transfer~~ —— 第三档要求整个 CI < −1，没有达到 |
-| ⛔ | ~~analogical reasoning~~ / agent"理解了结构 / 理解了因果" |
+| ✅ | **Relational memory** grown naturally out of real developmental experience, passing through an **independently calibrated (group-blind) interface**, **causally reduced errors** on a surface-unfamiliar but structurally similar new problem (ΔC = −0.88, CI [−1.02, −0.75]) |
+| ✅ | The effect is **carried by the relational structure**: with episode counts, stay/switch counts and outcome marginals all preserved and only the action↔outcome relation shuffled, **≥75% of the transfer disappears** (R = 0.011, CI upper bound 0.110 < 0.25) |
+| ✅ | The effect **does not rely on development and test sharing a seed** (XSEED-DONOR retains 104.6%) |
+| ✅ | **Functional significance is not established** — the preregistered 1-error threshold was not reached |
+| ⛔ | ~~functionally meaningful transfer~~ — the third band requires the whole CI < −1, which was not reached |
+| ⛔ | ~~analogical reasoning~~ / the agent "understood the structure" or "understood the causality" |
 | ⛔ | ~~generalized individuality~~ |
-| ⛔ | 把 DELETE / within-seed SWAP 写成因果证据（规则 93：memory-only 架构下是代数恒等式） |
-| ⛔ | 把 `m ≠ 0` 叫 memory availability（规则 94：completeness 与 non-zero evidence rate 是两个量） |
-| ⛔ | 只报 complete-only 的分离度（规则 91） |
+| ⛔ | Presenting DELETE / within-seed SWAP as causal evidence (rule 93: under a memory-only architecture they are algebraic identities) |
+| ⛔ | Calling `m ≠ 0` memory availability (rule 94: completeness and the non-zero evidence rate are two different quantities) |
+| ⛔ | Reporting only the complete-only separation (rule 91) |
 
-## ★ 025 + 027 + 028 + 029 合起来说明了什么 ★
+## ★ What 025 + 027 + 028 + 029 show together ★
 
 ```
-025/v3  过去能不能【留下】                     明显
-027     留下的 personality 会自动迁移吗         极弱（0.08 trial），且新块未复制
-028     等预算下加宽 personality readout        没有增益（G ≈ 0）
-★029★  真实经历长出的【关系性记忆】能否迁移    ★能，−0.88 error，且由关系结构承载★
-                                               但未达 1-error 功能门槛
+025/v3  can the past persist at all                            clearly
+027     does the personality left behind transfer by itself    very weak (0.08 trial), did not replicate
+028     widening the personality readout at equal budget       no gain (G ≈ 0)
+★029★   can relational memory from real experience transfer    ★yes: −0.88 error, carried by structure★
+                                                               but below the 1-error functional threshold
 ```
 
-> ### ★ 核心命题（最终形态）★
-> **Persistent individuality ≠ automatically functional generalization —— 但
-> relational memory 不是同一回事。**
+> ### ★ The core proposition (final form) ★
+> **Persistent individuality ≠ automatically functional generalization — but
+> relational memory is a different matter.**
 >
-> 027/028 表明：把发育史压成一个 personality readout 送进新任务，
-> 几乎不携带可复制的功能迁移。
-> **029 表明：当发育史以【关系性经验】的形式被存下、并在遇到结构相似的情境时
-> 被检索，它确实能因果性地减少新问题中的错误** ——
-> 这个效应稳定（三块 −0.82~−0.93）、可归因于关系结构（SHUFFLE 摧毁 ≥75%）、
-> 且不依赖种子耦合（XSEED 104.6%）。
+> 027/028 showed: compressing a developmental history into a personality readout and feeding it into a new task
+> carries almost no replicable functional transfer.
+> **029 shows: when a developmental history is stored as relational experience and retrieved on meeting
+> a structurally similar situation, it really can causally reduce errors on a new problem** —
+> the effect is stable (−0.82 to −0.93 across three blocks), attributable to the relational structure (SHUFFLE destroys ≥75%),
+> and independent of seed coupling (XSEED 104.6%).
 >
-> **但它没有跨过我们预先定下的功能门槛。**
-> 迁移是**真实的、机制清楚的、但幅度小于 1 个 post-change error**。
+> **But it did not cross the functional threshold we set in advance.**
+> The transfer is **real, mechanistically clear, and smaller than a single post-change error**.
 
-## 复现方式（新增）
+## How to reproduce (new)
 
-- `final_029.py --final` → `final_029_result.txt`、`final_029_console.txt`、
+- `final_029.py --final` → `final_029_result.txt`, `final_029_console.txt`,
   `final_029_STARTED.lock`
-- 种子账本更新：`80000–81499` = **029 FINAL（已烧）**
+- Seed ledger update: `80000–81499` = **029 FINAL (burned)**
