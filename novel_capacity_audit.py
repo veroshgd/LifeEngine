@@ -1,37 +1,37 @@
 """
-v3 novel-probe capacity audit —— 用同一套资格标准扫所有现有通道
-=================================================================
+v3 novel-probe capacity audit — scanning every existing channel against one set of eligibility standards
+========================================================================================================
 
-运行：  python novel_capacity_audit.py --seeds 300
+Run:  python novel_capacity_audit.py --seeds 300
 
-★ 为什么做这个 ★
-三个 probe 连续失败，每次原因不同：
-  Probe A 冻土     → 生存分裂（规则 64：动食物只能压出生死差异）
-  Probe B 盐碱地   → 生存分裂（同上，方向相反）
-  Probe A2 探路    → 乘性加成落空（规则 68：77% 的球从不采集，乘的是 0）
+★ Why do this ★
+Three probes failed in a row, each for a different reason:
+  Probe A frozen ground  → survival split (rule 64: touching food can only produce a life/death difference)
+  Probe B saline soil    → survival split (same, opposite direction)
+  Probe A2 pathfinding   → the multiplicative bonus came to nothing (rule 68: 77% of balls never gather, so it multiplies zero)
 
-**再凭感觉找第四个 probe 没有意义。** 改成：把 v3 现有的行为通道
-全部用**同一套资格标准**扫一遍，看有没有任何一个通道够格。
+**Hunting for a fourth probe by intuition is pointless.** Instead: scan every existing behavioural channel of v3
+against **one common set of eligibility standards** and see whether any channel qualifies.
 
-★ 资格标准（六条，全过才算够格）★
-  Q1 近乎全员可参与    参与率 ≥ 70%                （规则 68）
-  Q2 个体差异足够      跨个体 p90−p10 ≥ 0.10        （规则 66）
-  Q3 确实是紧约束      ≥ 20% 的个体真的被它限制住    （规则 68 的另一半）
-  Q4 不决定生死        操纵它不改变存活              （规则 65）
-  Q5 有回读通路        进入 score() / goal，行为才可能变（反应式通路）
-  Q6 两世界同等可及    发育期两边都有该可供性         （规则 67）
+★ Eligibility standards (six; all must pass) ★
+  Q1 nearly everyone can take part   participation ≥ 70%                (rule 68)
+  Q2 enough individual difference    between-individual p90−p10 ≥ 0.10   (rule 66)
+  Q3 genuinely a binding constraint  ≥ 20% of individuals really limited by it  (the other half of rule 68)
+  Q4 does not decide life or death   manipulating it does not change survival  (rule 65)
+  Q5 has a read-back path            enters score() / goal, so behaviour can change (the reactive path)
+  Q6 equally accessible in both worlds  the affordance exists in both during development  (rule 67)
 
-Q1–Q3 实测；Q4–Q6 由代码结构判定（在 CHANNELS 里逐条注明依据）。
+Q1–Q3 are measured; Q4–Q6 are decided from the code structure (the basis is noted per entry in CHANNELS).
 
-★ group-blind ★ 只输出 pooled 量与跨个体方差。种子 `20000+`。
-**不碰 `60000–61499`。**
+★ group-blind ★ Only pooled quantities and between-individual variance are printed. Seeds `20000+`.
+**Do not touch `60000–61499`.**
 
-★ 结论怎么用 ★
-- 有通道全过 → 那就是第四个 probe 该建的地方
-- **一个都不过 → 026 以「v3 不具备可干净检验 generalization 的动作经济」封存**，
-  并且 v4 的设计目标随之变得非常明确：不是"让模型更复杂"，
-  而是补上这三轮暴露的缺口 —— **至少一个不决定生死、近乎全员可参与、
-  具有多种有效策略、并允许 agent 对新 contingency 产生行为适应的经济。**
+★ How to use the conclusion ★
+- Some channel passes everything → that is where the fourth probe should be built
+- **None passes → 026 is closed with "v3 lacks an action economy in which generalization can be tested cleanly"**,
+  and the design goal of v4 becomes very clear: not "make the model more complex" but
+  close the gap these three rounds exposed — **at least one economy that does not decide life or death, that
+  nearly everyone can take part in, that admits several effective strategies, and that lets the agent adapt behaviourally to a new contingency.**
 """
 
 import argparse
@@ -40,33 +40,33 @@ import os
 import statistics
 from collections import Counter
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 DEV_DAYS, OBS_DAYS = 30, 30
 CHUNK = 25
 
-# (通道, Q4 不决定生死?, Q5 有回读通路?, Q6 两世界同等可及?, 依据)
+# (channel, Q4 does not decide life/death?, Q5 has a read-back path?, Q6 equally accessible in both worlds?, basis)
 STRUCTURAL = {
     "sleep / energy": (
         False, True, True,
-        "energy 经 SLEEP_EFF_FLOOR 与 condition 相连 → 触及生死通路（Q4 存疑，需拍板）"),
-    "explore / 非食物产出": (
+        "energy is tied to condition via SLEEP_EFF_FLOOR → touches the life/death path (Q4 doubtful, needs a decision)"),
+    "explore / non-food output": (
         True, True, True,
-        "flag/knowledge/性状反馈进 score()；两世界都能 explore"),
+        "flag/knowledge/trait feedback enters score(); explore is available in both worlds"),
     "material / build": (
         True, True, True,
-        "inventory 进目标进度；两世界都有 material_yield（2.0 vs 0.5）"),
-    "goal 结构": (
+        "inventory feeds goal progress; both worlds have material_yield (2.0 vs 0.5)"),
+    "goal structure": (
         True, True, True,
-        "goal 直接进 score()；两世界共用同一套 GOAL_ACTIONS"),
+        "goal enters score() directly; both worlds share the same GOAL_ACTIONS"),
     "knowledge": (
         True, True, True,
-        "022 已接入 score()；但书只在丰富世界 → 见下方 Q6 实测"),
+        "022 already wired into score(); but books exist only in the rich world → see the Q6 measurement below"),
     "shelter / storm": (
         False, True, True,
-        "shelter 低 → condition 受损通路；storm_chance 两世界不同(0.02/0.1)"),
-    "objects / 动作合法性": (
+        "low shelter → the condition-damage path; storm_chance differs between the worlds (0.02/0.1)"),
+    "objects / action legality": (
         True, True, False,
-        "★Q6 不过★ read 需要 book，book 只在丰富世界 → 不是对两组同等新颖"),
+        "★Q6 fails★ read requires a book, and books exist only in the rich world → not equally novel to both groups"),
 }
 
 
@@ -141,57 +141,57 @@ def main():
         for recs in p.imap_unordered(_dispatch, jobs):
             pool.extend(recs)
     if not pool:
-        raise SystemExit("✗ 池子为空 —— 故障")
+        raise SystemExit("✗ pool is empty — failure")
     n = len(pool)
 
     def frac(f):
         return sum(1 for r in pool if f(r)) / n
 
-    # ── 各通道的 Q1 参与率 / Q2 个体方差 / Q3 紧约束 ──
+    # ── Q1 participation / Q2 individual variance / Q3 binding constraint, per channel ──
     meas = {
         "sleep / energy": (
             frac(lambda r: r["sleep"] > 0),
             spread([r["sleep"] for r in pool]),
-            frac(lambda r: r["energy_end"] < 30),          # 被精力限制住
-            "energy<30 的比例"),
-        "explore / 非食物产出": (
+            frac(lambda r: r["energy_end"] < 30),          # limited by energy
+            "share with energy<30"),
+        "explore / non-food output": (
             frac(lambda r: r["explore"] > 0),
             spread([r["explore"] for r in pool]),
-            1 - frac(lambda r: r["has_explore_flag"]),     # 信息产出未饱和的比例
-            "未拿到 loves_exploring 的比例"),
+            1 - frac(lambda r: r["has_explore_flag"]),     # share whose information output is unsaturated
+            "share that never got loves_exploring"),
         "material / build": (
             frac(lambda r: r["gather_material"] > 0),
             spread([r["gather_material"] for r in pool]),
-            frac(lambda r: r["material_end"] < 3),         # 买不起一次 build
-            "材料<3 的比例"),
-        "goal 结构": (
+            frac(lambda r: r["material_end"] < 3),         # cannot afford one build
+            "share with material<3"),
+        "goal structure": (
             frac(lambda r: r["n_goal_kinds"] >= 2),
             spread([r["top_goal_share"] for r in pool]),
-            frac(lambda r: r["top_goal_share"] < 0.9),     # 没被单一目标垄断
-            "主目标占比<0.9 的比例"),
+            frac(lambda r: r["top_goal_share"] < 0.9),     # not monopolised by a single goal
+            "share with a top-goal share <0.9"),
         "knowledge": (
             frac(lambda r: r["n_knowledge"] > 0),
             spread([r["n_knowledge"] / 6.0 for r in pool]),
             frac(lambda r: r["n_knowledge"] < 4),
-            "knowledge 条数<4 的比例"),
+            "share with fewer than 4 knowledge entries"),
         "shelter / storm": (
             1.0,
             spread([r["shelter_end"] / 100.0 for r in pool]),
             frac(lambda r: r["shelter_end"] < 50),
-            "shelter<50 的比例"),
-        "objects / 动作合法性": (
+            "share with shelter<50"),
+        "objects / action legality": (
             frac(lambda r: r["read"] > 0),
             spread([r["read"] for r in pool]),
             0.0,
-            "基准世界无书 → 恒 0"),
+            "the baseline world has no books → always 0"),
     }
 
     print("=" * 112)
-    print(f" v3 novel-probe capacity audit（group-blind）  common garden {OBS_DAYS} 天"
-          f"  n={n}  存活 {frac(lambda r: r['alive']):.1%}")
+    print(f" v3 novel-probe capacity audit (group-blind)  common garden {OBS_DAYS} days"
+          f"  n={n}  alive {frac(lambda r: r['alive']):.1%}")
     print("=" * 112)
-    print(f"  {'通道':<22}{'Q1参与率':>9}{'Q2方差':>9}{'Q3紧约束':>10}"
-          f"{'Q4非生死':>10}{'Q5回读':>8}{'Q6同等':>8}{'资格':>8}")
+    print(f"  {'channel':<30}{'Q1 partic.':>12}{'Q2 var':>9}{'Q3 binding':>12}"
+          f"{'Q4 non-fatal':>14}{'Q5 read-back':>14}{'Q6 equal':>10}{'eligible':>10}")
     print("  " + "-" * 108)
 
     passed = []
@@ -202,36 +202,36 @@ def main():
         mark = lambda b: "✓" if b else "✗"
         print(f"  {ch:<22}{q1:>8.1%}{mark(ok1)}{q2:>8.3f}{mark(ok2)}"
               f"{q3:>9.1%}{mark(ok3)}{mark(q4):>9}{mark(q5):>8}{mark(q6):>8}"
-              f"{'★够格' if ok else '不够格':>9}")
+              f"{'★eligible' if ok else 'not eligible':>13}")
         if ok:
             passed.append(ch)
 
-    print("\n  Q3 的具体口径：")
+    print("\n  The exact definition of Q3:")
     for ch, (_, _, _, q3name) in meas.items():
         print(f"    {ch:<22} {q3name}")
-    print("\n  Q4/Q5/Q6 的结构性依据：")
+    print("\n  The structural basis of Q4/Q5/Q6:")
     for ch, (_, _, _, why) in STRUCTURAL.items():
         print(f"    {ch:<22} {why}")
 
     print("\n" + "=" * 112)
     if passed:
-        print(f" ★ 够格的通道：{passed}")
-        print(" → 第四个 probe 应当建在这里；继续 group-blind feasibility calibration。")
+        print(f" ★ Eligible channels: {passed}")
+        print(" → the fourth probe should be built here; continue with group-blind feasibility calibration.")
     else:
-        print(" ✗ **没有任何通道通过全部六条资格标准。**")
+        print(" ✗ **No channel passes all six eligibility standards.**")
         print("")
-        print(" → 026 以此封存：**v3 不具备可干净检验 generalization 的动作经济。**")
+        print(" → 026 is closed on this basis: **v3 lacks an action economy in which generalization can be tested cleanly.**")
         print("")
-        print(" 这不是'又选错了战场'，而是三轮 group-blind feasibility testing")
-        print(" 得出的结构性结论。v4 的设计目标随之变得非常明确 ——")
-        print(" **不是让模型更复杂，而是补上 v3 被这三轮实验暴露的缺口：**")
-        print("   至少一个【不决定生死】【近乎全员可参与】【具有多种有效策略】")
-        print("   【并允许 agent 对新 contingency 产生行为适应】的经济。")
+        print(" This is not 'we picked the wrong battlefield again' but a structural conclusion from three rounds")
+        print(" of group-blind feasibility testing. The design goal of v4 becomes very clear —")
+        print(" **not to make the model more complex, but to close the gap these three experiments exposed in v3:**")
+        print("   at least one economy that **does not decide life or death**, that **nearly everyone can take part in**,")
+        print("   that **admits several effective strategies**, and that **lets the agent adapt behaviourally to a new contingency**.")
         print("")
-        print(" ★ 方法论上的关键区别 ★")
-        print("   升级 v4 不是为了'把论文结果调出来'，")
-        print("   而是因为 group-blind feasibility testing 已经明确证明：")
-        print("   frozen v3 缺少测量这个问题所需的自由度。")
+        print(" ★ The key methodological distinction ★")
+        print("   Upgrading to v4 is not about 'tuning the paper's result into existence',")
+        print("   but because group-blind feasibility testing has clearly shown that")
+        print("   frozen v3 lacks the degrees of freedom needed to measure this question.")
     print("=" * 112)
 
 

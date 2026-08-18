@@ -1,53 +1,53 @@
 """
-实验 027 —— Novel-Task Transfer + Reversal（v4 的唯一新模块）
-================================================================
+Experiment 027 — Novel-Task Transfer + Reversal (the only new module in v4)
+===========================================================================
 
-自检：  python novel_task.py
+Self-check:  python novel_task.py
 
-★★ v4 的定义 ★★
-    v4 = v3_frozen 的核心（**逐字节不动**） + 本模块
-本模块**不修改 `v3_frozen/` 的任何一行**，也不在 60 天之内接触 agent 状态。
-所以「NovelTask 关闭时 v4 与 v3 逐 tick 完全相同」是**构造上成立**的，
-但仍然写成回归测试（`_test_v3_equivalence`），防止日后有人不小心把它耦合进去。
-
---------------------------------------------------------------------------
-任务：两个从未存在过的按钮 A / B
---------------------------------------------------------------------------
-    30 天发育（丰富/贫瘠）→ 30 天 common garden → 拉平身体状态
-    → 进入新任务：80 个 trial，每个 trial 选 A 或 B，得到 0/1 点数
-
-**这个任务与 食物 / 房子 / 材料 / 死亡 完全无关** —— 026 的四个 probe
-全部栽在"操纵资源 → 变成生存问题或饱和问题"（规则 64/68/70/71），
-027 彻底绕开资源经济。
-
-    Trial 1–40   好选项 80% / 差选项 20%
-    Trial 41     ★规则突然反转★
-    Trial 41–80  反过来
-
-哪个先好**按种子随机**（一半种子 A 先好），所以不存在"某种历史天然与 A 对齐"。
-**同一颗种子的双胞胎共享同一张奖励表**，连平局裁决位都共享 ——
-所以不能说"rich 只是运气好"。
+★★ The definition of v4 ★★
+    v4 = the core of v3_frozen (**byte-for-byte untouched**) + this module
+This module **modifies no line of `v3_frozen/`** and does not touch agent state within the first 60 days.
+So "with NovelTask off, v4 is tick-for-tick identical to v3" holds **by construction**,
+but it is still written as a regression test (`_test_v3_equivalence`), in case someone later couples it in by accident.
 
 --------------------------------------------------------------------------
-过去怎么进入新任务（★最敏感的一点★）
---------------------------------------------------------------------------
-**过去不许决定 A 还是 B 好。** 那是把结论写进去。
+The task: two buttons A / B that never existed before
+-----------------------------------------------------
+    30 days of development (rich/barren) → 30 days of common garden → level the body state
+    → enter the new task: 80 trials, each choosing A or B and scoring 0/1 points
 
-过去只能通过一个非常一般的东西进入：**愿不愿意去试一个还不确定的选项。**
+**This task has nothing whatsoever to do with food / house / material / death** — all four probes of 026
+foundered on "manipulate a resource → it becomes a survival problem or a saturation problem" (rules 64/68/70/71),
+and 027 sidesteps the resource economy entirely.
+
+    Trials 1–40   good option 80% / bad option 20%
+    Trial 41      ★the rule suddenly reverses★
+    Trials 41–80  the other way round
+
+Which one is good first is **randomised by seed** (half the seeds have A good first), so no history is naturally aligned with A.
+**The twins of one seed share the same reward table**, down to the tie-break bits —
+so "rich was merely lucky" cannot be said.
+
+--------------------------------------------------------------------------
+How the past enters the new task (★the most sensitive point★)
+-------------------------------------------------------------
+**The past is not allowed to decide whether A or B is good.** That would be writing the conclusion in.
+
+The past may enter only through something very general: **how willing it is to try an option it is still unsure about.**
 
     novelty_style = (curiosity − caution + 100) / 200   ∈ [0,1]
     beta          = BETA * novelty_style
-    value(x)      = Q_x + beta / sqrt(1 + N_x)          ← 不确定性奖励
+    value(x)      = Q_x + beta / sqrt(1 + N_x)          ← uncertainty bonus
 
-所以：curious 的球更愿意试"我还不了解"的选项；
-cautious 的球更倾向继续用已经有证据的选项。
-**哪个选项真的奖励高，完全由外部任务决定。**
+So: a curious ball is more willing to try the option "I do not yet understand";
+a cautious ball tends to stay with the option it already has evidence for.
+**Which option actually pays more is decided entirely by the external task.**
 
-★ 学习率 α 对所有 agent 完全相同 ★ —— 绝不能设计成 "rich 学得快"。
+★ The learning rate α is exactly the same for every agent ★ — it must never be designed so that "rich learns faster".
 
-⚠ 措辞纪律：本任务里 agent **确实在学**（Q 值按反馈更新），
-   这是 v4 相对 v3 的新增能力。但它学的是**一个 2 臂赌博机的价值**，
-   **不是**"理解了世界的因果结构"。文案里不许写成后者。
+⚠ Wording discipline: in this task the agent **really is learning** (Q values update from feedback),
+   which is a new capability of v4 relative to v3. But what it learns is **the value of a 2-armed bandit**,
+   **not** "an understanding of the causal structure of the world". The write-up must not say the latter.
 """
 
 import math
@@ -62,41 +62,41 @@ if V3DIR not in sys.path:
 
 import sim                                        # noqa: E402
 
-assert os.path.abspath(sim.__file__).startswith(V3DIR), "核心必须来自 v3_frozen"
+assert os.path.abspath(sim.__file__).startswith(V3DIR), "the core must come from v3_frozen"
 assert sim.MODEL_VERSION == "v3"
 
-MODEL_VERSION = "v4"          # v4 = v3 核心 + 本模块
+MODEL_VERSION = "v4"          # v4 = the v3 core + this module
 
-# ---- 任务参数（校准前的占位值；正式值由 group-blind 校准产出后写进预注册）----
+# ---- Task parameters (placeholders before calibration; the official values are written into the preregistration after group-blind calibration) ----
 TRIALS = 80
 REVERSAL_AT = 40
 P_HIGH, P_LOW = 0.80, 0.20
-# ★★ 已由 group-blind 校准冻结（2026-08-17）★★
-#   字典序 β↑ → α↑ → τ↑ 取第一个合格格；80 格中 12 格合格。
-#   校准只看 pooled 指标，脚本物理上算不出 rich/poor 差异。
-ALPHA = 0.05                  # 学习率 —— ★所有 agent 相同★
-BETA = 0.05                   # 不确定性奖励强度 —— ★唯一让历史进来的旋钮★
-TAU = 0.20                    # softmax 温度 —— ★所有 agent 相同，不是历史通道★
+# ★★ Already frozen by group-blind calibration (2026-08-17) ★★
+#   Lexicographic β↑ → α↑ → τ↑, taking the first passing cell; 12 of 80 cells passed.
+#   Calibration looks only at pooled metrics; the script physically cannot compute a rich/poor difference.
+ALPHA = 0.05                  # learning rate — ★identical for every agent★
+BETA = 0.05                   # strength of the uncertainty bonus — ★the only knob through which history enters★
+TAU = 0.20                    # softmax temperature — ★identical for every agent, not a history channel★
 Q_INIT = 0.5
 
-# ⚠ 默认值必须与冻结值一致：final runner 若忘了显式传参，
-#   绝不能悄悄跑回占位参数。下面的断言 + 指纹是硬拦截。
+# ⚠ The defaults must match the frozen values: if the final runner forgets to pass them explicitly,
+#   it must never quietly fall back to the placeholders. The assertion + fingerprint below are the hard stop.
 _FROZEN = dict(ALPHA=0.05, BETA=0.05, TAU=0.20, TRIALS=80, REVERSAL_AT=40,
                P_HIGH=0.80, P_LOW=0.20, Q_INIT=0.5)
 
-# ⚠ 为什么需要 TAU（第一版没有，校准全格不合格）：
-#   纯确定性 argmax 下，只要 Q 的【排序】正确，选择就 100% 正确 ——
-#   于是 31–40 trial 的正确率恒在 94–100%，与 α、β 无关，
-#   永远进不了 65–90% 的合格带。这是**任务设计问题**，不是参数没调好。
-#   加一个对所有 agent 相同的选择噪声（softmax），正确率才有可调区间。
-#   ★ TAU 对所有 agent 相同，所以它不构成第二条历史通道。★
+# ⚠ Why TAU is needed (the first version had none and every calibration cell failed):
+#   under a purely deterministic argmax, as long as the **ordering** of Q is right the choice is 100% correct —
+#   so accuracy on trials 31–40 sat at 94–100% regardless of α and β, and never entered the 65–90% pass band.
+#   That is a **task design problem**, not badly tuned parameters.
+#   Adding choice noise that is identical for every agent (softmax) gives accuracy an adjustable range.
+#   ★ TAU is identical for every agent, so it does not constitute a second history channel. ★
 
-_SALT_REWARD = 0x27A50        # 固定盐，保证奖励表只由种子决定
+_SALT_REWARD = 0x27A50        # fixed salt, so the reward table is determined by the seed alone
 _SALT_TIE = 0x27B10
 
 
 def config_fingerprint():
-    """任务配置指纹 —— 每次正式运行都要打印/落盘，跑错版本一眼看得出"""
+    """Task configuration fingerprint — printed/written on every official run, so a wrong version is obvious at a glance"""
     import hashlib
     payload = "|".join(f"{k}={v!r}" for k, v in sorted(dict(
         TRIALS=TRIALS, REVERSAL_AT=REVERSAL_AT, P_HIGH=P_HIGH, P_LOW=P_LOW,
@@ -106,23 +106,23 @@ def config_fingerprint():
 
 
 def assert_frozen():
-    """★硬拦截★ 参数必须与校准冻结值逐位一致"""
+    """★Hard stop★ the parameters must be bit-identical to the calibration-frozen values"""
     cur = dict(ALPHA=ALPHA, BETA=BETA, TAU=TAU, TRIALS=TRIALS,
                REVERSAL_AT=REVERSAL_AT, P_HIGH=P_HIGH, P_LOW=P_LOW,
                Q_INIT=Q_INIT)
     bad = {k: (v, cur[k]) for k, v in _FROZEN.items() if cur[k] != v}
     if bad:
-        raise AssertionError(f"✗ 任务参数偏离冻结值：{bad}")
+        raise AssertionError(f"✗ task parameters deviate from the frozen values: {bad}")
     return config_fingerprint()
 
 
-# ------------------------------------------------------------------ 奖励表
+# ------------------------------------------------------------------ reward table
 def reward_table(seed):
-    """★双胞胎共享★ 只由种子决定：奖励序列 + 平局裁决位 + 哪个选项先好。
+    """★Shared by the twins★ determined by the seed alone: the reward sequence + tie-break bits + which option is good first.
 
-    平局位也**预先生成**（每 trial 一位），而不是临时抽 ——
-    否则两个分身在不同 trial 上遇到平局时会消耗不同的随机数，
-    平局裁决本身就变成了一条分歧来源。
+    The tie-break bits are also **pre-generated** (one per trial) rather than drawn on the fly —
+    otherwise two twins hitting ties on different trials would consume different random numbers,
+    and the tie-break itself would become a source of divergence.
     """
     rng = random.Random(_SALT_REWARD ^ seed)
     a_good_first = rng.random() < 0.5
@@ -134,33 +134,33 @@ def reward_table(seed):
         pb = P_LOW if a_is_good else P_HIGH
         rows.append((1 if rng.random() < pa else 0,
                      1 if rng.random() < pb else 0))
-    # 每 trial 一个共享的均匀抽样，用于 softmax 决策。
-    # ★双胞胎共享★ → 不能说"某一支只是掷骰子运气好"。
-    # 它同时替代了原来的平局裁决位：val 相等时 p0 = 0.5，由同一个 u 决定。
+    # One shared uniform draw per trial, used for the softmax decision.
+    # ★Shared by the twins★ → "one arm was merely lucky with the dice" cannot be said.
+    # It also replaces the former tie-break bits: when val is equal p0 = 0.5, decided by the same u.
     trng = random.Random(_SALT_TIE ^ seed)
     us = [trng.random() for _ in range(TRIALS)]
     return rows, us, a_good_first
 
 
 def correct_option(a_good_first, t):
-    """第 t 个 trial 的"正确"选项（0=A, 1=B）"""
+    """The "correct" option on trial t (0=A, 1=B)"""
     return (0 if a_good_first else 1) if t < REVERSAL_AT \
         else (1 if a_good_first else 0)
 
 
-# ------------------------------------------------------------------ 选择规则
+# ------------------------------------------------------------------ choice rule
 def novelty_style(agent):
-    """[0,1]。**只用 curiosity 与 caution，不读任何资源/生存/历史标签。**"""
+    """[0,1]. **Uses only curiosity and caution; reads no resource/survival/history label.**"""
     ns = (agent.traits["curiosity"] - agent.traits["caution"] + 100.0) / 200.0
     return min(1.0, max(0.0, ns))
 
 
 def run_task(agent, seed, *, beta=BETA, alpha=ALPHA, tau=TAU,
              history_blind=False):
-    """跑完 80 个 trial。返回逐 trial 记录。**不触碰 agent 的任何既有状态。**
+    """Run all 80 trials. Returns the per-trial record. **Touches none of the agent's existing state.**
 
-    `history_blind=True` → beta 固定为中值，学习照常
-      （控制三：若历史仍造成系统差异，说明还有没发现的通路）
+    `history_blind=True` → beta is fixed at its median while learning proceeds as usual
+      (control three: if history still causes a systematic difference, there is an undiscovered channel)
     """
     rows, us, a_good_first = reward_table(seed)
     b = beta * (0.5 if history_blind else novelty_style(agent))
@@ -171,10 +171,10 @@ def run_task(agent, seed, *, beta=BETA, alpha=ALPHA, tau=TAU,
     for t in range(TRIALS):
         val = [Q[i] + b / math.sqrt(1 + N[i]) for i in (0, 1)]
         d = (val[0] - val[1]) / tau
-        d = max(-60.0, min(60.0, d))          # 防 exp 溢出
+        d = max(-60.0, min(60.0, d))          # guard against exp overflow
         p0 = 1.0 / (1.0 + math.exp(-d))
-        c = 0 if us[t] < p0 else 1            # ★共享抽样★
-        # "探索" = 选了当前 Q 值较低的那个（不是贪婪选择）
+        c = 0 if us[t] < p0 else 1            # ★shared draw★
+        # "exploration" = choosing the option with the lower current Q (not the greedy choice)
         explores.append(1 if (Q[c] < Q[1 - c]) else 0)
         r = rows[t][c]
         N[c] += 1
@@ -189,12 +189,12 @@ def run_task(agent, seed, *, beta=BETA, alpha=ALPHA, tau=TAU,
     }
 
 
-# ------------------------------------------------------------------ 指标
+# ------------------------------------------------------------------ metrics
 def switch_latency(rec, window=5, need=4):
-    """★H2 primary★ 反转后过多少 trial 才稳定选中新的正确选项。
+    """★H2 primary★ how many trials after the reversal before the new correct option is chosen stably.
 
-    定义：反转后第一个 trial t，使得 [t, t+window) 内 ≥ need 次选中新正确项。
-    永远达不到 → 返回 None（不能当成 0，也不能剔掉，见 §判读）。
+    Definition: the first trial t after the reversal such that within [t, t+window) the new correct option is chosen ≥ need times.
+    Never reached → returns None (which must be treated as neither 0 nor dropped, see the reading section).
     """
     good = correct_option(rec["a_good_first"], REVERSAL_AT)
     ch = rec["choices"]
@@ -204,23 +204,23 @@ def switch_latency(rec, window=5, need=4):
     return None
 
 
-# 可检测到的最大 latency：t 取到 TRIALS-window，故 latency ≤ 35
+# The largest detectable latency: t goes up to TRIALS-window, so latency ≤ 35
 MAX_DETECTABLE_LATENCY = TRIALS - REVERSAL_AT - 5      # = 35
 NEVER_SWITCHED = MAX_DETECTABLE_LATENCY + 1            # = 36
 
 
 def switch_latency_restricted(rec):
-    """★H2 primary endpoint★ 截尾切换延迟：0–35 为真实延迟，**36 = 观察窗内未切换**。
+    """★H2 primary endpoint★ censored switch latency: 0–35 is a real latency, **36 = never switched within the observation window**.
 
-    ⚠ 36 **不是**"它在第 36 个 trial 切换了"，而是"整个观察期都没切换"。
+    ⚠ 36 does **not** mean "it switched on trial 36", it means "it never switched during the whole observation period".
 
-    为什么必须现在写死（而不是 final 之后再决定）：
-      · 删掉 never-switcher → 制造 selection（若某一支 never-switch 更多，
-        效应会被悄悄抹掉）
-      · 当成 0 → 把"从不切换"错当成"立刻切换"，方向完全反
-      · 事后改用 survival model → 那是看到结果之后选统计方法
-    截尾是最简单、不删数据、也不引入复杂模型的做法。
-    校准实测 never-switch 只有 2.0%，所以它不会主导结果 —— 但仍然提前写死。
+    Why this must be fixed now (rather than decided after the final run):
+      · dropping never-switchers → creates selection (if one arm has more never-switchers,
+        the effect would be quietly erased)
+      · treating them as 0 → mistakes "never switched" for "switched immediately", the exact opposite direction
+      · switching to a survival model afterwards → that is choosing the statistical method after seeing the result
+    Censoring is the simplest option that deletes no data and introduces no complex model.
+    Calibration measured never-switch at only 2.0%, so it will not dominate the result — but it is fixed in advance anyway.
     """
     x = switch_latency(rec)
     return NEVER_SWITCHED if x is None else x
@@ -236,67 +236,67 @@ def explore_rate(rec, lo, hi):
     return sum(rec["explores"][lo:hi]) / (hi - lo)
 
 
-# ------------------------------------------------------------------ 自检
+# ------------------------------------------------------------------ self-checks
 def _dev_snapshot(seed, world, days=60):
-    """跑 v3 核心 days 天（30 天发育 + 30 天 common garden），返回 life"""
+    """Run the v3 core for `days` days (30 days of development + 30 days of common garden) and return the life"""
     import novel_situation as NS
     life = NS.scenarios.make(seed, world)
     ok, _ = NS.run_window(life, 0, 30)
     if not ok:
         return None
-    w = sim.World(seed, **NS.scenarios.WORLDS["基准"])
+    w = sim.World(seed, **NS.scenarios.WORLDS["baseline"])
     ok, _ = NS.run_window(life, 30, 30, world=w)
     return life if ok else None
 
 
 def _test_v3_equivalence():
-    """★控制一★ NovelTask 关闭时，前 60 天必须与 v3 逐位一致"""
+    """★Control one★ with NovelTask off, the first 60 days must be bit-identical to v3"""
     import novel_situation as NS
     for sd in (20000, 20001, 20002):
-        a = _dev_snapshot(sd, "贫瘠世界")
-        b = _dev_snapshot(sd, "贫瘠世界")
+        a = _dev_snapshot(sd, "barren world")
+        b = _dev_snapshot(sd, "barren world")
         if a is None:
             continue
-        assert NS.full_hash(a) == NS.full_hash(b), f"v3 核心自身不确定（seed {sd}）"
-        # 跑任务【之后】再取 hash：任务不得回写 agent 的任何既有状态
+        assert NS.full_hash(a) == NS.full_hash(b), f"the v3 core is non-deterministic on its own (seed {sd})"
+        # Take the hash **after** running the task: the task must not write back any existing agent state
         before = NS.full_hash(a)
         run_task(a.agent, sd)
         assert NS.full_hash(a) == before, \
-            "✗ NovelTask 回写了 agent 的既有状态 —— v3 等价性被破坏"
-    print("  ✓ 控制一：任务不触碰 v3 状态，前 60 天逐位一致")
+            "✗ NovelTask wrote back existing agent state — v3 equivalence is broken"
+    print("  ✓ control one: the task does not touch v3 state, and the first 60 days are bit-identical")
 
 
 def _test_identical_agent():
-    """★控制二★ 同一 snapshot clone 两份 + 同一奖励表 → 必须逐 trial 相同"""
+    """★Control two★ two clones of one snapshot + the same reward table → must be identical trial by trial"""
     import copy
     import novel_situation as NS
-    life = _dev_snapshot(20003, "丰富世界")
+    life = _dev_snapshot(20003, "rich world")
     assert life is not None
     x, y = copy.deepcopy(life), copy.deepcopy(life)
     for c in (x, y):
         c.agent.trait_floor = dict(c.agent.trait_floor)
     ra, rb = run_task(x.agent, 20003), run_task(y.agent, 20003)
-    assert ra["choices"] == rb["choices"], "✗ 相同 agent + 相同奖励表却分叉"
+    assert ra["choices"] == rb["choices"], "✗ the same agent with the same reward table diverged"
     assert ra["rewards"] == rb["rewards"]
-    print("  ✓ 控制二：相同 agent + 相同奖励表 → 逐 trial 相同")
+    print("  ✓ control two: same agent + same reward table → identical trial by trial")
 
 
 def _test_shared_reward_table():
-    """双胞胎共享奖励表与平局位 —— 不能说"某一支只是运气好\""""
+    """The twins share the reward table and tie-break bits — so \"one arm was merely lucky\" cannot be said"""
     ra, ua, ga = reward_table(20004)
     rb, ub, gb = reward_table(20004)
-    assert ra == rb and ua == ub and ga == gb, "奖励表不是只由种子决定"
-    # 一半种子 A 先好
+    assert ra == rb and ua == ub and ga == gb, "the reward table is not determined by the seed alone"
+    # Half the seeds have A good first
     good = [reward_table(s)[2] for s in range(20000, 20400)]
     frac = sum(good) / len(good)
-    assert 0.40 < frac < 0.60, f"A 先好的比例偏了：{frac:.1%}"
-    print(f"  ✓ 奖励表只由种子决定；A 先好的种子占 {frac:.1%}")
+    assert 0.40 < frac < 0.60, f"the share of seeds with A good first is off: {frac:.1%}"
+    print(f"  ✓ the reward table depends on the seed alone; A is good first in {frac:.1%} of seeds")
 
 
 def _test_history_only_via_novelty():
-    """★关键★ 历史只能经 curiosity/caution 进来。改别的状态不得影响任务。"""
+    """★Key★ history may enter only via curiosity/caution. Changing anything else must not affect the task."""
     import copy
-    life = _dev_snapshot(20005, "贫瘠世界")
+    life = _dev_snapshot(20005, "barren world")
     assert life is not None
     base = run_task(copy.deepcopy(life).agent, 20005)
     for field, val in (("hunger", 90.0), ("condition", 20.0),
@@ -306,20 +306,20 @@ def _test_history_only_via_novelty():
         c.agent.inventory = {"food": 99, "material": 99}
         r = run_task(c.agent, 20005)
         assert r["choices"] == base["choices"], \
-            f"✗ 任务读了 {field} —— 违反'与资源/生存无关'"
-    # 改 curiosity 必须有影响（否则 beta 通路是死的）
+            f"✗ the task read {field} — violating 'unrelated to resources/survival'"
+    # Changing curiosity must have an effect (otherwise the beta channel is dead)
     c = copy.deepcopy(life)
     c.agent.traits["curiosity"] = 100.0
     c.agent.traits["caution"] = 0.0
     r = run_task(c.agent, 20005)
-    assert r["beta"] != base["beta"], "✗ curiosity/caution 没进 beta"
-    print("  ✓ 任务只读 curiosity/caution，不读任何资源/生存变量")
+    assert r["beta"] != base["beta"], "✗ curiosity/caution did not reach beta"
+    print("  ✓ the task reads only curiosity/caution, and no resource/survival variable")
 
 
 def _test_history_blind():
-    """★控制三★ history_blind 时 beta 与历史无关"""
+    """★Control three★ with history_blind, beta is independent of history"""
     import copy
-    life = _dev_snapshot(20006, "丰富世界")
+    life = _dev_snapshot(20006, "rich world")
     assert life is not None
     a = copy.deepcopy(life)
     a.agent.traits["curiosity"], a.agent.traits["caution"] = 95.0, 5.0
@@ -328,40 +328,40 @@ def _test_history_blind():
     ra = run_task(a.agent, 20006, history_blind=True)
     rb = run_task(b.agent, 20006, history_blind=True)
     assert ra["beta"] == rb["beta"] and ra["choices"] == rb["choices"], \
-        "✗ history_blind 下仍受历史影响 —— 存在第二条通路"
-    print("  ✓ 控制三：history-blind 时两种极端性格轨迹完全相同")
+        "✗ still affected by history under history_blind — there is a second channel"
+    print("  ✓ control three: under history-blind, the two extreme personality trajectories are identical")
 
 
 def _test_frozen_config():
-    """★控制四★ 默认参数必须等于冻结值；指纹稳定"""
+    """★Control four★ the defaults must equal the frozen values; the fingerprint is stable"""
     fp = assert_frozen()
     assert ALPHA == 0.05 and BETA == 0.05 and TAU == 0.20
     assert fp == config_fingerprint()
-    # 默认调用与显式传冻结值必须逐 trial 相同
+    # A default call and an explicit call with the frozen values must be identical trial by trial
     class S:
         traits = {"curiosity": 60.0, "caution": 40.0, "industry": 50.0}
     a = run_task(S(), 20100)
     b = run_task(S(), 20100, alpha=ALPHA, beta=BETA, tau=TAU)
-    assert a["choices"] == b["choices"], "默认调用与显式传参不一致"
-    print(f"  ✓ 控制四：参数已冻结 α={ALPHA} β={BETA} τ={TAU}  指纹 {fp}")
+    assert a["choices"] == b["choices"], "a default call differs from an explicit one"
+    print(f"  ✓ control four: parameters frozen at α={ALPHA} β={BETA} τ={TAU}  fingerprint {fp}")
 
 
 def _test_metrics():
-    """指标本身的行为要正确"""
+    """The metrics themselves must behave correctly"""
     rec = {"a_good_first": True, "choices": [0] * REVERSAL_AT + [1] * 40,
            "rewards": [0] * TRIALS, "explores": [0] * TRIALS}
-    assert switch_latency(rec) == 0, "反转后立刻全选新正确项应为 0"
+    assert switch_latency(rec) == 0, "choosing the new correct option immediately after the reversal should give 0"
     assert switch_latency_restricted(rec) == 0
     rec2 = dict(rec, choices=[0] * TRIALS)
-    assert switch_latency(rec2) is None, "从不切换应返回 None，不是 0"
-    assert switch_latency_restricted(rec2) == NEVER_SWITCHED == 36,         "从不切换必须截尾为 36，不能是 None 也不能是 0"
-    print(f"  ✓ switch_latency：立刻切换=0，从不切换截尾为 {NEVER_SWITCHED}"
-          f"（不删、不当 0）")
+    assert switch_latency(rec2) is None, "never switching should return None, not 0"
+    assert switch_latency_restricted(rec2) == NEVER_SWITCHED == 36,         "never switching must be censored to 36, neither None nor 0"
+    print(f"  ✓ switch_latency: immediate switch=0, never switching censored to {NEVER_SWITCHED}"
+          f" (not deleted, not treated as 0)")
 
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print(f"027 NovelTask 自检   核心来自 {os.path.dirname(sim.__file__)}"
+    print(f"027 NovelTask self-check   core from {os.path.dirname(sim.__file__)}"
           f"   {sim.MODEL_VERSION} → {MODEL_VERSION}")
     _test_v3_equivalence()
     _test_identical_agent()
@@ -370,4 +370,4 @@ if __name__ == "__main__":
     _test_history_blind()
     _test_frozen_config()
     _test_metrics()
-    print("\n全部通过。可以进入 group-blind 校准。")
+    print("\nAll passed. Ready for group-blind calibration.")

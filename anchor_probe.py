@@ -1,64 +1,64 @@
 """
-anchor 内容因果探针 —— anchor 里装的历史切片，是不是 persistence 的载体？
-==========================================================================
+anchor content causal probe — is the history slice stored in the anchor the carrier of persistence?
+===================================================================================================
 
-运行：  python anchor_probe.py --verify        （只跑 A 部分，~2 分钟）
-        python anchor_probe.py                （全量，13 进程）
+Run:  python anchor_probe.py --verify        (part A only, ~2 minutes)
+      python anchor_probe.py                 (full run, 13 processes)
 
-★ 冻结声明 ★
-v3 已冻结（`v3_frozen/`）。本脚本是 **experiment-level intervention**：
-只改 agent 实例上的 `_hardship_anchor`，**不动 `sim.py` 的任何默认值**。
+★ Freeze declaration ★
+v3 is frozen (`v3_frozen/`). This script is an **experiment-level intervention**:
+it changes only `_hardship_anchor` on the agent instance and **touches no default in `sim.py`**.
 
 --------------------------------------------------------------------------
-A. 先证伪一个错误推论：v3 并没有推迟 anchor
---------------------------------------------------------------------------
-023 §7.5 曾推论"v3 把 consolidation 时刻后移 → 采到更成熟的性格"。
-**这不成立**，而且从代码上本来就不可能成立：
+A. First falsify a wrong inference: v3 does not postpone the anchor
+-------------------------------------------------------------------
+023 §7.5 once inferred that "v3 pushes the consolidation moment later → it samples a more mature personality".
+**That does not hold**, and from the code it could never have held:
 
-    sim.py:965   if deficit > 0:  ...  if self._hardship_anchor is None: 写入
+    sim.py:965   if deficit > 0:  ...  if self._hardship_anchor is None: write
     deficit = (100 − condition)/100
 
-condition 只能被 `COND_DRAIN`（饿>70）拉下 100；在 condition 仍等于 100 时，
-`COND_RECOVER_AT` 抬高带来的 gain 全被 `clamp` 吃掉。
-**所以在 anchor 写入之前，v2 和 v3 的轨迹逐位相同** —— anchor 日必然相同。
+condition can only be pulled below 100 by `COND_DRAIN` (hunger>70); while condition is still 100, the gain from
+raising `COND_RECOVER_AT` is entirely eaten by `clamp`.
+**So before the anchor is written, the v2 and v3 trajectories are bit-identical** — the anchor day must be the same.
 
-A 部分逐种子核对这一点（v2 vs v3，同种子，报"完全相同的比例"）。
+Part A verifies this seed by seed (v2 vs v3, same seeds, reporting the "share exactly equal").
 
-被误当成 anchor 的那个量是 `fears_hunger`：它要 `hardship_norm ≥ 0.5`
-（`HARDSHIP_STORY_AT`）才记，是**叙事路标**，不是人格固化时刻。
+The quantity that was mistaken for the anchor is `fears_hunger`: it requires `hardship_norm ≥ 0.5`
+(`HARDSHIP_STORY_AT`) to be recorded, making it a **narrative landmark**, not the moment personality sets.
 
 --------------------------------------------------------------------------
-B. 新的实验问题：anchor 的【内容】是不是因果载体？
---------------------------------------------------------------------------
-不用"第 N 天才开始写 anchor"那种做法 —— 那会同时改两件事
-（① 快照里是什么 ② floor 从何时开始起作用），因果上不干净。
+B. The new experimental question: is the **content** of the anchor the causal carrier?
+--------------------------------------------------------------------------------------
+Not by doing "only start writing the anchor on day N" — that changes two things at once
+(① what is in the snapshot ② when the floor starts to act), which is causally unclean.
 
-改成 **anchor-content transplant**（这就是小号的 state transplant）：
+Instead, do an **anchor-content transplant** (a miniature state transplant):
 
-    1. 让 agent 正常跑完整个 development phase（0–29 天），
-       途中保存 trait 快照：day 5 / 10 / 20 / 29
-    2. 到固定干预点（第 30 天，移植那一刻）deepcopy 出完全相同的状态
-    3. **只改 `_hardship_anchor`**，换成不同的历史切片
-    4. 所有分支从完全相同的当前状态进入 common garden（基准世界）
+    1. Let the agent run the whole development phase normally (days 0–29),
+       saving trait snapshots along the way: day 5 / 10 / 20 / 29
+    2. At the fixed intervention point (day 30, the moment of transplant) deepcopy the exact same state
+    3. **Change only `_hardship_anchor`**, swapping in a different history slice
+    4. Every branch enters the common garden (the baseline world) from exactly the same current state
 
-唯一变量 = anchor 里装的那张历史切片。
+The only variable = the history slice stored in the anchor.
 
-★ 天然 negative control ★
-`persistence_ablation` 的无地板档把 `trait_floor` 换成 `FrozenZero()`，
-而 `_hardship_anchor` 唯一的作用路径就是 anchor → trait_floor（sim.py:970）。
-**所以无地板条件下，anchor 里放什么都不该有区别。**
-如果无地板也跟着变 → 存在泄漏或第二条 anchor 通路，那会是很强的阴性对照失败。
+★ A natural negative control ★
+The no-floor variant of `persistence_ablation` replaces `trait_floor` with `FrozenZero()`, and the only route
+by which `_hardship_anchor` acts is anchor → trait_floor (sim.py:970).
+**So with the floors off, what is put in the anchor should make no difference at all.**
+If the no-floor arm moves too → there is a leak or a second anchor channel, which would be a strong negative-control failure.
 
-★ 预测（primary / secondary）★
-  primary   完整架构下，anchor-content 干预**能产生可检出的后期行为持久性差异**
-            （不预注册 Day5 < Day10 < Day20 < Day29 的单调关系 ——
-             系统有反馈、hardship boost、floor 和 saturation，晚期快照
-             信息更多不等于终效应单调）
-  secondary Day 顺序的趋势
-  negative  无地板档：Day5 ≈ Day10 ≈ Day20 ≈ Day29 ≈ No-anchor
+★ Predictions (primary / secondary) ★
+  primary   under the full architecture, the anchor-content intervention **produces a detectable difference in late behavioural persistence**
+            (no monotone relation Day5 < Day10 < Day20 < Day29 is preregistered —
+             the system has feedback, hardship boost, floors and saturation, so a later snapshot carrying
+             more information does not imply a monotone final effect)
+  secondary the trend in Day order
+  negative  no-floor variant: Day5 ≈ Day10 ≈ Day20 ≈ Day29 ≈ No-anchor
 
-★ 种子 ★ 用**已经看过的 development seeds（0+）**。
-final confirmation 的全新种子块留着不动。
+★ Seeds ★ Uses the **already inspected development seeds (0+)**.
+The fresh seed block for the final confirmation is left untouched.
 """
 
 import argparse
@@ -69,23 +69,23 @@ import random
 import statistics
 import time
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 SPLIT, TOTAL = 30, 60
 SNAP_DAYS = (5, 10, 20, 29)
-BRANCHES = ["自然 anchor", "Day 5", "Day 10", "Day 20", "Day 29", "无 anchor"]
+BRANCHES = ["natural anchor", "Day 5", "Day 10", "Day 20", "Day 29", "no anchor"]
 BASE_K = 5
 N_PERM = 10000
-V3_RECOVER_AT = 65.0        # B 部分只在冻结的 v3 上做，显式钉死，不靠继承
+V3_RECOVER_AT = 65.0        # part B runs only on frozen v3; pinned explicitly, never inherited
 CHUNK = 50
 
 
 def _prep(floor_off, rec_at):
-    """★ 必须显式传 rec_at ★
-    mp.Pool 的 worker 进程是**复用**的：A 部分的 task_verify 会把
-    `sim.COND_RECOVER_AT` 设成 30.0 或 65.0 并留在那个进程里。
-    如果 B 部分不显式设回来，它跑的就是上一个任务残留的版本 ——
-    结果取决于任务调度顺序，同样的命令两次跑出不同的数。
-    （第一版就是这么翻车的：N=100 两次结果完全对不上。）"""
+    """★ rec_at must be passed explicitly ★
+    mp.Pool worker processes are **reused**: part A's task_verify sets `sim.COND_RECOVER_AT`
+    to 30.0 or 65.0 and leaves it in that process.
+    If part B does not set it back explicitly, it runs whatever version the previous task left behind —
+    the result then depends on task scheduling order, and the same command gives different numbers twice.
+    (That is exactly how the first version came off the rails: two N=100 runs disagreed completely.)"""
     import sim
     import scenarios
     import persistence_ablation as PA
@@ -97,9 +97,9 @@ def _prep(floor_off, rec_at):
     return sim, scenarios, PA
 
 
-# ------------------------------------------------------------------ A 部分
+# ------------------------------------------------------------------ part A
 def task_verify(job):
-    """逐种子记录 anchor 首次写入日 + fears_hunger 首次出现日，v2/v3 各一遍"""
+    """Record per seed the first day the anchor is written + the first day fears_hunger appears, once for v2 and once for v3"""
     rec_at, world, floor_off, seed0, n = job
     sim, scenarios, PA = _prep(floor_off, rec_at)
     out = []
@@ -129,11 +129,11 @@ def task_verify(job):
     return ("V", rec_at, world, floor_off, out)
 
 
-# ------------------------------------------------------------------ B 部分
+# ------------------------------------------------------------------ part B
 def task_branch(job):
-    """一个种子块 × 一个世界 × 一个架构 → 每个分支的窗口矩阵"""
+    """One seed block × one world × one architecture → the window matrix of each branch"""
     world, floor_off, seed0, n = job
-    sim, scenarios, PA = _prep(floor_off, V3_RECOVER_AT)   # ★显式钉死 v3★
+    sim, scenarios, PA = _prep(floor_off, V3_RECOVER_AT)   # ★v3 pinned explicitly★
     from collections import Counter
 
     def to_mat(w):
@@ -167,25 +167,25 @@ def task_branch(job):
             if dead or len(snaps) < len(SNAP_DAYS):
                 continue
 
-            snap0 = [Counter(c) for c in ag.action_by_hour]   # 第 30 天快照
+            snap0 = [Counter(c) for c in ag.action_by_hour]   # day-30 snapshot
 
-            for b in BRANCHES:                              # ── 干预 + common garden
-                life_b = copy.deepcopy(life)               # 完全相同的状态（含 RNG）
+            for b in BRANCHES:                              # ── intervention + common garden
+                life_b = copy.deepcopy(life)               # exactly the same state (including RNG)
                 ag_b = life_b.agent
-                # ⚠ 陷阱：FrozenZero 是 dict 子类且 __setitem__ 是 no-op，
-                #   deepcopy 重建它时正是走 __setitem__ 灌数据 → 复制出**空 dict**
-                #   → 下一次读 trait_floor['industry'] 直接 KeyError。
-                #   v3 已冻结，不改 persistence_ablation.py，在这里补回来。
-                #   FrozenZero 不携带任何状态（读恒 0、写恒丢），重建等价。
+                # ⚠ Trap: FrozenZero is a dict subclass whose __setitem__ is a no-op, and deepcopy
+                #   rebuilds it by feeding data through __setitem__ → it produces an **empty dict**
+                #   → the next read of trait_floor['industry'] raises KeyError.
+                #   v3 is frozen, so persistence_ablation.py is not changed; it is patched back here.
+                #   FrozenZero carries no state (reads are always 0, writes always dropped), so rebuilding is equivalent.
                 if floor_off:
                     ag_b.trait_floor = PA.FrozenZero()
                     ag_b.trait_identity = PA.FrozenZero()
-                if b == "无 anchor":
+                if b == "no anchor":
                     ag_b._hardship_anchor = None
-                elif b != "自然 anchor":
+                elif b != "natural anchor":
                     ag_b._hardship_anchor = dict(snaps[int(b.split()[1])])
 
-                w = sim.World(s, **scenarios.WORLDS[COMMON])   # 各分支同一个世界
+                w = sim.World(s, **scenarios.WORLDS[COMMON])   # the same world for every branch
                 life_b.world, ag_b.world = w, w
                 ok = True
                 for day in range(SPLIT, TOTAL):
@@ -248,26 +248,26 @@ def _dispatch(job):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--seeds", type=int, default=600)
-    ap.add_argument("--verify", action="store_true", help="只跑 A 部分")
+    ap.add_argument("--verify", action="store_true", help="run part A only")
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     a = ap.parse_args()
     N = a.seeds
 
     jobs = []
-    for rec in (30.0, 65.0):                       # A：v2 / v3
+    for rec in (30.0, 65.0):                       # A: v2 / v3
         for world in (WA, WB):
             for fo in (False, True):
                 for s0 in range(0, N, CHUNK):
                     jobs.append((task_verify, (rec, world, fo, s0, min(CHUNK, N - s0))))
     if not a.verify:
-        for world in (WA, WB):                     # B：只在 v3（已冻结）上做
+        for world in (WA, WB):                     # B: on v3 only (already frozen)
             for fo in (False, True):
                 for s0 in range(0, N, CHUNK):
                     jobs.append((task_branch, (world, fo, s0, min(CHUNK, N - s0))))
 
-    print(f"anchor 探针   {len(jobs)} 任务   N={N}（development seeds 0+）   "
-          f"进程数 {a.workers}")
-    print("★ v3 已冻结：本脚本只改 agent 实例的 _hardship_anchor，不动 sim.py 默认值\n",
+    print(f"anchor probe   {len(jobs)} tasks   N={N} (development seeds 0+)   "
+          f"processes {a.workers}")
+    print("★ v3 is frozen: this script only changes the agent instance's _hardship_anchor, never a sim.py default\n",
           flush=True)
 
     t0, out = time.time(), []
@@ -276,8 +276,8 @@ def main():
             out.append(r)
             if k % 10 == 0 or k == len(jobs):
                 el = time.time() - t0
-                print(f"  {k}/{len(jobs)}  已用 {el/60:.1f}min  "
-                      f"剩余 ~{el/k*(len(jobs)-k)/60:.1f}min", flush=True)
+                print(f"  {k}/{len(jobs)}  elapsed {el/60:.1f}min  "
+                      f"remaining ~{el/k*(len(jobs)-k)/60:.1f}min", flush=True)
 
     report_verify([r for r in out if r[0] == "V"], N)
     if not a.verify:
@@ -286,14 +286,14 @@ def main():
 
 def report_verify(rows, N):
     print("\n" + "=" * 96)
-    print(" A · anchor 写入日 vs fears_hunger 日 —— v2/v3 逐种子核对")
+    print(" A · anchor write day vs fears_hunger day — v2/v3 checked seed by seed")
     print("=" * 96)
     acc = {}
     for _, rec, world, fo, lst in rows:
         acc.setdefault((world, fo, rec), {}).update({s: (ad, fd) for s, ad, fd in lst})
 
-    print(f"  {'世界':<10}{'架构':<10}{'anchor日 v2':>13}{'anchor日 v3':>13}"
-          f"{'逐种子相同':>12}{'fears日 v2':>12}{'fears日 v3':>12}")
+    print(f"  {'world':<14}{'architecture':<20}{'anchor day v2':>15}{'anchor day v3':>15}"
+          f"{'equal per seed':>16}{'fears day v2':>14}{'fears day v3':>14}")
     print("  " + "-" * 92)
     for world in (WA, WB):
         for fo in (False, True):
@@ -305,11 +305,11 @@ def report_verify(rows, N):
             f2 = [d2[s][1] for s in common if d2[s][1] is not None]
             f3 = [d3[s][1] for s in common if d3[s][1] is not None]
             m = lambda v: statistics.median(v) if v else float("nan")
-            print(f"  {world:<10}{'地板全关' if fo else '完整架构':<10}"
+            print(f"  {world:<14}{'all floors off' if fo else 'full architecture':<20}"
                   f"{m(a2):>13.1f}{m(a3):>13.1f}{f'{same}/{len(common)}':>12}"
                   f"{m(f2):>12.1f}{m(f3):>12.1f}")
-    print("\n  ★ 判读 ★ anchor 日逐种子 100% 相同 → v3 没有推迟 consolidation；")
-    print("           fears_hunger 日后移 → 后移的是【叙事阈值】，不是人格固化时刻。")
+    print("\n  ★ Reading ★ anchor day equal on 100% of seeds → v3 did not postpone consolidation;")
+    print("           a later fears_hunger day → what moved later is the **narrative threshold**, not the moment personality sets.")
 
 
 def report_branch(rows, N):
@@ -319,9 +319,9 @@ def report_branch(rows, N):
             store.setdefault((b, world, fo), [None] * N)[s0:s0 + len(lst)] = lst
 
     for fo in (False, True):
-        arch = "−全部地板①②（★阴性对照★）" if fo else "完整架构"
+        arch = "−all floors ①② (★negative control★)" if fo else "full architecture"
         print("\n" + "=" * 100)
-        print(f" B · anchor 内容干预 · {arch} · N={N} · development seeds 0+")
+        print(f" B · anchor content intervention · {arch} · N={N} · development seeds 0+")
         print("=" * 100)
 
         own = {b: {i for i in range(N)
@@ -329,9 +329,9 @@ def report_branch(rows, N):
                    and store[(b, WB, fo)][i] is not None} for b in BRANCHES}
         common = sorted(set.intersection(*own.values()))
         n_c = len(common)
-        print(f"\n  共同种子集（全分支 × 两世界都活）：n={n_c}（占 {n_c/N:.1%}）")
+        print(f"\n  Common seed set (all branches × both worlds alive): n={n_c} ({n_c/N:.1%})")
         if n_c < 50:
-            print("  ⚠ 样本不足")
+            print("  ⚠ not enough samples")
             continue
 
         opp = build_opp(n_c, random.Random(20260815))
@@ -340,14 +340,14 @@ def report_branch(rows, N):
             d, num, den = deltas_on(common, store[(b, WA, fo)], store[(b, WB, fo)], opp)
             res[b] = (d, num / den)
 
-        base = res["自然 anchor"][0]
-        print(f"\n  {'分支':<14}{'比值':>9}{'δ均值':>10}{'Δ vs 自然':>12}{'dz':>7}{'p':>10}")
+        base = res["natural anchor"][0]
+        print(f"\n  {'branch':<18}{'ratio':>9}{'mean δ':>10}{'Δ vs natural':>15}{'dz':>7}{'p':>10}")
         print("  " + "-" * 64)
         prng = random.Random(777)
         for b in BRANCHES:
             d, r = res[b]
             dm = statistics.mean(d)
-            if b == "自然 anchor":
+            if b == "natural anchor":
                 print(f"  {b:<14}{r:>9.3f}{dm:>10.4f}{'—':>12}{'—':>7}{'—':>10}")
                 continue
             diff = [x - y for x, y in zip(d, base)]
@@ -358,11 +358,11 @@ def report_branch(rows, N):
                   f"{obs/sd if sd else 0:>7.2f}{p:>10.4f} {star}")
 
         if fo:
-            print("\n  ★ 阴性对照判读 ★ 全部 n.s. = 通过（anchor 只走 trait_floor 一条路）")
-            print("  任何一档显著 → 存在泄漏或第二条 anchor 通路，要查。")
+            print("\n  ★ Negative-control reading ★ all n.s. = pass (the anchor acts only through trait_floor)")
+            print("  Any significant row → there is a leak or a second anchor channel; investigate.")
         else:
-            print("\n  ★ primary ★ 只要有干预档显著 ≠ 自然，就说明 anchor 内容是因果载体之一")
-            print("  ★ secondary ★ Day 顺序的趋势（不预注册单调性）")
+            print("\n  ★ primary ★ any intervention arm significantly ≠ natural shows the anchor content is one of the causal carriers")
+            print("  ★ secondary ★ the trend in Day order (monotonicity is not preregistered)")
 
 
 if __name__ == "__main__":
