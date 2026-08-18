@@ -1,21 +1,21 @@
 """
-goal-pair 小审计 —— Probe C「离家失修」的放行前提
-==================================================
+goal-pair mini audit — the go/no-go precondition for Probe C "home falls into disrepair"
+========================================================================================
 
-运行：  python goal_pair_audit.py --seeds 300
+Run:  python goal_pair_audit.py --seeds 300
 
-capacity audit 测到「99.3% 的球用过 ≥2 种 goal」，
-**但那不能自动说明 `see_the_world` 与 `improve_home` 这两个特定目标够普遍**
-—— 里面可能大部分是 `stock_food` / `recover`。
+The capacity audit measured "99.3% of balls used ≥2 kinds of goal", **but that does not automatically
+show that the two particular goals `see_the_world` and `improve_home` are common enough** — most of it
+could be `stock_food` / `recover`.
 
-Probe C 的整条设计都建立在这一对目标的冲突上，所以先只确认三件事：
+The whole design of Probe C rests on the conflict between that pair of goals, so first confirm just three things:
 
-  ① 各有多少 agent 真正立过
-  ② 各占多少 goal-days
-  ③ 有多少 agent **两种都经历过**（冲突才有对象）
+  ① how many agents actually raised each of them
+  ② what share of goal-days each takes
+  ③ how many agents experienced **both** (a conflict needs an object)
 
-★ group-blind ★ 只输出 pooled 量与跨个体方差。种子 `20000+`。
-**不碰 `60000–61499`。** 不实现任何机制，不改 v3。
+★ group-blind ★ Only pooled quantities and between-individual variance are printed. Seeds `20000+`.
+**Do not touch `60000–61499`.** No mechanism is implemented, and v3 is not modified.
 """
 
 import argparse
@@ -24,7 +24,7 @@ import os
 import statistics
 from collections import Counter
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 DEV_DAYS, OBS_DAYS = 30, 30
 CHUNK = 25
 PAIR = ("see_the_world", "improve_home")
@@ -76,7 +76,7 @@ def main():
         for recs in p.imap_unordered(_dispatch, jobs):
             pool.extend(recs)
     if not pool:
-        raise SystemExit("✗ 池子为空 —— 故障")
+        raise SystemExit("✗ pool is empty — failure")
     n = len(pool)
 
     import novel_situation as NS
@@ -84,10 +84,10 @@ def main():
     total_days = sum(r["n_days"] for r in pool) or 1
 
     print("=" * 96)
-    print(f" goal-pair 小审计（group-blind）  common garden {OBS_DAYS} 天  n={n}")
+    print(f" goal-pair mini audit (group-blind)  common garden {OBS_DAYS} days  n={n}")
     print("=" * 96)
-    print(f"  {'goal':<18}{'立过的 agent':>14}{'占 goal-days':>14}"
-          f"{'人均天数':>10}{'个体占比 p90−p10':>18}")
+    print(f"  {'goal':<18}{'agents that raised it':>24}{'share of goal-days':>21}"
+          f"{'days per agent':>16}{'individual share p90−p10':>26}")
     print("  " + "-" * 92)
     for g in goals:
         held = sum(1 for r in pool if r["counts"].get(g, 0) > 0) / n
@@ -105,23 +105,23 @@ def main():
     pair_days = sum(r["counts"].get(g, 0) for r in pool for g in PAIR) / total_days
     sw = [r["switches"] for r in pool]
 
-    print(f"\n  ★ Probe C 依赖的那一对：{PAIR[0]} ↔ {PAIR[1]} ★")
-    print(f"    两种【都】经历过的 agent ： {both:>6.1%}   ← 冲突才有对象")
-    print(f"    至少经历过一种          ： {either:>6.1%}")
-    print(f"    这一对合计占 goal-days  ： {pair_days:>6.1%}")
-    print(f"    目标切换次数（30 天）    ： 中位 {statistics.median(sw):.0f}"
+    print(f"\n  ★ The pair Probe C depends on: {PAIR[0]} ↔ {PAIR[1]} ★")
+    print(f"    agents that experienced **both** : {both:>6.1%}   ← a conflict needs an object")
+    print(f"    experienced at least one         : {either:>6.1%}")
+    print(f"    this pair's combined goal-days   : {pair_days:>6.1%}")
+    print(f"    goal switches (30 days)          : median {statistics.median(sw):.0f}"
           f"  p10 {sorted(sw)[int(.1*n)]}  p90 {sorted(sw)[int(.9*n)]}")
 
     ok = both >= 0.50 and pair_days >= 0.30
     print("\n" + "=" * 96)
     if ok:
-        print(" ★ 放行条件满足（建议线：两种都经历 ≥50%，合计 goal-days ≥30%）")
-        print(" → 可以正式实现 Probe C「离家失修」。")
+        print(" ★ Go conditions met (suggested lines: both experienced ≥50%, combined goal-days ≥30%)")
+        print(" → Probe C \"home falls into disrepair\" can be implemented for real.")
     else:
-        print(" ✗ 这一对目标在 common garden 里不够普遍 —— 不该硬做 Probe C。")
-        print("   按排序改去 knowledge 通道（严格避开 books 来源）。")
+        print(" ✗ This pair of goals is not common enough in the common garden — Probe C should not be forced.")
+        print("   Move down the ranking to the knowledge channel (strictly avoiding anything sourced from books).")
     print("=" * 96)
-    print(" ⚠ 放行线 50% / 30% 是我拟的，需拍板。")
+    print(" ⚠ The go lines 50% / 30% are my proposal and need a decision.")
 
 
 if __name__ == "__main__":

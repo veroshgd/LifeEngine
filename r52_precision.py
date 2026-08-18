@@ -1,23 +1,23 @@
 """
-R52 判据的可判定性检查 —— 在烧掉 final block 之前先问一句
-============================================================
+Decidability check of the R52 criterion — ask this before burning the final block
+=================================================================================
 
-运行：  python r52_precision.py [--n 1500] [--reps 8]
+Run:  python r52_precision.py [--n 1500] [--reps 8]
 
-★ 为什么要有这个脚本 ★
-彩排（开发种子 N=1500）里 R52 落在
+★ Why this script exists ★
+In the rehearsal (development seeds, N=1500) R52 landed at
     1.037 [1.000, 1.084]
-判据是「bootstrap 95% CI 下界 **> 1.00**」。下界打印出来正好是 1.000 ——
-也就是说"过/不过"取决于这个 bootstrap 分位数的第 4 位小数。
+The criterion is "bootstrap 95% CI lower bound **> 1.00**". The printed lower bound is exactly 1.000 —
+so "pass/fail" turns on the fourth decimal place of that bootstrap quantile.
 
-而 bootstrap 分位数本身带蒙特卡洛误差：换一个分析层随机种子，
-下界就会抖动。如果抖动幅度 > |下界 − 1.00|，那么这条预注册判据
-**在这个效应量上根本不可判定** —— 跑 final 得到的"✓/✗"是掷硬币。
+And the bootstrap quantile itself carries Monte Carlo error: change the analysis-layer random seed and
+the lower bound jitters. If the jitter exceeds |lower bound − 1.00|, then this preregistered criterion
+**is simply not decidable at this effect size** — the "✓/✗" from the final run is a coin flip.
 
-**这必须在跑 final 之前知道**，因为 final block 只能烧一次。
+**This has to be known before the final run**, because the final block can only be burned once.
 
-本脚本只用**已经烧掉的开发种子**，不碰 50000 段。
-它不改判据、不改模型，只回答一个问题：**这条判据决定得了吗？**
+This script uses only the **development seeds that are already burned**; it does not touch the 50000 block.
+It changes neither the criterion nor the model, and answers one question: **can this criterion decide anything?**
 """
 
 import argparse
@@ -28,11 +28,11 @@ import statistics
 
 import final_confirm as FC
 
-R52_CI = 4          # CONDITIONS 里 R52 的下标
+R52_CI = 4          # index of R52 within CONDITIONS
 
 
 def boot_lo_hi(wa, wb, seed):
-    """按 final_confirm 完全相同的算法，只换分析层随机种子"""
+    """Exactly the algorithm of final_confirm, with only the analysis-layer random seed changed"""
     n = len(wa)
     rng = random.Random(seed)
     treat = [FC.mat_tv(wa[k], wb[k]) for k in range(n)]
@@ -59,7 +59,7 @@ def main():
     a = ap.parse_args()
 
     FC.verify_frozen()
-    print(f"R52 可判定性检查   开发种子 0–{a.n-1}   bootstrap {FC.N_BOOT} × {a.reps} 个分析种子")
+    print(f"R52 decidability check   development seeds 0–{a.n-1}   bootstrap {FC.N_BOOT} × {a.reps} analysis seeds")
 
     sims = [(FC.task_sim, (R52_CI, w, s0, min(FC.CHUNK, a.n - s0)))
             for w in (FC.WA, FC.WB) for s0 in range(0, a.n, FC.CHUNK)]
@@ -72,7 +72,7 @@ def main():
             if store[FC.WA][i] is not None and store[FC.WB][i] is not None]
     wa = [store[FC.WA][i] for i in live]
     wb = [store[FC.WB][i] for i in live]
-    print(f"有效 n = {len(wa)}\n")
+    print(f"valid n = {len(wa)}\n")
 
     jobs = [(_job, (wa, wb, 777 + 1000 * r)) for r in range(a.reps)]
     los = []
@@ -81,23 +81,23 @@ def main():
             los.append((seed, lo, hi))
     los.sort()
 
-    print(f"  {'分析种子':<10}{'CI 下界':>12}{'CI 上界':>12}{'判据':>10}")
+    print(f"  {'analysis seed':<16}{'CI lower':>12}{'CI upper':>12}{'criterion':>12}")
     print("  " + "-" * 44)
     for seed, lo, hi in los:
-        print(f"  {seed:<10}{lo:>12.5f}{hi:>12.5f}{'✓ 过' if lo > 1.0 else '✗ 不过':>10}")
+        print(f"  {seed:<16}{lo:>12.5f}{hi:>12.5f}{'✓ pass' if lo > 1.0 else '✗ fail':>12}")
 
     vals = [lo for _, lo, _ in los]
     spread = max(vals) - min(vals)
     n_pass = sum(1 for v in vals if v > 1.0)
-    print(f"\n  下界范围 [{min(vals):.5f}, {max(vals):.5f}]   抖动幅度 {spread:.5f}")
-    print(f"  {n_pass}/{len(vals)} 个分析种子判「过」")
-    print(f"  |中位下界 − 1.00| = {abs(statistics.median(vals) - 1.0):.5f}"
-          f"   vs 抖动 {spread:.5f}")
+    print(f"\n  lower-bound range [{min(vals):.5f}, {max(vals):.5f}]   jitter {spread:.5f}")
+    print(f"  {n_pass}/{len(vals)} analysis seeds judge it a pass")
+    print(f"  |median lower bound − 1.00| = {abs(statistics.median(vals) - 1.0):.5f}"
+          f"   vs jitter {spread:.5f}")
     if n_pass not in (0, len(vals)):
-        print("\n  ⚠⚠ 判据不可判定：仅仅换一个**分析层**随机种子，结论就翻。")
-        print("     在这个效应量上，「CI 下界 > 1.00」这条 bright line 是掷硬币。")
+        print("\n  ⚠⚠ Criterion undecidable: changing only the **analysis-layer** random seed flips the conclusion.")
+        print("     At this effect size the bright line \"CI lower bound > 1.00\" is a coin flip.")
     else:
-        print("\n  ✓ 判据在这个效应量上是稳的（所有分析种子给出同一结论）。")
+        print("\n  ✓ The criterion is stable at this effect size (every analysis seed gives the same conclusion).")
 
 
 if __name__ == "__main__":

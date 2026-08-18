@@ -1,20 +1,21 @@
 """
-三种改法对比 —— 治得了死亡率，会不会顺手抹平差异？
-======================================================
+Comparison of the three fixes — they cure mortality, but do they flatten the difference too?
+============================================================================================
 
-运行：  python fix_compare.py
+Run:  python fix_compare.py
 
-规则 43 有三种候选改法。单看死亡率会选错：**任何让所有球都拼命觅食的改动，
-都会同时压缩世界之间的行为差异** —— 死亡率降到 0 而比值也塌到 1，是失败。
+Rule 43 offers three candidate fixes. Looking at mortality alone picks the wrong one: **any change
+that makes every ball forage desperately also compresses the behavioural difference between the
+worlds** — mortality down to 0 while the ratio collapses to 1 is a failure.
 
-所以每一档同时报四个数：
+So every variant reports four numbers at once:
 
-    死亡率(120天, 完整)   死亡率(120天, 地板全关)   ← 要降
-    头条比值(60天, 完整)  比值(60天, 地板全关)      ← 不能塌
+    mortality(120d, full)   mortality(120d, all floors off)   ← should fall
+    headline ratio(60d, full)  ratio(60d, all floors off)     ← must not collapse
 
-★ 判据 ★
-  好的改法 = 两个死亡率都 <15%，且两个比值都不显著低于现状。
-  规则 44：地板全关那一列尤其重要 —— 它现在的 53.9% 死亡率正是污染源。
+★ Criterion ★
+  A good fix = both mortalities <15%, and neither ratio significantly below the status quo.
+  Rule 44: the all-floors-off column matters most — its current 53.9% mortality is the contamination source.
 """
 
 import random
@@ -27,16 +28,16 @@ import persistence_ablation as PA
 from transplant import run_phased, window_tv
 from p1_test import shuffled_base, BASE_K
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
-N_RATIO = 500      # 比值用（60 天）
-N_DEATH = 300      # 死亡率用（120 天，更贵）
-# 400 次足够给这张对比表定位；shuffled_base 每次要重算 ~2500 个 TV，
-# 上到 1500 次的话八档要跑将近一小时，不值得。
+WA, WB, COMMON = "rich world", "barren world", "baseline"
+N_RATIO = 500      # for the ratio (60 days)
+N_DEATH = 300      # for mortality (120 days, more expensive)
+# 400 iterations are enough to position this comparison table; shuffled_base recomputes ~2500 TVs
+# each time, so going up to 1500 would take nearly an hour for eight variants — not worth it.
 N_BOOT = 400
 
 
 def ratio_and_death(floor_off, days=60, n=N_RATIO):
-    """返回 (比值, CI, 死亡率)。days=120 时只取死亡率有意义。"""
+    """Return (ratio, CI, mortality). At days=120 only the mortality is meaningful."""
     sim.SIM_DAYS = days
     import transplant as T
     old_total = T.TOTAL
@@ -74,14 +75,14 @@ def setfix(a, b, c):
 
 
 FIXES = [
-    ("现状（无改法）",       0.0,  0.0, 0.35),
-    ("A 压睡眠 0.5",        0.5,  0.0, 0.35),
-    ("A 压睡眠 1.0",        1.0,  0.0, 0.35),
-    ("B 抬急迫 25",         0.0, 25.0, 0.35),
-    ("B 抬急迫 50",         0.0, 50.0, 0.35),
-    ("C 睡眠下限 0.60",      0.0,  0.0, 0.60),
-    ("C 睡眠下限 0.80",      0.0,  0.0, 0.80),
-    ("A0.5 + C0.6 合用",    0.5,  0.0, 0.60),
+    ("status quo (no fix)",     0.0,  0.0, 0.35),
+    ("A suppress sleep 0.5",    0.5,  0.0, 0.35),
+    ("A suppress sleep 1.0",    1.0,  0.0, 0.35),
+    ("B raise urgency 25",      0.0, 25.0, 0.35),
+    ("B raise urgency 50",      0.0, 50.0, 0.35),
+    ("C sleep floor 0.60",      0.0,  0.0, 0.60),
+    ("C sleep floor 0.80",      0.0,  0.0, 0.80),
+    ("A0.5 + C0.6 combined",    0.5,  0.0, 0.60),
 ]
 
 
@@ -92,11 +93,11 @@ def main():
     sim.KNOWLEDGE_FORGET = 0.02 if k_on else 0.0
 
     print("=" * 104)
-    print(f" 三种改法对比   022 {'打开' if k_on else '关闭'}   "
-          f"比值 N={N_RATIO}(60天)   死亡率 N={N_DEATH}(120天)")
+    print(f" Comparison of the three fixes   022 {'on' if k_on else 'off'}   "
+          f"ratio N={N_RATIO}(60d)   mortality N={N_DEATH}(120d)")
     print("=" * 104)
-    print(f"  {'改法':<18}{'死亡%完整':>11}{'死亡%无地板':>12}"
-          f"{'比值 完整':>22}{'比值 无地板':>22}")
+    print(f"  {'fix':<24}{'dead% full':>12}{'dead% no floor':>16}"
+          f"{'ratio full':>22}{'ratio no floor':>22}")
     print("  " + "-" * 100)
 
     for label, a, b, c in FIXES:
@@ -111,8 +112,8 @@ def main():
               f"{r_full:>10.3f} [{ci_full[0]:.3f},{ci_full[1]:.3f}]"
               f"{r_abl:>10.3f} [{ci_abl[0]:.3f},{ci_abl[1]:.3f}]")
 
-    print("\n  判据：两个死亡率都 <15%（无 ⚠），且两个比值都不显著低于「现状」那一行")
-    print("  ⚠ 治死亡率的代价常常是抹平差异 —— 比值塌了就是失败，哪怕死亡率降到 0")
+    print("\n  Criterion: both mortalities <15% (no ⚠), and neither ratio significantly below the \"status quo\" row")
+    print("  ⚠ Curing mortality often costs the difference — a collapsed ratio is a failure even if mortality drops to 0")
 
 
 if __name__ == "__main__":

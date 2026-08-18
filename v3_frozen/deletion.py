@@ -1,30 +1,32 @@
 """
-删除测试 —— 差异到底存在哪一层？
-===================================
+Deletion test — which layer does the difference actually live in?
+=================================================================
 
-运行：  python deletion.py
+Run:  python deletion.py
 
-移植实验证明了差异不依赖环境。但它没说差异**存在哪里**。
-这个脚本在移植的那一刻按阶梯删掉各层，看差异什么时候塌。
+The transplant experiment proved the difference does not depend on the environment. But it did
+not say **where** the difference lives. This script deletes each layer in a ladder at the moment
+of transplant and sees when the difference collapses.
 
-    ① 完整
-    ② − 情节记忆              memories = []
-    ③ − 情节 + 语义           再清 knowledge
-    ④ 只剩 traits             再清 flags / goal / goal_history / hardship
+    ① full
+    ② − episodic memory        memories = []
+    ③ − episodic + semantic    also clear knowledge
+    ④ traits only              also clear flags / goal / goal_history / hardship
 
-★ 为什么必须有第 ③ 档 ★
-`knowledge` 是从情节记忆派生出来的（`mark()` 里顺手 `learn()`）。
-只删情节会把语义留下，那还是**外部脚手架**在托着，
-测出来的"记忆无关"是假的。
+★ Why step ③ is mandatory ★
+`knowledge` is derived from episodic memory (`mark()` calls `learn()` along the way).
+Deleting only the episodic layer leaves the semantic one, so **external scaffolding** is still
+holding it up, and the "memory-independent" result is fake.
 
-★ 为什么第 ④ 档才是真正的诊断 ★
-只留性格数值、把一切经历性的结构全部抹掉。如果差异到这里还在，
-那它就真的沉淀进了人格向量本身，而不是靠记忆在每天重新生成。
+★ Why step ④ is the real diagnosis ★
+Keep only the personality numbers and wipe out every experiential structure. If the difference
+is still there at that point, then it really has settled into the personality vector itself
+rather than being regenerated daily from memory.
 
-    塌在 ②     → 差异靠具体事件在维持
-    塌在 ③     → 靠语义知识维持
-    塌在 ④     → 靠 flags / goal / hardship 这些经历性开关维持
-    ④ 还不塌   → 已经写进性格向量，是真正的"长成了这样"
+    collapses at ②     → the difference is sustained by concrete events
+    collapses at ③     → sustained by semantic knowledge
+    collapses at ④     → sustained by experiential switches: flags / goal / hardship
+    survives ④         → already written into the personality vector; it really has "grown this way"
 """
 
 import statistics
@@ -38,14 +40,14 @@ from paired import pad
 SEEDS = 200
 SPLIT = 30
 CHECKS = (30, 60, 90)
-WA, WB = "丰富世界", "贫瘠世界"
-COMMON = "基准"
+WA, WB = "rich world", "barren world"
+COMMON = "baseline"
 
 LADDER = [
-    ("① 完整",            set()),
-    ("② −情节记忆",       {"episodic"}),
-    ("③ −情节+语义",      {"episodic", "semantic"}),
-    ("④ 只剩 traits",     {"episodic", "semantic", "experiential"}),
+    ("① full",                set()),
+    ("② −episodic",           {"episodic"}),
+    ("③ −episodic+semantic",  {"episodic", "semantic"}),
+    ("④ traits only",         {"episodic", "semantic", "experiential"}),
 ]
 
 
@@ -54,19 +56,19 @@ def wipe(agent, what):
         agent.memories = []
     if "semantic" in what:
         agent.knowledge = {}
-        # ★022★ 强度字典必须一起清 —— `know()` 读的是它，不是 knowledge。
-        # 只清 knowledge 的话行为效应仍在，删除测试会测出假的 no-op。
+        # ★022★ The strength dict must be cleared too — `know()` reads it, not knowledge.
+        # Clearing only knowledge leaves the behavioural effect intact and the deletion test reports a fake no-op.
         agent.knowledge_strength = {}
     if "experiential" in what:
-        # 经历性的开关：它们都直接进 score()，不删就不算"只剩 traits"
+        # Experiential switches: they all enter score() directly, so without deleting them it is not "traits only"
         agent.flags = set()
         agent.hardship = 0.0
         agent._hardship_anchor = None
         agent.goal = None
         agent.goal_history = []
         agent.goal_satiation = {}
-    # 注意：trait_floor / trait_identity 保留 —— 它们是性格结构的一部分，
-    # 不是记忆。要单独消融它们请用 persistence_ablation.py
+    # Note: trait_floor / trait_identity are kept — they are part of the personality structure,
+    # not memory. To ablate them separately use persistence_ablation.py
 
 
 def run_tracked(seed, first, what):
@@ -127,20 +129,20 @@ def measure(what):
 
 def main():
     print("=" * 100)
-    print(f" 删除测试   {SEEDS} 颗种子   {WA} ↔ {WB}，第 {SPLIT} 天都进【{COMMON}】"
-          f"并按阶梯删除")
+    print(f" Deletion test   {SEEDS} seeds   {WA} ↔ {WB}, both enter **{COMMON}** on day {SPLIT}"
+          f" with the deletion ladder applied")
     print("=" * 100)
-    print(f"  {pad('条件', 16)}{pad('移植点 caut', 13, True)}"
+    print(f"  {pad('condition', 24)}{pad('caut at transplant', 20, True)}"
           f"{pad('+30 caut', 11, True)}{pad('+60 caut', 11, True)}"
-          f"{pad('+30 比值', 11, True)}{pad('+60 比值', 11, True)}"
-          f"{pad('+60 一眼', 11, True)}{pad('+60 损失', 11, True)}")
+          f"{pad('+30 ratio', 12, True)}{pad('+60 ratio', 12, True)}"
+          f"{pad('+60 visible', 14, True)}{pad('+60 loss', 12, True)}")
     print("  " + "-" * 96)
 
     rows = []
     for label, what in LADDER:
         m = measure(what)
         if 60 not in m:
-            print(f"  {pad(label, 16)}  —— 样本不足")
+            print(f"  {pad(label, 24)}  — not enough samples")
             continue
         rows.append((label, m))
         print(f"  {pad(label, 16)}{pad(f'{m[30]["caution"]:+.1f}', 13, True)}"
@@ -152,7 +154,7 @@ def main():
               f"{pad(f'{m[60]["loss"]:.1%}', 11, True)}")
 
     print("\n" + "=" * 100)
-    print(" 判定")
+    print(" Verdict")
     print("=" * 100)
     if rows:
         full = rows[0][1]
@@ -160,18 +162,18 @@ def main():
             keep_r = m[60]["r"] / full[60]["r"] if full[60]["r"] else 0
             keep_c = (m[60]["caution"] / full[60]["caution"]
                       if full[60]["caution"] else 0)
-            print(f"  {pad(label, 16)}  行为比值保留 {keep_r:>5.0%}   "
-                  f"caution 保留 {keep_c:>5.0%}")
+            print(f"  {pad(label, 24)}  behaviour ratio retained {keep_r:>5.0%}   "
+                  f"caution retained {keep_c:>5.0%}")
         last = rows[-1][1]
         print()
         if last[60]["r"] >= 1.0:
-            print("  ★ 全删记忆之后，行为比值仍 ≥ 1 —— 差异已经沉淀进性格向量本身")
+            print("  ★ after deleting all memory the behaviour ratio is still ≥ 1 — the difference has settled into the personality vector itself")
         elif last[60]["r"] >= 0.7 * full[60]["r"]:
-            print("  ~ 全删记忆后大部分还在，但已不足以自己越过基线")
+            print("  ~ most of it survives deleting all memory, but no longer enough to clear the baseline on its own")
         else:
-            print("  ✗ 全删记忆后塌掉 —— 差异是靠记忆每天重新生成的")
-    print("\n  ⚠ 损失 >15% 的行有幸存者污染。trait_floor / trait_identity 未删，")
-    print("     它们属于性格结构；要单独消融请跑 persistence_ablation.py")
+            print("  ✗ collapses once all memory is deleted — the difference was regenerated daily from memory")
+    print("\n  ⚠ Rows with loss >15% carry survivor contamination. trait_floor / trait_identity were not deleted,")
+    print("     they belong to the personality structure; to ablate them separately run persistence_ablation.py")
 
 
 if __name__ == "__main__":

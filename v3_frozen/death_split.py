@@ -1,26 +1,27 @@
 """
-死亡率拆分 —— 把 cond_compare 的「配对死亡率」拆回单个世界
-==============================================================
+Mortality split — decomposing cond_compare's "paired mortality" back into single worlds
+=======================================================================================
 
-运行：  python death_split.py            （默认 N=300，12 进程，约 5 分钟）
+Run:  python death_split.py            (default N=300, 12 processes, about 5 minutes)
         python death_split.py --seeds 100 --workers 6
 
-★ 为什么要拆 ★
-`fix_compare.ratio_and_death` 里 `live` 要求**丰富、贫瘠两支都活**，
-所以它报的是**配对**死亡率 ≈ 1−(1−p丰)(1−p贫)，一个数糊住了两个世界。
+★ Why split it ★
+In `fix_compare.ratio_and_death`, `live` requires **both the rich and the barren arm to survive**,
+so what it reports is a **paired** mortality ≈ 1−(1−p_rich)(1−p_barren) — one number smearing two worlds together.
 
-`cliff_probe.py`（N=60，只跑贫瘠）对上了「现状」那一格：
-    单只贫瘠球 23.3% → 1−(1−0.233)² = 41.2%   vs   cond_compare 实测 40.7% ✓
-但 ①阈值55 对不上：
-    单只贫瘠球 11.7% → 应 ≈22%                vs   cond_compare 实测 43.3% ✗
+`cliff_probe.py` (N=60, barren only) matched the "status quo" cell:
+    single barren ball 23.3% → 1−(1−0.233)² = 41.2%   vs   cond_compare measured 40.7% ✓
+But ① threshold 55 does not match:
+    single barren ball 11.7% → should be ≈22%          vs   cond_compare measured 43.3% ✗
 
-两种可能，必须分清楚，否则 v3 选哪个阈值就是蒙的：
-  (a) 丰富世界那一支在 55 档反常地死得多 —— 那 ①55 真的不能用；
-  (b) cliff_probe 的 N=60 噪声（SE≈±5pp）—— 那 ①55 其实没问题。
+Two possibilities, and they must be told apart or the choice of v3's threshold is a guess:
+  (a) the rich arm dies unusually often at the 55 setting — then ①55 really is unusable;
+  (b) noise from cliff_probe's N=60 (SE≈±5pp) — then ①55 is in fact fine.
 
-这里两个世界都跑、N 拉到 300、逐档报单世界死亡率，并**顺手用单世界数字
-重算配对死亡率**，跟 cond_compare 的实测值对账。对不上就说明"两支独立"
-这个假设本身错了（同种子的两支共享初始性格，本来就相关）。
+Here both worlds are run, N is raised to 300, single-world mortality is reported per variant, and
+the **paired mortality is recomputed from the single-world numbers** and reconciled with
+cond_compare's measurement. A mismatch means the "the two arms are independent" assumption is
+itself wrong (the two arms of one seed share an initial personality and are correlated by construction).
 """
 
 import argparse
@@ -28,22 +29,22 @@ import multiprocessing as mp
 import os
 import time
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 SPLIT, TOTAL = 30, 120
 
-# (标签, 恢复阈值, 死区恢复, 住所恢复)
+# (label, recovery threshold, dead-zone recovery, shelter recovery)
 VARIANTS = [
-    ("现状",          30.0, 0.00, 0.00),
-    ("① 阈值 55",     55.0, 0.00, 0.00),
-    ("① 阈值 60",     60.0, 0.00, 0.00),
-    ("① 阈值 65",     65.0, 0.00, 0.00),
-    ("③ 住所 +0.10",  30.0, 0.00, 0.10),
+    ("status quo",      30.0, 0.00, 0.00),
+    ("① threshold 55",  55.0, 0.00, 0.00),
+    ("① threshold 60",  60.0, 0.00, 0.00),
+    ("① threshold 65",  65.0, 0.00, 0.00),
+    ("③ shelter +0.10", 30.0, 0.00, 0.10),
 ]
-CHUNK = 25          # 每个任务跑多少颗种子，摊薄进程启动开销
+CHUNK = 25          # seeds per task, to amortise process startup cost
 
 
 def evaluate(task):
-    """一个任务 = (档位, 世界, 地板全关, 起始种子, 颗数) → 死了几只"""
+    """One task = (variant, world, floors off, first seed, count) → how many died"""
     vi, world, floor_off, seed0, n = task
 
     import sim
@@ -66,12 +67,12 @@ def evaluate(task):
     return (vi, world, floor_off), dead, n
 
 
-# cond_compare 3g 节的实测配对死亡率，用来对账
-COND_COMPARE = {          # 标签: (完整, 无地板)
-    "现状":         (0.187, 0.407),
-    "① 阈值 55":    (0.137, 0.433),
-    "① 阈值 65":    (0.050, 0.073),
-    "③ 住所 +0.10": (0.067, 0.340),
+# The paired mortalities measured in cond_compare §3g, used for reconciliation
+COND_COMPARE = {          # label: (full, no floor)
+    "status quo":      (0.187, 0.407),
+    "① threshold 55":  (0.137, 0.433),
+    "① threshold 65":  (0.050, 0.073),
+    "③ shelter +0.10": (0.067, 0.340),
 }
 
 
@@ -87,8 +88,8 @@ def main():
              for fo in (False, True)
              for s0 in range(0, a.seeds, CHUNK)]
 
-    print(f"死亡率拆分  {len(VARIANTS)} 档 × 2 世界 × 2 架构 × {a.seeds} 种子 "
-          f"× {TOTAL} 天   进程数 {a.workers}")
+    print(f"Mortality split  {len(VARIANTS)} variants × 2 worlds × 2 architectures × {a.seeds} seeds "
+          f"× {TOTAL} days   processes {a.workers}")
     acc, t0 = {}, time.time()
     with mp.Pool(a.workers) as pool:
         for k, (key, dead, n) in enumerate(pool.imap_unordered(evaluate, tasks), 1):
@@ -96,16 +97,16 @@ def main():
             acc[key] = (d + dead, t + n)
             if k % 20 == 0 or k == len(tasks):
                 el = time.time() - t0
-                print(f"  {k}/{len(tasks)}  已用 {el/60:.1f}min  "
-                      f"剩余 ~{el/k*(len(tasks)-k)/60:.1f}min", flush=True)
+                print(f"  {k}/{len(tasks)}  elapsed {el/60:.1f}min  "
+                      f"remaining ~{el/k*(len(tasks)-k)/60:.1f}min", flush=True)
 
     for floor_off in (False, True):
-        arch = "地板全关" if floor_off else "完整架构"
+        arch = "all floors off" if floor_off else "full architecture"
         print("\n" + "=" * 92)
-        print(f" 单世界死亡率 · {arch} · N={a.seeds} · 120 天 · 第 30 天移植到基准")
+        print(f" Single-world mortality · {arch} · N={a.seeds} · 120 days · transplanted to baseline on day 30")
         print("=" * 92)
-        print(f"  {'修法':<14}{'丰富世界':>10}{'贫瘠世界':>10}"
-              f"{'独立推算配对':>14}{'cond_compare':>14}{'差':>8}")
+        print(f"  {'fix':<20}{'rich world':>12}{'barren world':>14}"
+              f"{'independent paired':>20}{'cond_compare':>14}{'diff':>8}")
         print("  " + "-" * 88)
         for vi, (label, *_) in enumerate(VARIANTS):
             da, na = acc[(vi, WA, floor_off)]
@@ -116,11 +117,11 @@ def main():
             o = f"{obs:>13.1%}" if obs is not None else f"{'—':>14}"
             df = f"{pred-obs:>+7.1%}" if obs is not None else f"{'—':>8}"
             print(f"  {label:<14}{pa:>9.1%}{pb:>9.1%}{pred:>13.1%}{o}{df}")
-        print(f"\n  「独立推算配对」= 1−(1−p丰)(1−p贫)，假设两支独立。")
-        print(f"  与 cond_compare 的差就是**同种子两支的相关性**（共享初始性格）：")
-        print(f"  推算 > 实测 → 两支同生共死（正相关）；推算 < 实测 → 反常，要查。")
+        print(f"\n  \"independent paired\" = 1−(1−p_rich)(1−p_barren), assuming the arms are independent.")
+        print(f"  The gap to cond_compare is exactly **the correlation between the two arms of one seed** (shared initial personality):")
+        print(f"  predicted > measured → the arms live and die together (positive correlation); predicted < measured → anomalous, investigate.")
         se = (0.25 / a.seeds) ** 0.5
-        print(f"  单世界死亡率的最大标准误 ≈ ±{se:.1%}（N={a.seeds}）")
+        print(f"  Largest standard error of a single-world mortality ≈ ±{se:.1%} (N={a.seeds})")
 
 
 if __name__ == "__main__":

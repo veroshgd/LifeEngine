@@ -1,23 +1,24 @@
 """
-P2 —— 移植那一刻单独删 knowledge（保留 flags），比值塌不塌
-==============================================================
+P2 — delete knowledge alone at the moment of transplant (keeping flags): does the ratio collapse?
+=================================================================================================
 
-运行：  python p2_test.py
+Run:  python p2_test.py
 
-预注册第 4 节：
+Preregistration §4:
 
-    P2：删除档比 P1 档低 ≥ 0.05，且两者 95% CI 不重叠
+    P2: the deletion variant is ≥ 0.05 below the P1 variant, and their 95% CIs do not overlap
 
-★ 为什么必须【单独】删 ★（预注册第 2 节）
-`landmark()` 同时写 flags 和 knowledge（`sim.py:458`），两者完全相关 ——
-这就是实验 020 机制表里"语义记忆差"和"关键经历差"两列数字一模一样的原因。
-`deletion.py` 原来的阶梯是嵌套的（②③④ 层层叠加），测不出归因。
-这里改成**非嵌套**：每一档只删一样东西。
+★ Why it must be deleted **alone** ★ (preregistration §2)
+`landmark()` writes flags and knowledge at the same time (`sim.py:458`), so the two are perfectly
+correlated — that is why the "semantic memory diff" and "landmark diff" columns of the experiment
+020 mechanism table hold identical numbers.
+The original ladder in `deletion.py` was nested (②③④ stacking up), so it cannot attribute anything.
+Here it is made **non-nested**: each variant deletes exactly one thing.
 
-★ P2 的逻辑 ★
-如果 P1 通过（接线后无地板档 > 1），那个持久性必须**来自 knowledge**。
-移植那刻把 knowledge 抹掉、其他一律保留 —— 比值应该塌回 1 附近。
-如果不塌，说明持久性来自别处，**不能声称 knowledge 通路**。
+★ The logic of P2 ★
+If P1 passes (no-floor variant > 1 after wiring), that persistence must **come from knowledge**.
+Wipe knowledge at the moment of transplant and keep everything else — the ratio should collapse back to about 1.
+If it does not collapse, the persistence comes from somewhere else and **the knowledge channel cannot be claimed**.
 """
 
 import random
@@ -31,17 +32,17 @@ from transplant import window_tv, SPLIT, TOTAL
 from significance_main import per_seed_delta, sign_perm_p
 from p1_test import shuffled_base, BASE_K, N_BOOT
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 N_SEEDS = 1500
-SEED0 = 20000          # 与 P1 同一段（预注册保留段）
+SEED0 = 20000          # same block as P1 (the preregistered reserved block)
 
 
 def wipe_at_transplant(agent, what):
-    """★非嵌套★ 每一档只删一样。trait_floor / trait_identity 永不在此处删
-    —— 它们由 floor 消融负责，混在一起就分不清归因。"""
+    """★Non-nested★ each variant deletes one thing. trait_floor / trait_identity are never deleted here
+    — they are the business of the floor ablation, and mixing them in destroys attribution."""
     if "semantic" in what:
         agent.knowledge = {}
-        agent.knowledge_strength = {}      # 022：强度才是 know() 读的东西
+        agent.knowledge_strength = {}      # 022: the strength dict is what know() reads
     if "episodic" in what:
         agent.memories = []
     if "flags" in what:
@@ -52,7 +53,7 @@ def wipe_at_transplant(agent, what):
 
 
 def run_phased_wipe(seed, first, wipe_what):
-    """前 30 天 first 世界 → 抹掉指定层 → 后 30 天基准世界"""
+    """First 30 days in the `first` world → wipe the given layer → last 30 days in the baseline world"""
     life = scenarios.make(seed, first)
     agent = life.agent
 
@@ -75,7 +76,7 @@ def run_phased_wipe(seed, first, wipe_what):
     w = sim.World(seed, **scenarios.WORLDS[COMMON])
     life.world = w
     agent.world = w
-    wipe_at_transplant(agent, wipe_what)       # ★就在这一刻★
+    wipe_at_transplant(agent, wipe_what)       # ★at exactly this moment★
 
     if not phase(SPLIT, TOTAL):
         return None, None
@@ -123,25 +124,25 @@ def analyse(label, wipe_what, floor_off=True):
 def main():
     sim.KNOWLEDGE_WEIGHT, sim.KNOWLEDGE_GOAL_WEIGHT, sim.KNOWLEDGE_FORGET = 12.0, 0.25, 0.02
     print("=" * 96)
-    print(f" P2 非嵌套删除   seeds {SEED0}–{SEED0+N_SEEDS-1}   N={N_SEEDS}"
-          f"   022 打开 + 地板全关")
+    print(f" P2 non-nested deletion   seeds {SEED0}–{SEED0+N_SEEDS-1}   N={N_SEEDS}"
+          f"   022 on + all floors off")
     print("=" * 96)
-    print(f"  {'移植那刻删掉什么':<24}{'n':>6}{'死亡':>8}{'比值':>8}  {'95% CI':<18}{'p':>9}")
+    print(f"  {'what is deleted at transplant':<32}{'n':>6}{'dead':>8}{'ratio':>8}  {'95% CI':<18}{'p':>9}")
     print("  " + "-" * 92)
 
-    base_r = analyse("① 什么都不删（=P1）", set())
-    sem = analyse("② 只删语义 knowledge", {"semantic"})
-    epi = analyse("③ 只删情节 memories", {"episodic"})
-    flg = analyse("④ 只删 flags", {"flags"})
-    allm = analyse("⑤ 删语义+情节+flags", {"semantic", "episodic", "flags"})
+    base_r = analyse("① delete nothing (=P1)", set())
+    sem = analyse("② delete semantic knowledge only", {"semantic"})
+    epi = analyse("③ delete episodic memories only", {"episodic"})
+    flg = analyse("④ delete flags only", {"flags"})
+    allm = analyse("⑤ delete semantic+episodic+flags", {"semantic", "episodic", "flags"})
 
-    print(f"\n  P2 判据：② 比 ① 低 ≥ 0.05 且 CI 不重叠")
+    print(f"\n  P2 criterion: ② is ≥ 0.05 below ① and the CIs do not overlap")
     drop = base_r[0] - sem[0]
     overlap = not (sem[2] < base_r[1] or base_r[2] < sem[1])
-    print(f"    ①{base_r[0]:.3f} → ②{sem[0]:.3f}   落差 {drop:+.3f}   "
-          f"CI {'重叠' if overlap else '不重叠'}   "
-          f"{'✓ P2 过' if drop >= 0.05 and not overlap else '✗ P2 不过'}")
-    print("\n  ③④ 是对照：如果删情节/flags 也掉一样多，说明不是 knowledge 特有的。")
+    print(f"    ①{base_r[0]:.3f} → ②{sem[0]:.3f}   drop {drop:+.3f}   "
+          f"CI {'overlap' if overlap else 'no overlap'}   "
+          f"{'✓ P2 pass' if drop >= 0.05 and not overlap else '✗ P2 fail'}")
+    print("\n  ③④ are controls: if deleting episodic/flags drops it just as much, the effect is not specific to knowledge.")
 
 
 if __name__ == "__main__":

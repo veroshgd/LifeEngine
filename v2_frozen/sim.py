@@ -1,26 +1,26 @@
 """
-AI SANDBOX — Life Engine（核心模型）
+AI SANDBOX — Life Engine (core model)
 =====================================
 
-纯代码，零 LLM，零依赖。
+Pure code, zero LLM, zero dependencies.
 
-★ v2 的核心变化：**这个文件里没有"用户"这个概念。**
+★ The core change in v2: **there is no concept of a "user" in this file.**
 
-以前是：
+It used to be:
     User type → Feeding → Personality
 
-现在是：
+Now it is:
     World → Experience → Memory → Personality → Behavior
 
-Agent 只知道自己身处一个世界，世界里有资源、天气、物件。
-"谁在投喂""投喂得勤不勤"是**实验脚本**的事，见 scenarios.py。
-Life Engine 本身不知道用户是什么。
+The Agent only knows it lives in a world that has resources, weather and objects.
+"Who is feeding it" and "how diligently" are the business of the **experiment
+scripts** — see scenarios.py. The Life Engine itself does not know what a user is.
 
-这不是洁癖。核心卖点不是"用户怎么养 → NPC 怎么长"，
-而是"用户像上帝一样改变世界，生命根据环境自己长成不同的样子"。
-模型里留着 USER_ARCHETYPES，就会一直把实验拉回投喂频率上。
+This is not fastidiousness. The core claim is not "how the user raises it → how the
+NPC grows", but "the user changes the world like a god, and life grows into
+different shapes on its own according to the environment". Keeping USER_ARCHETYPES
 
-分成三层：
+Three layers:
 
     Agent               World              Influence
     ├─ personality      ├─ resources       ├─ give_food
@@ -29,8 +29,8 @@ Life Engine 本身不知道用户是什么。
     ├─ goals            └─ events          └─ change_environment
     └─ history
 
-⚠ 兼容性：v2 重排了随机数的消费顺序（世界和个体现在是两条独立的流），
-   所以数值结果与实验 011–017 不能直接比较。分界线记在实验 018。
+⚠ Compatibility: v2 reordered random-number consumption (world and individual are
+   now two independent streams), so numeric results are not directly comparable with
 """
 
 import math
@@ -38,56 +38,58 @@ import random
 from collections import Counter
 
 # ============================================================
-# 参数
+# Parameters
 # ============================================================
 
-PERSONALITY_WEIGHT = 30.0  # 性格对行动打分的影响强度。★核心旋钮★
-                           #   太小 → 所有球行为一样 → 趋同
-                           #   太大 → 球无视饥饿而饿死 → 变成漫画角色
-TRAIT_DRIFT        = 1.20  # 每次行动对性格的推动幅度（正反馈的增益）
-TRAIT_SATURATION   = 0.90  # 性格越极端，越难继续极端化（0 = 关掉）
-# ★为什么需要★ 正反馈本身没有刹车：探索 → 好奇↑谨慎↓ → 更想探索。
-# v1 里永久 trait_floor 恰好当了刹车；v2 让地板会消退（笔记 ⑤），刹车就没了，
-# 于是 60 天有一批球漂到 谨慎 8 / 好奇 100，只顾探索、饿死。
-# 这一项也顺手治了实验 017 的天花板问题（60 天 78% 的球 caution 顶到 100）。
-LANDMARK_BONUS     = 25.0  # 关键经历带来的行动加成
-HUNGER_RATE        = 2.2   # 每 tick 饥饿增长
+PERSONALITY_WEIGHT = 30.0  # How strongly personality weighs on action scoring. ★core knob★
+                           #   too small → all balls behave alike → convergence
+                           #   too large → balls ignore hunger and starve → cartoon characters
+TRAIT_DRIFT        = 1.20  # How far each action nudges personality (positive-feedback gain)
+TRAIT_SATURATION   = 0.90  # The more extreme a trait, the harder to grow further (0 = off)
+# ★Why this is needed★ Positive feedback has no brake of its own: explore → curiosity↑
+# caution↓ → want to explore more. In v1 the permanent trait_floor happened to act as the
+# brake; v2 lets floors decay (note ⑤), so the brake was gone, and by day 60 a batch of
+# balls had drifted to caution 8 / curiosity 100, explored non-stop and starved.
+# This also incidentally cured the ceiling problem of experiment 017 (at day 60, 78% of
+# balls had caution pinned at 100).
+LANDMARK_BONUS     = 25.0  # Bonus an action gets from a landmark experience
+HUNGER_RATE        = 2.2   # Hunger growth per tick
 
-FOOD_NUTRITION     = 20.0  # 一份食物能压下多少饥饿
-                           # 一次采集 ≠ 一天口粮，否则球完全自给自足
+FOOD_NUTRITION     = 20.0  # How much hunger one portion of food removes
+                           # one gather ≠ one day's ration, else the ball is fully self-sufficient
 
-# 探索的产出。★不受资源上限约束的行为会变成无限龙头★（实验 013 的教训）
+# Yield of exploring. ★A behaviour not bounded by a resource cap becomes an infinite tap★ (lesson of experiment 013)
 EXPLORE_FOOD_CHANCE = 0.28
 EXPLORE_FOOD_YIELD  = 0.5
 
 TICKS_PER_DAY = 24
 SIM_DAYS      = 30
 
-TRAITS = ["caution", "curiosity", "industry"]   # 谨慎 / 好奇 / 勤劳
+TRAITS = ["caution", "curiosity", "industry"]   # caution / curiosity / industry
 
-INITIAL_TRAIT_SPREAD = 6.0   # 出生时性格的随机偏移（±）
-# ★规则 12★ 正反馈放大的是最先进入循环的差异。种子第 0 天就进去了，
-# 环境的影响要几天才见效 → 这个数字是环境信号的竞争对手，不是"多样性旋钮"。
+INITIAL_TRAIT_SPREAD = 6.0   # Random offset of personality at birth (±)
+# ★Rule 12★ Positive feedback amplifies whichever difference enters the loop first. The seed
+# enters on day 0, environmental influence takes days to show → this number is a *competitor*
 
-# --- 受苦 → 性格 的连续传导（实验 013）---
-HARDSHIP_SCALE     = 1.5   # 饱和曲线时间常数（体质完全归零的天数当量）
-HARDSHIP_MAX_BOOST = 22.0  # 饱和时性格地板最多抬多高
+# --- continuous transmission: suffering → personality (experiment 013) ---
+HARDSHIP_SCALE     = 1.5   # Saturation-curve time constant (day-equivalent of condition hitting zero)
+HARDSHIP_MAX_BOOST = 22.0  # How high the personality floor can be raised at saturation
 HARDSHIP_FLOOR_WEIGHT = {"industry": 1.0, "curiosity": 0.27}
-HARDSHIP_STORY_AT  = 0.5   # 累积到这里记一笔关键经历（叙事用）
+HARDSHIP_STORY_AT  = 0.5   # Accumulate to here and a landmark experience is recorded (for narrative)
 
-# --- ★性格的时间结构★（笔记 ⑤：快形成，慢消退）-----------------
-# 以前：关键经历 → trait_floor → 永远回不去。作为实验很好证明，
-#       但真实的人格不是这样，它更像"快形成，慢消退"：
-#           暴雨让 caution +15，之后半年风平浪静 → +15→+13→+11→+9
-#       只有真正重大的 landmark 才留下永久 bias。
+# --- ★the temporal structure of personality★ (note ⑤: forms fast, fades slow) --------
+# Before: landmark experience → trait_floor → never comes back. Good enough as a first
+#         experiment, but real personality is not like that; it is more "forms fast, fades
+#         slow": a storm gives caution +15, then half a year of calm → +15→+13→+11→+9
+#         Only a truly major landmark leaves a permanent bias.
 #
 #   short-term adaptation → medium-term habit → long-term personality
 #                                                   → landmark identity
 #
-# 实现：两层地板。soft 会慢慢往下退，perm 不退，soft 永远不低于 perm。
-FLOOR_DECAY_PER_DAY  = 0.35   # 软地板每天消退多少
-LANDMARK_PERMANENT   = 0.40   # landmark 抬升里有多少比例变成永久 bias
-HARDSHIP_FORGET      = 0.015  # 吃饱穿暖时，受苦记忆每天淡忘多少
+# Implementation: two floors. soft decays slowly, perm does not, and soft is never below perm.
+FLOOR_DECAY_PER_DAY  = 0.35   # How much the soft floor fades per day
+LANDMARK_PERMANENT   = 0.40   # What fraction of a landmark boost becomes permanent bias
+HARDSHIP_FORGET      = 0.015  # How fast the memory of suffering fades on a full stomach
 
 
 def clamp(v, lo=0.0, hi=100.0):
@@ -95,27 +97,27 @@ def clamp(v, lo=0.0, hi=100.0):
 
 
 # ============================================================
-# World —— 世界。Agent 生活在里面，但不知道"用户"是什么
+# World — the world. The Agent lives in it, but does not know what a "user" is
 # ============================================================
 
 WORLD_DEFAULTS = {
-    "food_regen":       2.4,   # 每天再生几份食物（需求 ≈ 2.64 → 天然赤字）
+    "food_regen":       2.4,   # Portions of food regrown per day (demand ≈ 2.64 → natural deficit)
     "food_cap":         6.0,
-    "material_yield":   1.0,   # 采集一次拿到几份材料
-    "storm_chance":     0.04,  # 每天暴雨概率
+    "material_yield":   1.0,   # Portions of material obtained per gather
+    "storm_chance":     0.04,  # Daily storm probability
     "storm_damage":     (10.0, 40.0),
-    "season_days":      12,    # 丰季/荒季周期
-    "season_amplitude": 0.55,  # ★产生梯度的是波动，不是平均值★（规则 4）
-    "objects":          (),    # 世界里有什么：{"book", "music"}
+    "season_days":      12,    # Abundant/lean season period
+    "season_amplitude": 0.55,  # ★What produces a gradient is the fluctuation, not the mean★ (rule 4)
+    "objects":          (),    # What exists in the world: {"book", "music"}
 }
 
 
 class World:
-    """资源、天气、物件、事件。
+    """Resources, weather, objects, events.
 
-    注意 `objects`：世界里有没有书、有没有音乐，是**环境**属性，
-    不是 Agent 的属性。同一个 Agent 放进不同的世界，会长成不同的样子——
-    这正是我们要验证的东西。
+    Note `objects`: whether the world has books or music is an **environmental**
+    property, not a property of the Agent. Put the same Agent into different worlds
+    and it grows into a different shape — which is exactly what we want to verify.
     """
 
     def __init__(self, seed=0, **params):
@@ -123,15 +125,15 @@ class World:
         self.p = dict(WORLD_DEFAULTS)
         unknown = set(params) - set(WORLD_DEFAULTS)
         if unknown:
-            raise ValueError(f"未知的世界参数: {sorted(unknown)}")
+            raise ValueError(f"unknown world parameter: {sorted(unknown)}")
         self.p.update(params)
         self.objects = set(self.p["objects"])
         self.food = self.p["food_cap"]
-        self.events = []          # 世界层面发生过什么（不是 agent 的记忆）
+        self.events = []          # what happened at world level (not the agent's memory)
         self.weather = "clear"
 
     def season_multiplier(self, day):
-        """丰季 ~1.5×，荒季 ~0.45×。全世界共享（是世界，不是个人运气）"""
+        """Abundant season ~1.5×, lean season ~0.45×. Shared world-wide (it is the world, not personal luck)"""
         return 1.0 + self.p["season_amplitude"] * math.sin(
             2 * math.pi * day / self.p["season_days"])
 
@@ -139,7 +141,7 @@ class World:
         return obj in self.objects
 
     def tick(self, day, tick_of_day):
-        """世界自己的演化：资源再生 + 天气"""
+        """The world's own evolution: resource regrowth + weather"""
         self.food = min(self.p["food_cap"],
                         self.food + self.p["food_regen"]
                         * self.season_multiplier(day) / TICKS_PER_DAY)
@@ -152,7 +154,7 @@ class World:
             self.events.append((day, "storm"))
 
     def take_food(self, rng):
-        """Agent 来采集。采空了就没有了 —— 这个上限是环境给的，不是个体给的"""
+        """The Agent comes to gather. Once it is empty it is gone — this cap comes from the environment, not the individual"""
         if self.food >= 1 and rng.random() < 0.85:
             self.food -= 1
             return 1
@@ -160,45 +162,45 @@ class World:
 
 
 # ============================================================
-# Influence —— 外部干预（用户/上帝）
+# Influence — external intervention (user / god)
 # ============================================================
 #
-# ★关键设计★ Agent 不知道这些东西是"用户"做的。
-# 从 Agent 的角度看，只是"世界里突然多了食物/多了一本书"。
-# 每个 influence 是一个 (world, agent, day, tick, rng) -> None 的函数。
+# ★Key design★ The Agent does not know these things were done by a "user".
+# From the Agent's point of view, "the world suddenly has more food / a book in it".
+# Each influence is a function (world, agent, day, tick, rng) -> None.
 
 def give_food(amount=2.0, every_days=3.0, at_tick=8):
-    """定期投喂。every_days 越大 = 越少来看它。"""
+    """Feed on a schedule. Larger every_days = visits it less often."""
     def apply(world, agent, day, tick, rng):
         if tick == at_tick and rng.random() < 1.0 / every_days:
-            agent.receive("food", amount, day, "有人给了我食物")
+            agent.receive("food", amount, day, "someone gave me food")
     return apply
 
 
 def add_book(day=0, at_tick=9):
-    """某一天往世界里放一本书。之后 read 这个行为才合法。"""
+    """Put a book into the world on some day. Only then is the `read` action legal."""
     def apply(world, agent, day_now, tick, rng):
         if day_now == day and tick == at_tick and not world.has("book"):
             world.objects.add("book")
             world.events.append((day_now, "book_appeared"))
-            agent.remember(day_now, "世界里出现了一本书", tags=("book", "new"),
+            agent.remember(day_now, "a book appeared in the world", tags=("book", "new"),
                            importance=0.5)
     return apply
 
 
 def play_music(from_day=0):
-    """从某天起世界里一直有音乐。被动影响：休息效率更好、更安定。"""
+    """From some day on there is always music in the world. A passive influence: resting works better, more settled."""
     def apply(world, agent, day_now, tick, rng):
         if day_now >= from_day and not world.has("music"):
             world.objects.add("music")
             world.events.append((day_now, "music_started"))
-            agent.remember(day_now, "开始有音乐了", tags=("music", "new"),
+            agent.remember(day_now, "music started playing", tags=("music", "new"),
                            importance=0.4)
     return apply
 
 
 def change_environment(day, **new_params):
-    """某一天改变世界的物理参数（食物变少、常下雨……）"""
+    """Change the world's physical parameters on some day (less food, frequent rain…)"""
     def apply(world, agent, day_now, tick, rng):
         if day_now == day and tick == 0:
             world.p.update(new_params)
@@ -207,7 +209,7 @@ def change_environment(day, **new_params):
 
 
 def give_object(obj, day=0, at_tick=9):
-    """给世界加一个任意物件"""
+    """Add an arbitrary object to the world"""
     def apply(world, agent, day_now, tick, rng):
         if day_now == day and tick == at_tick:
             world.objects.add(obj)
@@ -216,24 +218,25 @@ def give_object(obj, day=0, at_tick=9):
 
 
 # ============================================================
-# 行为定义
+# Action definitions
 # ============================================================
 
-# 每个行为"符合"哪些性格 —— 打分时用
+# Which traits each action "fits" — used when scoring
 ACTION_TRAIT_MATCH = {
     "eat":            {},
     "sleep":          {"caution":  0.5},
     "gather_food":    {"industry": 1.0, "caution":  0.4},
-    # 实验 016/017：只挂 industry 会导致"照顾它反而害它"（industry 只靠饥饿
-    # 棘轮上涨 → 被喂饱的球从不收集材料 → 永远没有家）。加 caution 修方向，
-    # 但权重 1.2 会让 60 天团灭（材料吃掉 30% 行动预算），退到 0.6。
+    # Experiments 016/017: hanging this on industry alone makes "caring for it actually harms
+    # it" (industry only ratchets up through hunger → a well-fed ball never gathers material →
+    # never gets a home). Adding caution fixes the direction, but weight 1.2 wipes out the
+    # population by day 60 (material eats 30% of the action budget), so back down to 0.6.
     "gather_material":{"industry": 1.0, "caution": 0.6},
     "build":          {"caution":  1.0, "industry": 0.6},
     "explore":        {"curiosity": 1.2, "caution": -1.0},
-    "read":           {"curiosity": 1.0, "caution": 0.2},   # 需要世界里有书
+    "read":           {"curiosity": 1.0, "caution": 0.2},   # requires a book in the world
 }
 
-# 做了这件事 → 强化促使你做这件事的性格。★这就是正反馈循环★
+# Doing this → reinforce the trait that made you do it. ★This is the positive-feedback loop★
 ACTION_TRAIT_FEEDBACK = {
     "eat":            {},
     "sleep":          {"caution":  0.05},
@@ -244,30 +247,33 @@ ACTION_TRAIT_FEEDBACK = {
     "read":           {"curiosity": 0.16},
 }
 
-# 有些行为需要世界里有对应的物件才合法 —— 环境决定了"能做什么"，
-# 而不只是"做同一件事的收益不同"。这是环境影响个体最硬的一条通路。
+# Some actions require a matching object in the world to be legal — the environment decides
+# "what can be done", not merely "what the same action pays". This is the hardest channel
+# by which the environment shapes the individual.
 ACTION_REQUIRES_OBJECT = {"read": "book"}
 
 ACTIONS = list(ACTION_TRAIT_MATCH)
 
 
 # ============================================================
-# Goal —— 从"反应式代理"到"自主生命"
+# Goal — from "reactive agent" to "autonomous life"
 # ============================================================
 #
-# 以前的循环是：
-#     tick → 给所有 action 打分 → 选最高 → 执行
-# 这是一个很好的 **Reactive Agent**，但不是生命。用户看到的是
-#     "这个 tick 恰好 build 分最高"
-# 而我们想要的是
-#     "它这几天正在盖自己的家"。
+# The old loop was:
+#     tick → score every action → pick the highest → execute
+# That is a fine **Reactive Agent**, but not life. What the user sees is
+#     "this tick, build happened to score highest"
+# whereas what we want is
+#     "it has been building its home these last few days".
 #
-# 差别就在**跨 tick 的意图连续性**。Goal 是这样一个跨 tick 的东西：
-# 它由状态和记忆生成，持续存在，偏置行动打分，有进度，会完成。
+# The difference is **continuity of intent across ticks**. A Goal is exactly such a
+# cross-tick object: generated from state and memory, persistent, biasing action scores,
+# with progress, and completable.
 #
-# ★关键是迟滞（GOAL_SWITCH_MARGIN）★
-# 没有迟滞，goal 每天都会被当天最紧急的需求顶掉 —— 那它就只是需求的
-# 另一个名字，什么都没改变。有了迟滞，它才会"坚持做完一件事"。
+# ★The key is hysteresis (GOAL_SWITCH_MARGIN)★
+# Without hysteresis the goal is displaced every day by the most urgent need of that day —
+# then it is just another name for need and nothing has changed. With hysteresis, it can
+# "stick with something until it is done".
 
 GOAL_ACTIONS = {
     "improve_home":  {"gather_material": 1.0, "build": 1.4},
@@ -278,48 +284,50 @@ GOAL_ACTIONS = {
 }
 
 GOAL_LABEL = {
-    "improve_home":  "把家弄得更结实",
-    "stock_food":    "多存点吃的",
-    "see_the_world": "去远处看看",
-    "learn":         "多读一点",
-    "recover":       "把身体养回来",
+    "improve_home":  "make the home sturdier",
+    "stock_food":    "stock up on food",
+    "see_the_world": "go and see distant places",
+    "learn":         "read a bit more",
+    "recover":       "get back in shape",
 }
 
-GOAL_BONUS         = 32.0   # 目标对行动打分的最大加成
-GOAL_OFF_TASK      = 14.0   # 与当前意图无关的【消遣类】行动会被压低 = 专注
-# ★为什么必须有 OFF_TASK★ 只给目标行动加分是不够的：一只已经漂到
-# 好奇 90 / 谨慎 25 的球，explore 的性格加成就有 +44，光靠 +22 的目标加成
-# 盖不住 —— 实测它会连着 13 天"想修房子"却一直在外面跑，房子烂到 0。
-# 专注不只是"更想做 A"，还包括"暂时没那么想做 B"。
-DISCRETIONARY = ("explore", "read")   # 消遣类。生存类行动永远不压
-GOAL_SWITCH_MARGIN = 0.25   # 新目标要高出这么多才值得换 —— 这就是"专注"
-GOAL_MIN_DAYS      = 2      # 一个目标至少坚持这么多天（除非已完成）
-GOAL_REFRACTORY    = 6      # 刚做完一件事，这么多天内不会立刻again
-GOAL_STALL_DAYS    = 4      # 连着这么多天毫无进展 → 放弃
-GOAL_SLACK_FOOD    = 4.0    # 余裕（规则 27）：存粮到这个数才算"有饭吃"
-GOAL_SLACK_COND    = 90.0   # 余裕：体质到这个数才算"身体撑得住"
+GOAL_BONUS         = 32.0   # Maximum bonus a goal gives an action score
+GOAL_OFF_TASK      = 14.0   # **discretionary** actions unrelated to the current intent are damped = focus
+# ★Why OFF_TASK is mandatory★ Bonusing goal actions is not enough: a ball that has drifted
+# to curiosity 90 / caution 25 already gets +44 of personality bonus on explore, which a mere
+# +22 goal bonus cannot cover — measured, it spent 13 straight days "wanting to fix the house"
+# while running around outside, and the house rotted to 0.
+DISCRETIONARY = ("explore", "read")   # Discretionary. Survival actions are never damped
+GOAL_SWITCH_MARGIN = 0.25   # A new goal must beat the old by this much to be worth switching — this is "focus"
+GOAL_MIN_DAYS      = 2      # A goal is kept at least this many days (unless already done)
+GOAL_REFRACTORY    = 6      # Having just finished something, do not immediately do it again for this many days
+GOAL_STALL_DAYS    = 4      # This many days with no progress at all → give up
+GOAL_SLACK_FOOD    = 4.0    # Slack (rule 27): only with this much stored food does it count as "fed"
+GOAL_SLACK_COND    = 90.0   # Slack: only at this condition does the body count as "holding up"
 
 # ---------------------------------------------------------------------------
-# ★实验 022★ 语义记忆接进决策
+# ★Experiment 022★ Semantic memory wired into decisions
 # ---------------------------------------------------------------------------
-# 规则 30/31：`knowledge` 此前只写不读，`score()` 从来没读过它 —— 语义记忆
-# 是装饰品。实验 021 第 3 节的后果：关掉性状地板后移植比值只剩 1.044
-# （CI 含 1.0），"你不是发现了不可逆性，你是把不可逆性写进去了"答不上来。
+# Rules 30/31: `knowledge` used to be write-only — `score()` never read it, so semantic
+# memory was decoration. The consequence in experiment 021 §3: with trait floors off, the
+# transplant ratio was only 1.044 (CI containing 1.0), and "you did not discover
+# irreversibility, you wrote irreversibility in" had no answer.
 #
-# 预注册见 [[实验022 预注册 —— 记忆接入决策]]。三条预测在改代码前已冻结。
+# Preregistration: [[Experiment 022 preregistration — memory wired into decisions]].
+# The three predictions were frozen before any code was changed.
 #
-# ⚠ 全部设为 0 时，行为必须和实验 021 逐位一致（回归检查 test_022_regression.py）。
-KNOWLEDGE_WEIGHT      = 12.0   # 一条知识对动作打分的加成（参照 LANDMARK_BONUS = 25）
-KNOWLEDGE_GOAL_WEIGHT = 0.25   # 对目标优先级的加成（参照 flags 的 +0.35）
-KNOWLEDGE_FORGET      = 0.02   # 每天衰减；执行对应动作就回满（用进废退）
+# ⚠ With everything set to 0, behaviour must be bit-identical to experiment 021 (regression check test_022_regression.py).
+KNOWLEDGE_WEIGHT      = 12.0   # Bonus one piece of knowledge gives an action score (cf. LANDMARK_BONUS = 25)
+KNOWLEDGE_GOAL_WEIGHT = 0.25   # Bonus to goal priority (cf. the +0.35 from flags)
+KNOWLEDGE_FORGET      = 0.02   # Daily decay; performing the matching action refills it (use it or lose it)
 
-# knowledge key → 受影响的动作 / 目标。四个 key 都是 landmark() 写出来的，
-# 映射是现成的语义，不是编出来的。
+# knowledge key → affected actions / goals. All four keys are written by landmark(); the
+# mapping is the semantics that already exist, not something invented here.
 KNOWLEDGE_ACTIONS = {
-    "far_places": ("explore",),                  # 远处有食物更多的地方
-    "books":      ("read",),                     # 书里有我没见过的世界
-    "shelter":    ("build", "gather_material"),  # 没有坚固的住所，下雨很危险
-    "food":       ("gather_food",),              # 存粮见底的日子很难熬
+    "far_places": ("explore",),                  # there are places with more food far away
+    "books":      ("read",),                     # books hold worlds I have not seen
+    "shelter":    ("build", "gather_material"),  # without solid shelter, rain is dangerous
+    "food":       ("gather_food",),              # the days when the food store runs out are hard
 }
 KNOWLEDGE_GOALS = {
     "far_places": "see_the_world",
@@ -327,50 +335,53 @@ KNOWLEDGE_GOALS = {
     "shelter":    "improve_home",
     "food":       "stock_food",
 }
-# 消遣类目标 —— 它们的知识加成必须过 slack 门（规则 27），否则饿着肚子
-# 也要往远处跑。第一版漏了这个，移植档死亡率 4.0% → 39.3%。
+# Discretionary goals — their knowledge bonus must pass the slack gate (rule 27), otherwise
+# the ball runs off into the distance on an empty stomach. The first version missed this, and
+# transplant-arm mortality went 4.0% → 39.3%.
 DISCRETIONARY_GOALS = ("see_the_world", "learn")
 
 # ---------------------------------------------------------------------------
-# ★规则 43★ 睡眠死亡螺旋的三种候选改法（默认全关 = 现状，逐位一致）
+# ★Rule 43★ Three candidate fixes for the sleep death spiral (all off by default = status quo, bit-identical)
 # ---------------------------------------------------------------------------
-# 诊断（mortality_diagnose.py）：死者体质 0、饥饿 74–87、死前 10 天睡眠占
-# 53–56%，而 62–79% 死时正在追求 stock_food ——「不是没想找吃的，是没时间醒着」。
-# 体质↓ → 睡眠效率↓（0.35 下限）→ 睡更久 → 采不到 → 更饿 → 体质更↓。
+# Diagnosis (mortality_diagnose.py): the dead have condition 0, hunger 74–87, and spend 53–56%
+# of their last 10 days asleep, while 62–79% die pursuing stock_food — "it is not that it never
+# thought of finding food, it is that it had no waking time". condition↓ → sleep efficiency↓
+# (floor 0.35) → sleeps longer → gathers nothing → hungrier → condition↓ further.
 # ---------------------------------------------------------------------------
-# ★规则 47★ 体质收支 —— 恢复通道在移植后完全关闭，系统没有稳态
+# ★Rule 47★ Condition balance — the recovery channel is completely shut after a transplant, the system has no steady state
 # ---------------------------------------------------------------------------
-# 实测（3f 节）：移植后 90–98% 的 tick 待在「饿 30–70」的死区，什么都不发生；
-# 「饿<30」占比塌到 0–2%，+0.16 那条恢复通道几乎从不触发。
-# 第 30 天之后没有任何球有正收支，最健康的幸存者也是 −0.12/天。
-# 默认值 = 现状，逐位一致。
-COND_DRAIN_AT        = 70.0  # 饥饿超过这里开始掏空身体
-COND_DRAIN           = 0.40  # 每 tick 扣多少
-COND_RECOVER_AT      = 30.0  # 修法①：饥饿低于这里才恢复（抬高 = 削掉死区）
-COND_RECOVER         = 0.16  # 每 tick 补多少
-COND_DEADZONE_RECOVER = 0.0  # 修法②：死区里也缓慢恢复
-COND_SHELTER_RECOVER = 0.0   # 修法③：住所也贡献体质（× shelter/100）
+# Measured (§3f): after a transplant 90–98% of ticks sit in the "hunger 30–70" dead zone where
+# nothing happens; the "hunger<30" share collapses to 0–2% and the +0.16 recovery channel almost
+# never fires. After day 30 no ball has a positive balance; even the healthiest survivor is −0.12/day.
+# Defaults = the status quo, bit-identical.
+COND_DRAIN_AT        = 70.0  # Above this hunger the body starts being drained
+COND_DRAIN           = 0.40  # How much is deducted per tick
+COND_RECOVER_AT      = 30.0  # Fix ①: recovery only below this hunger (raising it = cutting away the dead zone)
+COND_RECOVER         = 0.16  # How much is restored per tick
+COND_DEADZONE_RECOVER = 0.0  # Fix ②: slow recovery inside the dead zone too
+COND_SHELTER_RECOVER = 0.0   # Fix ③: shelter also contributes to condition (× shelter/100)
 
-HUNGER_CRISIS        = 70.0  # 超过这个饥饿度算"命悬一线"，A/B 共用
-SLEEP_SUPPRESS       = 0.0   # 改法A：危机时压制睡眠意图（1.0 = 饥饿100时压到0）
-HUNGER_URGENCY       = 0.0   # 改法B：危机时抬高 eat / gather_food 的急迫度
-SLEEP_EFF_FLOOR      = 0.35  # 改法C：睡眠效率下限（现状 0.35，抬高则螺旋变缓）
+HUNGER_CRISIS        = 70.0  # Above this hunger counts as "hanging by a thread", shared by A/B
+SLEEP_SUPPRESS       = 0.0   # Variant A: suppress the intent to sleep during a crisis (1.0 = down to 0 at hunger 100)
+HUNGER_URGENCY       = 0.0   # Variant B: raise the urgency of eat / gather_food during a crisis
+SLEEP_EFF_FLOOR      = 0.35  # Variant C: floor on sleep efficiency (status quo 0.35; raising it slows the spiral)
 
 
 def hunger_crisis(hunger):
-    """0 → 不饿；1 → 饿到极限。A/B 共用的危机强度。"""
+    """0 → not hungry; 1 → starving. Crisis intensity shared by A/B."""
     if hunger <= HUNGER_CRISIS:
         return 0.0
     return min(1.0, (hunger - HUNGER_CRISIS) / (100.0 - HUNGER_CRISIS))
-# ★为什么要有停滞放弃★ 一只已经漂到好奇 100 / 谨慎 18 的球，
-# 性格上根本不会去收集材料。但不应期会把"修房子"顶上来，于是出现
-# **连着 8 天"想修房子"却一根木头都没捡** —— 意图和行为脱节，
-# 那这个 goal 层就白加了。人也一样："我一直想修屋顶，但一直没修"，
-# 那个念头最终会自己消失。
-# ★为什么需要不应期★ 没有它，"去远处看看"完成之后当天就会重新立一次
-# （因为好奇心还是最高的），球会连续 27 天只做这一件事，房子永远是 0。
-# 现实里"刚做完一件事会暂时满足"，这就是那个满足感。
-# 而且探索会压低 caution → 更想探索 → 正反馈锁死。不应期是打断锁死的闸。
+# ★Why stall-abandonment is needed★ A ball that has drifted to curiosity 100 / caution 18 will
+# never gather material by temperament. But the refractory period pushes "fix the house" back to
+# the top, producing **8 straight days of "wanting to fix the house" without picking up a single
+# stick** — intent decoupled from behaviour, which makes the whole goal layer pointless. People
+# are the same: "I have been meaning to fix the roof but never did" — that thought eventually dies on its own.
+# ★Why a refractory period is needed★ Without it, "go and see distant places" would be raised again
+# the very day it completes (because curiosity is still highest), and the ball would do only that
+# for 27 days running, with the house forever at 0. In real life "having just finished something
+# leaves you satisfied for a while" — that is what this is. Also, exploring lowers caution → wants
+# to explore more → the positive feedback locks in. The refractory period is the brake on that lock-in.
 
 
 # ============================================================
@@ -378,61 +389,61 @@ def hunger_crisis(hunger):
 # ============================================================
 
 class Agent:
-    """一个个体。它只认识：自己的状态、自己的记忆、以及它所处的世界。"""
+    """One individual. All it knows is: its own state, its own memory, and the world it is in."""
 
     def __init__(self, seed, world):
         self.rng = random.Random(seed)
         self.world = world
 
-        # 差异来源 #1：初始随机种子。作用是"打破对称"，不是制造差异本身
+        # Source of difference #1: the initial random seed. Its job is to "break symmetry", not to create the difference itself
         self.traits = {t: 50.0 + self.rng.uniform(-INITIAL_TRAIT_SPREAD,
                                                   INITIAL_TRAIT_SPREAD)
                        for t in TRAITS}
 
-        # 状态（不是记忆，就是数据库的一行，别喂给 LLM）
-        self.hunger  = 30.0    # 100 = 饿死边缘
+        # State (not memory — just a database row, do not feed it to an LLM)
+        self.hunger  = 30.0    # 100 = on the edge of starving to death
         self.energy  = 80.0
         self.shelter = 0.0
         self.inventory = {"food": 2.0, "material": 0.0}
 
-        # ★体质★ 给"失败"一个比死亡轻的等级（实验 006）
+        # ★Condition★ gives "failure" a grade lighter than death (experiment 006)
         self.condition = 100.0
 
-        # ★受苦累积★ 连续量，取代二值开关（实验 013）
+        # ★Hardship accumulator★ a continuous quantity replacing a binary switch (experiment 013)
         self.hardship = 0.0
         self._hardship_anchor = None
 
-        # ★性格的两层地板★（笔记 ⑤）soft 会慢慢消退，perm 不会
-        self.trait_floor = {t: 0.0 for t in TRAITS}       # 软地板（会消退）
+        # ★Two personality floors★ (note ⑤) soft fades slowly, perm does not
+        self.trait_floor = {t: 0.0 for t in TRAITS}       # soft floor (fades)
         self.trait_identity = {t: 0.0 for t in TRAITS}    # landmark identity
 
         self.flags = set()
-        self.memories = []        # 见 remember()
-        self.knowledge = {}       # 语义记忆：对世界的一般性认识
-        # ★022★ 每条知识的强度 ∈ (0,1]，与 knowledge 同生共死。
-        # 单独存而不是把 knowledge 改成 (text, strength)，是为了不破坏
-        # context_packet / environment.py / persistence.py 里现有的读法。
+        self.memories = []        # see remember()
+        self.knowledge = {}       # semantic memory: general understanding of the world
+        # ★022★ Each piece of knowledge has strength ∈ (0,1], living and dying with `knowledge`.
+        # Stored separately rather than turning knowledge into (text, strength) so as not to break
+        # the existing readers in context_packet / environment.py / persistence.py.
         self.knowledge_strength = {}
 
-        # ★意图★ 跨 tick 存在的东西。见 GOAL_ACTIONS 上面那段说明。
+        # ★Intent★ the thing that persists across ticks. See the note above GOAL_ACTIONS.
         self.goal = None            # {type, priority, created_from, created_day, progress}
-        self.goal_history = []      # 完成/放弃过的目标，用来讲"它这几天在干嘛"
-        self.goal_by_day = []       # 每天在追求什么（demo 素材）
-        self.goal_satiation = {}    # 目标类型 → 上次完成的日子（不应期）
+        self.goal_history = []      # goals completed/abandoned, used to tell "what it has been doing lately"
+        self.goal_by_day = []       # what it pursued each day (demo material)
+        self.goal_satiation = {}    # goal type → day it was last completed (refractory period)
 
         self.action_log = Counter()
         self.action_by_hour = [Counter() for _ in range(TICKS_PER_DAY)]
         self.alive = True
 
-    # ---------- 记忆 ----------
+    # ---------- Memory ----------
 
     def remember(self, day, text, *, event=None, tags=(), importance=0.5,
                  emotional_weight=0.0, consequence=None, related_traits=()):
-        """★情节记忆（Episodic）★ 具体的一件事，带时间。
+        """★Episodic memory★ one concrete event, with a timestamp.
 
-        以前是 `flags: set` + `landmarks: [(day, text)]`。作为第一版够用，
-        但那个结构里没有"这件事有多重要""它导致了什么""它和哪个性格有关"，
-        所以既没法做检索，也没法喂给 LLM。
+        It used to be `flags: set` + `landmarks: [(day, text)]`. Good enough as a first version,
+        but that structure has no "how important was this", "what did it lead to", "which trait
+        is it tied to", so it supports neither retrieval nor being fed to an LLM.
         """
         self.memories.append({
             "event": event or (tags[0] if tags else "episode"),
@@ -442,27 +453,28 @@ class Agent:
         })
 
     def learn(self, key, text):
-        """★语义记忆（Semantic）★ 从经历里抽出来的一般性认识，不带时间。
+        """★Semantic memory★ general understanding distilled from experience, without a timestamp.
 
-            情节：第 12 天下暴雨，屋顶坏了
-            语义：没有坚固的住所，下雨很危险
+            episodic: on day 12 there was a storm and the roof broke
+            semantic: without solid shelter, rain is dangerous
 
-        分开存的理由：情节记忆无限增长，需要遗忘机制；语义记忆几十条封顶，
-        而且是行为真正该依赖的东西。
+        Why store them apart: episodic memory grows without bound and needs a forgetting
+        mechanism; semantic memory caps out at a few dozen entries and is what behaviour should
+        actually depend on.
         """
         self.knowledge[key] = text
-        self.knowledge_strength[key] = 1.0      # ★022★ 学到/重温 → 回满
+        self.knowledge_strength[key] = 1.0      # ★022★ learned/refreshed → back to full
 
     def know(self, key):
-        """★022★ 这条知识现在有多强。没学过或已遗忘 → 0。"""
+        """★022★ How strong this piece of knowledge is right now. Never learned or already forgotten → 0."""
         return self.knowledge_strength.get(key, 0.0)
 
     def forget_knowledge(self):
-        """★022★ 用进废退：每天衰减，掉到 0 就整条删掉。
+        """★022★ Use it or lose it: decays daily, and the whole entry is dropped at 0.
 
-        这一步是实验 022 的重点：它把"有没有 hardcode 不可逆性"从一个
-        二元指控变成**一个可测参数** —— 可以扫遗忘率画曲线，
-        顺带堵掉"你的 knowledge 永不遗忘，还是写死的"这句反驳。
+        This step is the point of experiment 022: it turns "is irreversibility hardcoded?" from a
+        binary accusation into **a measurable parameter** — you can sweep the forgetting rate and
+        plot the curve, which also closes off the rebuttal "your knowledge never forgets, it is hardcoded".
         """
         if not KNOWLEDGE_FORGET:
             return
@@ -473,14 +485,14 @@ class Agent:
                 self.knowledge.pop(key, None)
 
     def recall(self, tags=(), k=5, day=None, recent_days=7):
-        """按【结构化标签】检索，不用向量相似度。
+        """Retrieval by **structured tags**, not vector similarity.
 
-        为什么不用向量（[[设计要点与风险]] §3.4）：
-        这里没有 query，只有一个持续的状态；语义相似度会把历史上每一次
-        饥饿都捞出来，而不是那次*有意义*的。Generative Agents 最常见的
-        失败就是检索错误（Tom 记得"要在派对上聊选举"却不记得派对存在）。
+        Why not vectors ([[Design points and risks]] §3.4): there is no query here, only a
+        continuous state; semantic similarity would dredge up every hunger episode in history
+        rather than the one that *mattered*. The most common failure mode of Generative Agents
+        is retrieval error (Tom remembers "talk about the election at the party" but not that the party exists).
 
-        规则：标签命中 + 重要性 + 最近 —— 便宜、快、确定、可调试。
+        Rule: tag hit + importance + recency — cheap, fast, deterministic, debuggable.
         """
         want = set(tags)
         scored = []
@@ -496,15 +508,15 @@ class Agent:
         return [m for _, m in scored[:k]]
 
     def context_packet(self, day):
-        """★给 LLM 的那一包东西★
+        """★The bundle handed to the LLM★
 
-        LLM 不需要读 30 天所有 tick，只需要：
-            当前状态 + 当前目标 + 相关记忆 + 世界知识 + 性格
-        然后它才能自然地回答"你为什么最近一直在修房子"：
-            "前几天下雨的时候屋顶坏了，我不太想再经历一次。"
+        The LLM does not need to read every tick of 30 days, only:
+            current state + current goal + relevant memories + world knowledge + personality
+        Only then can it naturally answer "why have you been fixing the house lately":
+            "The roof broke in the rain a few days ago, and I would rather not go through that again."
 
-        注意这里【没有】把 traits 交给 LLM 去改 —— 性格是代码持有的数字，
-        LLM 只负责把它说成人话（§四）。
+        Note that traits are **not** handed to the LLM to modify — personality is a number held
+        by the code, and the LLM only puts it into words (§4).
         """
         goal_tags = ()
         if self.goal:
@@ -529,13 +541,13 @@ class Agent:
 
     @property
     def landmarks(self):
-        """兼容旧脚本：重要记忆的 (day, text) 列表"""
+        """Backwards compatibility for old scripts: the (day, text) list of important memories"""
         return [(m["day"], m["text"]) for m in self.memories
                 if m["importance"] >= 0.7]
 
     def mark(self, day, text, flag, floors, *, emotional_weight=0.8,
              consequence=None, knowledge=None):
-        """一段关键经历：记下来 + 在性格上留下痕迹（一部分永久）"""
+        """A landmark experience: record it + leave a mark on personality (partly permanent)"""
         if flag in self.flags:
             return
         self.flags.add(flag)
@@ -549,13 +561,13 @@ class Agent:
             base = self.traits[t]
             self.trait_floor[t] = max(self.trait_floor[t],
                                       min(base + boost, 90.0))
-            # 只有一部分变成永久身份 —— 其余会慢慢消退
+            # Only part of it becomes permanent identity — the rest will fade
             self.trait_identity[t] = max(
                 self.trait_identity[t],
                 min(base + boost * LANDMARK_PERMANENT, 90.0))
 
     def receive(self, what, amount, day, text=None):
-        """从外部得到东西。Agent 不知道是谁给的。"""
+        """Receive something from outside. The Agent does not know who gave it."""
         self.inventory[what] = self.inventory.get(what, 0.0) + amount
         if text:
             self.remember(day, text, tags=("gift", what), importance=0.35,
@@ -563,16 +575,17 @@ class Agent:
 
     @property
     def hardship_norm(self):
-        """受苦程度归一化到 0→1 的饱和曲线。中间连续，这是关键。"""
+        """Saturation curve normalising the degree of suffering to 0→1. Continuous in the middle, which is the point."""
         return 1.0 - math.exp(-self.hardship / HARDSHIP_SCALE)
 
-    # ---------- 目标 ----------
+    # ---------- Goals ----------
 
-    # 计数型目标：进度要从【立下目标那一刻】起算。
-    # ⚠ 第一版直接用累计次数，结果 see_the_world 一立就已经"完成"，
-    #   于是每天完成、每天重立，而重立会刷新 created_day →
-    #   永远处在 GOAL_MIN_DAYS 保护期内 → 球被锁死在这个目标上活活饿死。
-    #   计数型指标必须存基线，这和实验 009 是同一类错误。
+    # Counting goals: progress must be measured from **the moment the goal was set**.
+    # ⚠ The first version used the cumulative count directly, so see_the_world was already
+    #   "complete" the moment it was raised — completed daily, re-raised daily, and re-raising
+    #   refreshes created_day → permanently inside the GOAL_MIN_DAYS protection window → the
+    #   ball is locked onto that goal and starves. Counting metrics must store a baseline; this
+    #   is the same class of mistake as experiment 009.
     GOAL_COUNT_TARGET = {"learn": ("read", 12), "see_the_world": ("explore", 20)}
 
     def goal_progress(self, goal):
@@ -598,28 +611,31 @@ class Agent:
         return g
 
     def _slack(self):
-        """★余裕（规则 27）★ 有饭吃、身体撑得住，才立得起消遣类的志向。"""
+        """★Slack (rule 27)★ Only with food to eat and a body that holds up can a discretionary ambition be raised."""
         return clamp(self.inventory["food"] / GOAL_SLACK_FOOD, 0.0, 1.0) \
             * clamp(self.condition / GOAL_SLACK_COND, 0.0, 1.0)
 
     def propose_goals(self, day):
-        """目标从【状态 + 记忆 + 性格】里长出来，不是写死的优先级表。
+        """Goals grow out of **state + memory + personality**, not a hardcoded priority table.
 
-        `created_from` 记的是"这个念头是哪来的"——以后 LLM 要靠它
-        回答"你为什么最近一直在修房子"。
+        `created_from` records "where this thought came from" — later the LLM will rely on it to
+        answer "why have you been fixing the house lately".
         """
         c = (self.traits["caution"] - 50) / 100
         q = (self.traits["curiosity"] - 50) / 100
         out = []
 
         def add(gtype, pri, src):
-            # ★022★ 语义记忆抬高对应目标的优先级。019 第 5 节已证明目标层
-            # 是比作息层更强的载体（1.79 vs 0.72），只接 score 大概率浪费。
+            # ★022★ Semantic memory raises the priority of the matching goal. §5 of 019 already
+            # showed the goal layer is a stronger carrier than the routine layer (1.79 vs 0.72);
+            # wiring only score would most likely be wasted.
             #
-            # ⚠ 修正（见预注册「实现修正 1」）：第一版把加成直接加在 pri 上，
-            #   **绕过了 slack 门** —— 于是"知道远处有食物"变成了在饿肚子时
-            #   也要往远处跑，移植档死亡率 4.0% → 39.3%。这正是规则 27 说的
-            #   「抑制要作用在意图形成」。消遣类目标的知识加成必须乘 slack。
+            # ⚠ Correction (see "implementation correction 1" in the preregistration): the first
+            #   version added the bonus straight onto pri, **bypassing the slack gate** — so
+            #   "knowing there is food far away" turned into running off into the distance on an
+            #   empty stomach, and transplant-arm mortality went 4.0% → 39.3%. This is exactly what
+            #   rule 27 means by "inhibition must act on intent formation". The knowledge bonus for
+            #   discretionary goals must be multiplied by slack.
             if KNOWLEDGE_GOAL_WEIGHT:
                 for key, g in KNOWLEDGE_GOALS.items():
                     if g == gtype:
@@ -633,20 +649,21 @@ class Agent:
             pri = (75 - self.shelter) / 75 * 0.8 + c
             src = "storm_memory" if "fears_storm" in self.flags else "shelter_low"
             if "fears_storm" in self.flags:
-                pri += 0.35                      # 被掀过屋顶的球更想修房子
+                pri += 0.35                      # a ball whose roof was torn off wants to fix the house more
             add("improve_home", pri, src)
 
         if self.inventory["food"] < 6:
             pri = (6 - self.inventory["food"]) / 6 * 0.7
-            pri += self.hardship_norm * 0.6      # 挨过饿的球更想囤粮
+            pri += self.hardship_norm * 0.6      # a ball that has gone hungry wants to hoard more
             src = "hunger_memory" if self.hardship_norm > 0.3 else "food_low"
             add("stock_food", pri, src)
 
-        # ★消遣类目标要先有余裕才立得起来★
-        # goal_bonus 里的抑制是"执行时"的，太晚了：等体质掉到 85 以下，
-        # 亏空已经造成。真正的问题是**在没饭吃的时候还立"去远处看看"这个志向**。
-        # 实测（90 天）：死掉的球 46% 的时间在探索、2% 在采集，
-        # 关掉 goal 层死亡率从 28.5% 掉到 7.0% —— 是这个念头在杀它们。
+        # ★A discretionary goal can only be raised once there is slack★
+        # The damping inside goal_bonus acts "at execution time", which is too late: by the time
+        # condition has fallen below 85 the deficit is already done. The real problem is **raising
+        # the ambition "go and see distant places" while there is nothing to eat**.
+        # Measured (90 days): the balls that died spent 46% of their time exploring and 2% gathering;
+        # turning the goal layer off dropped mortality from 28.5% to 7.0% — it is this thought that kills them.
         slack = self._slack()
 
         if self.world.has("book"):
@@ -660,7 +677,7 @@ class Agent:
         return out
 
     def _satiation(self, gtype, day):
-        """刚做完的事，暂时没那么想再做一遍。惩罚随时间线性消退。"""
+        """Having just done something, you want it a little less for a while. The penalty decays linearly with time."""
         done = self.goal_satiation.get(gtype)
         if done is None:
             return 0.0
@@ -668,7 +685,7 @@ class Agent:
         return 0.9 * left / GOAL_REFRACTORY
 
     def update_goal(self, day):
-        """每天早上想一次：还要不要接着做昨天那件事？"""
+        """Think once every morning: keep doing yesterday's thing, or not?"""
         cands = self.propose_goals(day)
         if not cands:
             return
@@ -677,7 +694,7 @@ class Agent:
 
         if self.goal is not None:
             prog = self.goal_progress(self.goal)
-            # 有没有在推进？只要涨了就刷新计时
+            # Making any progress? Any increase at all refreshes the timer
             if prog > self.goal.get("best_progress", -1.0) + 1e-9:
                 self.goal["best_progress"] = prog
                 self.goal["last_gain_day"] = day
@@ -690,9 +707,9 @@ class Agent:
             elif stalled >= GOAL_STALL_DAYS:
                 self._close_goal(day, "stalled")
             elif age < GOAL_MIN_DAYS:
-                return                            # 还在最短坚持期内
+                return                            # still inside the minimum-commitment window
             elif best_type != self.goal["type"]:
-                # ★迟滞★ 新目标要明显更急才换，否则接着做原来那件
+                # ★Hysteresis★ a new goal must be clearly more urgent to win, otherwise carry on with the old one
                 cur = next((p for t, p, _ in cands if t == self.goal["type"]), 0.0)
                 if best_pri < cur + GOAL_SWITCH_MARGIN:
                     return
@@ -708,25 +725,26 @@ class Agent:
         self.goal_history.append(g)
         if why == "done":
             self.goal_satiation[g["type"]] = day
-            self.remember(day, f"终于{GOAL_LABEL[g['type']]}了",
+            self.remember(day, f"finally managed to {GOAL_LABEL[g['type']]}",
                           tags=("goal", g["type"], "done"),
                           importance=0.7, emotional_weight=0.6,
                           consequence=g["type"])
         elif why == "stalled":
-            # 放弃也要冷却一下，否则下一秒又立同一个念头
+            # Abandonment also gets a cooldown, otherwise the same thought is raised again a second later
             self.goal_satiation[g["type"]] = day
-            self.remember(day, f"想{GOAL_LABEL[g['type']]}，但一直没做成",
+            self.remember(day, f"wanted to {GOAL_LABEL[g['type']]}, but never got it done",
                           tags=("goal", g["type"], "stalled"),
                           importance=0.45, emotional_weight=-0.3,
                           consequence="gave_up")
         self.goal = None
 
     def goal_bonus(self, action):
-        """★意图只在有余裕的时候才说得上话★
+        """★Intent only gets a say when there is slack★
 
-        规则（实验 003）："人格需要余裕才能表达"。意图同理，而且更强：
-        快饿死的时候没有谁还在想着"去远处看看"。
-        没有这个抑制项，goal 会盖过生存需求把球饿死 —— 第一版就是这么死的。
+        Rule (experiment 003): "personality needs slack to express itself". The same holds for
+        intent, and more strongly: nobody about to starve is still thinking about "going to see
+        distant places". Without this damping term, goals override survival needs and starve the
+        ball — which is exactly how the first version died.
         """
         if self.goal is None:
             return 0.0
@@ -737,10 +755,10 @@ class Agent:
         if w:
             return w * GOAL_BONUS * pri * damp
         if action in DISCRETIONARY:
-            return -GOAL_OFF_TASK * pri * damp      # 分心的代价
+            return -GOAL_OFF_TASK * pri * damp      # the price of distraction
         return 0.0
 
-    # ---------- 打分 ----------
+    # ---------- Scoring ----------
 
     def legal(self, action):
         need = ACTION_REQUIRES_OBJECT.get(action)
@@ -751,29 +769,29 @@ class Agent:
             return None
         s = 0.0
 
-        # 1. 需求紧迫度
+        # 1. Urgency of need
         if action == "eat":
             if self.inventory["food"] < 1:
                 return None
             s += self.hunger * 1.0
-            s += HUNGER_URGENCY * hunger_crisis(self.hunger)        # 改法B
+            s += HUNGER_URGENCY * hunger_crisis(self.hunger)        # variant B
         elif action == "sleep":
             s += (100 - self.energy) * 0.9
             s += 10 if self.shelter > 30 else -5
             if self.world.has("music"):
-                s += 4                       # 有音乐更容易安定下来
-            # ★改法A（规则 43）★ 快饿死了还在睡 —— 抑制作用在意图形成，
-            # 与规则 27 的 slack 门同构。
+                s += 4                       # music makes it easier to settle down
+            # ★Variant A (rule 43)★ Sleeping while about to starve — the suppression acts on intent
+            # formation, structurally the same as the slack gate of rule 27.
             if SLEEP_SUPPRESS:
                 s *= max(0.0, 1.0 - SLEEP_SUPPRESS * hunger_crisis(self.hunger))
         elif action == "gather_food":
-            # 只在真的饿的时候才紧迫（实验 003：那个常数 +12 是趋同的元凶）
+            # Urgent only when genuinely hungry (experiment 003: that constant +12 was the culprit behind convergence)
             s += max(0.0, self.hunger - 35) * 0.85
-            s += HUNGER_URGENCY * hunger_crisis(self.hunger)        # 改法B
+            s += HUNGER_URGENCY * hunger_crisis(self.hunger)        # variant B
             if self.inventory["food"] <= 1:
                 s += 20
             if self.world.food < 1:
-                return None                  # 附近采空了
+                return None                  # gathered out nearby
         elif action == "gather_material":
             s += (100 - self.shelter) * 0.30
         elif action == "build":
@@ -785,32 +803,32 @@ class Agent:
         elif action == "read":
             s += 12
 
-        # 2. 性格匹配 ★分化引擎在这里★
+        # 2. Personality match ★the differentiation engine is here★
         for trait, w in ACTION_TRAIT_MATCH[action].items():
             s += (self.traits[trait] - 50) / 50 * w * PERSONALITY_WEIGHT
 
-        # 3. 关键经历的影响
+        # 3. Influence of landmark experiences
         if action == "gather_food":
-            s += LANDMARK_BONUS * self.hardship_norm     # 受过多少苦就多怕饿
+            s += LANDMARK_BONUS * self.hardship_norm     # the more it has suffered, the more it fears hunger
         if "fears_storm" in self.flags and action in ("build", "gather_material"):
             s += LANDMARK_BONUS
         if "loves_exploring" in self.flags and action == "explore":
             s += LANDMARK_BONUS
 
-        # 3b. ★语义记忆★（实验 022）与上面的 flags 分支结构平行。
-        # 区别：flags 是 0/1 的永久标记，knowledge 带强度、会遗忘。
+        # 3b. ★Semantic memory★ (experiment 022), structurally parallel to the flags branch above.
+        # Difference: flags are permanent 0/1 marks, knowledge carries strength and can be forgotten.
         if KNOWLEDGE_WEIGHT:
             for key, acts in KNOWLEDGE_ACTIONS.items():
                 if action in acts:
                     bonus = KNOWLEDGE_WEIGHT * self.know(key)
-                    if action in DISCRETIONARY:      # 规则 27，同 propose_goals
+                    if action in DISCRETIONARY:      # rule 27, same as propose_goals
                         bonus *= self._slack()
                     s += bonus
 
-        # 4. ★当前意图★ 这一项让行为跨 tick 连贯起来
+        # 4. ★Current intent★ this term is what makes behaviour coherent across ticks
         s += self.goal_bonus(action)
 
-        # 5. 成本与风险
+        # 5. Cost and risk
         if action in ("gather_food", "gather_material", "explore", "build"):
             s -= (100 - self.energy) * 0.35
         if action == "explore":
@@ -818,13 +836,13 @@ class Agent:
 
         return s
 
-    # ---------- 执行 ----------
+    # ---------- Execution ----------
 
     def act(self, action, day, hour=0):
         self.action_log[action] += 1
         self.action_by_hour[hour][action] += 1
 
-        # ★022★ 用进废退：做了对应的事，这条知识就被重温（只回满已有的，不新建）
+        # ★022★ Use it or lose it: doing the matching thing refreshes this knowledge (only refills existing entries, never creates)
         if KNOWLEDGE_FORGET:
             for key, acts in KNOWLEDGE_ACTIONS.items():
                 if action in acts and key in self.knowledge_strength:
@@ -835,8 +853,8 @@ class Agent:
             self.hunger = clamp(self.hunger - FOOD_NUTRITION)
             self.energy = clamp(self.energy + 5)
         elif action == "sleep":
-            # 体质差 → 睡再久也恢复不过来 → 能做的事变少 → 行为被塑造
-            # 改法C：抬高下限让螺旋变缓（现状 0.35）
+            # Poor condition → no amount of sleep restores it → fewer things can be done → behaviour is shaped
+            # Variant C: raising the floor slows the spiral (status quo 0.35)
             eff = SLEEP_EFF_FLOOR + (1.0 - SLEEP_EFF_FLOOR) * self.condition / 100
             if self.world.has("music"):
                 eff *= 1.10
@@ -856,81 +874,82 @@ class Agent:
             if self.rng.random() < EXPLORE_FOOD_CHANCE:
                 self.inventory["food"] += EXPLORE_FOOD_YIELD
                 if "loves_exploring" not in self.flags and self.rng.random() < 0.30:
-                    self.mark(day, "在远处发现了一片食物丰富的地方",
+                    self.mark(day, "found a food-rich place far away",
                               "loves_exploring", {"curiosity": 10},
                               consequence="food_found",
-                              knowledge=("far_places", "远处有食物更多的地方"))
+                              knowledge=("far_places", "there are places with more food far away"))
         elif action == "read":
             self.energy = clamp(self.energy - 3)
             if "reads" not in self.flags and self.rng.random() < 0.25:
-                self.mark(day, "读到了一些以前不知道的事", "reads",
+                self.mark(day, "read some things I did not know before", "reads",
                           {"curiosity": 8}, emotional_weight=0.5,
-                          knowledge=("books", "书里有我没见过的世界"))
+                          knowledge=("books", "books hold worlds I have not seen"))
 
-        # 正反馈：做什么 → 变成什么（但不能跌破关键经历留下的地板）
-        # ★边际递减★ 越极端越难继续极端化。没有这一项，探索的
-        # `caution -0.10` 会一路把谨慎推到 8、好奇推到 100，球从此只会
-        # 在外面跑（实测：60 天死的球 47.7% 的时间在 explore，
-        # 只有 1.9% 在采集食物）。v1 靠永久地板挡着，v2 的地板会消退，
-        # 于是这个刹车没了 —— 必须换一个。
+        # Positive feedback: what you do → what you become (but never below the floor left by a landmark)
+        # ★Diminishing returns★ the more extreme, the harder to grow further. Without this term,
+        # explore's `caution -0.10` would push caution all the way to 8 and curiosity to 100, and
+        # the ball would only ever run around outside (measured: balls that died by day 60 spent
+        # 47.7% of their time in explore and only 1.9% gathering food). v1 was protected by the
+        # permanent floor; v2's floor fades, so that brake is gone and must be replaced.
         for trait, delta in ACTION_TRAIT_FEEDBACK[action].items():
             extremity = abs(self.traits[trait] - 50.0) / 50.0
             pull = max(0.12, 1.0 - extremity * TRAIT_SATURATION)
             v = self.traits[trait] + delta * TRAIT_DRIFT * pull
             self.traits[trait] = clamp(v, self.trait_floor[trait], 100.0)
 
-    # ---------- 每天一次：性格的慢速消退 ----------
+    # ---------- Once a day: the slow fading of personality ----------
 
     def daily(self, day):
-        """★快形成，慢消退★ 软地板往下退，但永远不低于 landmark identity"""
+        """★Forms fast, fades slow★ the soft floor retreats, but never below the landmark identity"""
         for t in TRAITS:
             self.trait_floor[t] = max(self.trait_identity[t],
                                       self.trait_floor[t] - FLOOR_DECAY_PER_DAY)
-        # 吃饱穿暖的日子里，受苦的记忆也会慢慢淡
+        # On days of a full stomach and a warm roof, the memory of suffering also fades
         if self.condition >= 99.5 and self.hardship > 0:
             self.hardship = max(0.0, self.hardship - HARDSHIP_FORGET)
-        self.forget_knowledge()      # ★022★ 语义记忆也会淡
+        self.forget_knowledge()      # ★022★ semantic memory fades too
 
-    # ---------- 一个 tick ----------
+    # ---------- One tick ----------
 
     def tick(self, day, tick_of_day):
         if not self.alive:
             return
 
-        # 每天早上想一次要做什么。放在这里（而不是每 tick）就是为了连续性：
-        # 一天之内不会因为某个 tick 的分数抖动而改变主意。
+        # Think once every morning about what to do. Here rather than every tick, precisely for
+        # continuity: within a day it will not change its mind over a single tick's score jitter.
         if tick_of_day == 0:
             self.update_goal(day)
             self.goal_by_day.append(self.goal["type"] if self.goal else None)
 
         self.hunger  = clamp(self.hunger + HUNGER_RATE)
         self.energy  = clamp(self.energy - 1.2)
-        self.shelter = clamp(self.shelter - 0.35)      # 房子会老化
+        self.shelter = clamp(self.shelter - 0.35)      # the house ages
 
-        # 世界发生的事落到个体身上
+        # What happens in the world lands on the individual
         if self.world.weather == "storm":
             dmg = self.world.storm_damage
             self.shelter = clamp(self.shelter - dmg)
             if dmg > 28:
-                self.mark(day, "一场暴雨掀翻了屋顶", "fears_storm",
+                self.mark(day, "a storm tore the roof off", "fears_storm",
                           {"caution": 10}, emotional_weight=0.82,
                           consequence="shelter_damage",
-                          knowledge=("shelter", "没有坚固的住所，下雨很危险"))
+                          knowledge=("shelter", "without solid shelter, rain is dangerous"))
 
-        # ★体质★ 长期吃不饱 → 身体被掏空；吃饱了才慢慢养回来
-        # 规则 47：移植后「饿<30」占比塌到 0–2%，恢复通道几乎从不触发，
-        # 系统 90–98% 的时间待在死区里被慢慢掏空 —— 结构上没有稳态。
-        # 三个候选修法都参数化在这里，默认值 = 现状（逐位一致）。
+        # ★Condition★ chronically underfed → the body is drained; only once fed does it slowly recover
+        # Rule 47: after a transplant the "hunger<30" share collapses to 0–2%, the recovery
+        # channel almost never fires, and the system spends 90–98% of its time being drained in the
+        # dead zone — structurally no steady state.
+        # All three candidate fixes are parameterised here; the defaults = the status quo (bit-identical).
         if self.hunger > COND_DRAIN_AT:
             self.condition = clamp(self.condition - COND_DRAIN)
         else:
             gain = COND_RECOVER if self.hunger < COND_RECOVER_AT \
-                else COND_DEADZONE_RECOVER               # 修法①抬阈值 / ②填死区
-            gain += COND_SHELTER_RECOVER * (self.shelter / 100.0)   # 修法③
+                else COND_DEADZONE_RECOVER               # fix ① raise threshold / ② fill the dead zone
+            gain += COND_SHELTER_RECOVER * (self.shelter / 100.0)   # fix ③
             if gain:
                 self.condition = clamp(self.condition + gain)
 
-        # ★受苦 → 性格★ 连续传导
+        # ★Suffering → personality★ continuous transmission
         deficit = (100.0 - self.condition) / 100.0
         if deficit > 0:
             self.hardship += deficit / TICKS_PER_DAY
@@ -945,9 +964,9 @@ class Agent:
                     min(self._hardship_anchor[t] + w * boost, 90.0))
             if (self.hardship_norm >= HARDSHIP_STORY_AT
                     and "fears_hunger" not in self.flags):
-                self.mark(day, "熬过了一段吃不饱的日子", "fears_hunger", {},
+                self.mark(day, "got through a stretch of never having enough to eat", "fears_hunger", {},
                           emotional_weight=0.9, consequence="condition_loss",
-                          knowledge=("food", "存粮见底的日子很难熬"))
+                          knowledge=("food", "the days when the food store runs out are hard"))
 
         if self.condition <= 0:
             self.alive = False
@@ -957,36 +976,36 @@ class Agent:
         scored = [(s, a) for s, a in scored if s is not None]
         self.act(max(scored)[1], day, tick_of_day)
 
-    # ---------- 可读标签 ----------
+    # ---------- Readable labels ----------
 
     def dominant_style(self):
-        """把性格向量翻译成一个可读的标签 —— 差异必须看得见
+        """Translate the personality vector into a readable label — the difference must be visible
 
-        ⚠ 这读的是性格【数值】。消融实验（014）证明数值可以和行为脱节，
-          用户看到的是行为 —— 主结论请看 behavior.py。
+        ⚠ This reads the personality **numbers**. The ablation experiment (014) proved the numbers
+          can decouple from behaviour, and what the user sees is behaviour — for the main result see behavior.py.
         """
         c, q, i = (self.traits[t] for t in TRAITS)
-        if q > 58 and c < 48:  return "冒险家"
-        if c > 58 and q < 48:  return "筑巢者"
-        dev = {"谨慎型": c - 50.0, "好奇型": q - 50.0, "劳模": i - 50.0}
+        if q > 58 and c < 48:  return "adventurer"
+        if c > 58 and q < 48:  return "nest-builder"
+        dev = {"cautious": c - 50.0, "curious": q - 50.0, "workhorse": i - 50.0}
         top = max(dev, key=dev.get)
-        return top if dev[top] >= 8.0 else "平庸型"
+        return top if dev[top] >= 8.0 else "unremarkable"
 
 
 # ============================================================
-# Life —— 把世界、个体、干预绑在一起跑
+# Life — ties world, individual and interventions together and runs them
 # ============================================================
 
 class Life:
-    """一次完整的生命过程。
+    """One complete life process.
 
-    ★ 干预（influences）挂在这里，不挂在 Agent 上。★
-    Agent 不知道有人在照顾它，只知道"今天世界里多了两份食物"。
+    ★ Interventions (influences) hang off this, not off the Agent. ★
+    The Agent does not know someone is caring for it, only that "there are two more portions of food in the world today".
     """
 
     def __init__(self, seed, world=None, influences=(), world_seed=None):
-        # 世界和个体是两条独立的随机流：
-        # 这样才能做"同一颗种子、同样的初始性格，只换世界"的实验
+        # World and individual are two independent random streams:
+        # only that makes the "same seed, same initial personality, only the world changes" experiment possible
         self.world = world if world is not None else World(
             seed if world_seed is None else world_seed)
         self.agent = Agent(seed, self.world)
@@ -1009,5 +1028,5 @@ class Life:
 
 if __name__ == "__main__":
     print(__doc__)
-    print("这是核心模型，本身不定义任何实验。")
-    print("要跑实验请用：  python scenarios.py   /   python paired.py   等")
+    print("This is the core model; it defines no experiments of its own.")
+    print("To run experiments use:  python scenarios.py   /   python paired.py   etc.")

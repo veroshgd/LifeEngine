@@ -79,6 +79,8 @@ TRAIT_SATURATION   = 0.90  # The more extreme a trait, the harder to grow furthe
 # balls had drifted to caution 8 / curiosity 100, explored non-stop and starved.
 # This also incidentally cured the ceiling problem of experiment 017 (at day 60, 78% of
 # balls had caution pinned at 100).
+LANDMARK_BONUS     = 25.0  # Bonus an action gets from a landmark experience
+HUNGER_RATE        = 2.2   # Hunger growth per tick
 
 FOOD_NUTRITION     = 20.0  # How much hunger one portion of food removes
                            # one gather ≠ one day's ration, else the ball is fully self-sufficient

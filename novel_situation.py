@@ -1,20 +1,20 @@
 """
-NOVEL-SITUATION 机制层 —— 两个 probe + 拉平 + sibling 分叉 + 序列化对照
-=========================================================================
+NOVEL-SITUATION mechanism layer — two probes + levelling + sibling forking + serialisation controls
+===================================================================================================
 
-自检：  python novel_situation.py            （跑全部机制层测试，~1 分钟）
+Self-check:  python novel_situation.py            (runs every mechanism-layer test, ~1 minute)
 
-★ 冻结声明 ★
-本模块从 `v3_frozen/` 导入模型，**不修改 v3 的任何一行**。
-Probe A 用 `World` 子类（改**取用规则**，不改存量）；
-Probe B 用 influence（v3 自带扩展点）。
+★ Freeze declaration ★
+This module imports the model from `v3_frozen/` and **modifies no line of v3**.
+Probe A uses a `World` subclass (changing the **access rule**, not the stock);
+Probe B uses an influence (an extension point v3 already provides).
 
-设计依据：`NOVEL_SITUATION_DESIGN.md` v3。相关规则：
+Design basis: `NOVEL_SITUATION_DESIGN.md` v3. Relevant rules:
 
-  规则 60  可供性门控必须 non-destructive —— 改取用规则，不改存量
-  规则 61  counterfactual sibling branches —— 同一 snapshot 分叉，互不反馈
-  规则 62  decision window（行为/G1）与 consequence window（后果/G2）分离
-  规则 55  子进程里的全局量每个任务显式设定，不靠继承
+  rule 60  affordance gating must be non-destructive — change the access rule, not the stock
+  rule 61  counterfactual sibling branches — fork from one snapshot, with no feedback between them
+  rule 62  the decision window (behaviour/G1) is separate from the consequence window (outcome/G2)
+  rule 55  globals inside a subprocess are set explicitly per task, never inherited
 """
 
 import copy
@@ -34,31 +34,31 @@ import persistence_ablation as PA               # noqa: E402
 
 for _m in (sim, scenarios, PA):
     assert os.path.abspath(_m.__file__).startswith(V3DIR), \
-        f"✗ {_m.__name__} 不是来自 v3_frozen：{_m.__file__}"
+        f"✗ {_m.__name__} does not come from v3_frozen: {_m.__file__}"
 assert sim.MODEL_VERSION == "v3"
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 
-# 拉平点（沿用 leveling.py / 实验 020）。★ shelter 必须低于 gate S ★
+# Levelling point (following leveling.py / experiment 020). ★ shelter must be below gate S ★
 LEVEL = {"hunger": 30.0, "energy": 80.0, "shelter": 50.0,
          "condition": 100.0, "food": 3.0, "material": 0.0}
 
-# Probe B 的自然单位（一维 λ 校准，见设计 §2）
-K_FOOD = 1.0        # 一次 gather_food 的产出        （sim.py:185）
-K_SHELTER = 22.0    # 一次 build 的 shelter 增量      （sim.py:882）
+# Natural units for Probe B (one-dimensional λ calibration, see design §2)
+K_FOOD = 1.0        # yield of one gather_food                 (sim.py:185)
+K_SHELTER = 22.0    # shelter increment of one build           (sim.py:882)
 
 
 # ---------------------------------------------------------------- Probe A
 class GatedWorld(sim.World):
-    """冻土：world.food 只在 agent.shelter ≥ gate_S 时**可取**。
+    """Frozen ground: world.food is **accessible** only while agent.shelter ≥ gate_S.
 
-    ★ 规则 60 ★ 绝不改写 `self.food`（那是存量）。库存照常 regen、照常保存，
-    改的是**取用规则**。写 `world.food = 0` 等于每 tick 烧掉世界存粮，
-    下一 tick 从 0 重新 regen —— 那是"毁掉食物"，不是"取不到食物"。
+    ★ Rule 60 ★ `self.food` (the stock) is never overwritten. The stock regenerates and persists as
+    usual; what changes is the **access rule**. Writing `world.food = 0` would burn the world's food
+    store every tick and regrow it from 0 the next — that is "destroying food", not "being unable to reach food".
 
-    `agent` 在换世界时绑定 → shelter 在**调用时刻**读取，无一 tick 延迟。
-    门关闭时按 v3 相同的条件消耗一次 rng 抽样，让门**只改变可供性、
-    不额外扰动随机流**。
+    `agent` is bound when the world is swapped → shelter is read **at call time**, with no one-tick lag.
+    When the gate is closed, one rng draw is consumed under the same condition as v3, so the gate
+    **changes only affordance and adds no extra perturbation to the random stream**.
     """
 
     def __init__(self, seed=0, gate_S=60.0, **params):
@@ -69,17 +69,17 @@ class GatedWorld(sim.World):
     def take_food(self, rng):
         if self.agent is not None and self.agent.shelter >= self.gate_S:
             return super().take_food(rng)
-        if self.food >= 1:          # 与 sim.py:183 相同的抽样条件
+        if self.food >= 1:          # same sampling condition as sim.py:183
             rng.random()
         return 0
 
 
 # ---------------------------------------------------------------- Probe B
 def salt_flat(lam):
-    """盐碱地：采材料额外扣 world.food；觅食额外扣 shelter。
+    """Saline soil: gathering material costs extra world.food; foraging costs extra shelter.
 
-    ⚠ 一 tick 延迟：influence 在 `agent.tick()` **之前**运行，
-      只能对**上一 tick** 的动作施加代价。论文里如实写明，不假装同 tick 生效。
+    ⚠ One-tick lag: the influence runs **before** `agent.tick()`, so it can only charge for the
+      action of the **previous** tick. Stated as such in the paper; no pretence of same-tick effect.
     """
     c_f, c_s = lam * K_FOOD, lam * K_SHELTER
     prev = {}
@@ -97,30 +97,30 @@ def salt_flat(lam):
     return apply
 
 
-# ------------------------------------------------- Probe A2「探路」（候选 1）
+# ------------------------------------------------- Probe A2 "pathfinding" (candidate 1)
 def discovery_gather(tau, alpha, base=None):
-    """探索历史 → 材料可及性（规则 65/66/67 下的新赛道）
+    """Exploration history → material accessibility (a new track under rules 65/66/67)
 
-    ★ 精确形式（不是"explore 越多自动得材料"）★
-        必须执行 `gather_material` 才拿得到材料；
-        **该次采集的 yield 取决于最近 τ 个 tick 内 explore 的比例。**
+    ★ The precise form (not "more explore automatically yields material") ★
+        `gather_material` must actually be executed to obtain material;
+        **the yield of that gather depends on the share of explore within the last τ ticks.**
 
-        explore → 短暂的"已探明区域"状态 → gather_material 收益提高
+        explore → a transient "surveyed area" state → gather_material pays more
 
-        纯 explore   拿不到材料（不采就没有）
-        纯 gather    只能低效拿材料
-        受益的是      explore → gather 的**时序组合**
+        pure explore   gets no material (nothing is gathered)
+        pure gather    gets material only inefficiently
+        what benefits   is the **temporal combination** explore → gather
 
-    这是一条**跨行动 contingency**，两个发育世界都不存在
-    （那里 `material_yield` 是常数）。而且它**不碰食物经济**（规则 65）：
-    `world.food` / `hunger` / `condition` 一律不动。
+    This is a **cross-action contingency** that exists in neither developmental world
+    (there `material_yield` is a constant). And it **does not touch the food economy** (rule 65):
+    `world.food` / `hunger` / `condition` are all left alone.
 
-    ⚠ 射程：v3 没有在场因果学习，**agent 不会"意识到应该先探路再采集"**。
-      它只是带着既有 policy 进入这个新动力学，不同 policy 与新 contingency
-      恰好产生不同交互。文案里不许写成"它学会了先探路"。
+    ⚠ Scope: v3 has no online causal learning, so **the agent will not "realise it should scout before
+      gathering"**. It merely enters this new dynamic carrying its existing policy, and different
+      policies happen to interact differently with the new contingency. The write-up must not say "it learned to scout first".
 
-    实现：每 tick 依据滑动窗口内的 explore 次数改写 `world.p["material_yield"]`
-    —— 改的是**速率参数**，不是存量（规则 60）。α=0 时逐位等价于无干预。
+    Implementation: each tick, rewrite `world.p["material_yield"]` from the explore count inside a
+    sliding window — what changes is a **rate parameter**, not a stock (rule 60). At α=0 it is bit-equivalent to no intervention.
     """
     from collections import deque
     hist, prev = deque(maxlen=tau), {}
@@ -134,43 +134,43 @@ def discovery_gather(tau, alpha, base=None):
         if last is not None:
             hist.append(1 if now > last else 0)
         prev[key] = now
-        f = (sum(hist) / tau) if tau else 0.0          # 最近 τ tick 的 explore 占比
+        f = (sum(hist) / tau) if tau else 0.0          # explore share of the last τ ticks
         world.p["material_yield"] = apply.base * (1.0 + alpha * f)
 
     apply.hit = lambda: (sum(hist) > 0)
     return apply
 
 
-# ------------------------------------------- Probe C「离家失修」（正式放行）
-SHELTER_FLOOR = 40.0        # 硬下限：避开 sim.py:792 睡眠打分在 shelter=30 的阶跃
-STORM_OFF = {"storm_chance": 0.0}   # ★ON/OFF 两支都必须用这个★
+# ------------------------------------------- Probe C "home falls into disrepair" (formally cleared)
+SHELTER_FLOOR = 40.0        # hard floor: avoids the step in the sleep score at shelter=30 (sim.py:792)
+STORM_OFF = {"storm_chance": 0.0}   # ★both the ON and OFF arms must use this★
 
 
 def home_neglect(kappa, floor=SHELTER_FLOOR):
-    """离家失修：每执行一次 explore，shelter 发生很小的"无人维护损耗"。
+    """Home falls into disrepair: each explore causes a very small "unmaintained" loss of shelter.
 
-    `build` 仍按 v3 原规则修复 shelter —— 不改 v3 任何一行。
+    `build` still repairs shelter under the original v3 rule — no line of v3 is changed.
 
-        explore --新关系--> shelter 轻微下降
+        explore --new relation--> slight drop in shelter
                               ↓
-                    improve_home 进度倒退 / 优先级上升（sim.py:611/662）
+                    improve_home progress regresses / priority rises (sim.py:611/662)
                               ↓
-                    goal stall / switch → 动作打分重新分配
+                    goal stall / switch → action scores redistributed
 
-    以前 `see_the_world` 与 `improve_home` 只是**争时间**；
-    现在第一次变成「探索会主动破坏修家已取得的进展」。
-    所以它同时是 **N1**（新因果关系 explore → shelter loss）
-    与 **N2**（新目标冲突）。
+    Previously `see_the_world` and `improve_home` merely **competed for time**;
+    now, for the first time, "exploring actively destroys the progress made on fixing the home".
+    So it is at once **N1** (a new causal relation explore → shelter loss)
+    and **N2** (a new goal conflict).
 
-    ★ 为什么 shelter 在这里是 goal-progress 变量而不是 survival 变量 ★
-      · 硬下限 40 > sim.py:792 的阶跃点 30 —— 不碰睡眠生理
-      · 40–75 全落在 improve_home 优先级有响应的区间（sim.py:662）
-      · 食物 / hunger / condition 一律不动（规则 65）
-      · ON / OFF 两支都用 `storm_chance = 0`（否则同时改了两个东西）
+    ★ Why shelter is a goal-progress variable here rather than a survival variable ★
+      · the hard floor 40 > the step point 30 at sim.py:792 — sleep physiology is untouched
+      · 40–75 lies entirely in the range where improve_home priority responds (sim.py:662)
+      · food / hunger / condition are all left alone (rule 65)
+      · both the ON and OFF arms use `storm_chance = 0` (otherwise two things change at once)
 
-    ⚠ 一 tick 延迟：influence 在 `agent.tick()` 之前运行，只能对**上一 tick**
-      的 explore 施加损耗。论文里如实写明。
-    ⚠ 射程：agent **不会"意识到"探索会毁家**。它只是按 v3 既有机制反应。
+    ⚠ One-tick lag: the influence runs before `agent.tick()`, so it can only charge the explore of
+      the **previous** tick. Stated as such in the paper.
+    ⚠ Scope: the agent **will not "realise"** that exploring wrecks its home. It merely reacts through v3's existing mechanisms.
     """
     prev = {}
     ctr = {"explore": 0, "saturated": 0, "clipped": 0}
@@ -181,50 +181,50 @@ def home_neglect(kappa, floor=SHELTER_FLOOR):
         last = prev.get(key)
         if last is not None and now > last:
             ctr["explore"] += 1
-            # ⚠ 不能写成 max(floor, shelter - kappa)：若自然衰减（0.35/tick）
-            #   已把 shelter 压到 floor 以下，那样会把它**抬回** floor ——
-            #   下限变成了"抬升器"，等于给失修的球发福利。
-            #   正确语义：损耗不得把 shelter 压到 floor 以下，但也绝不抬高。
+            # ⚠ It must not be written as max(floor, shelter - kappa): if natural decay (0.35/tick)
+            #   has already pushed shelter below the floor, that would **lift it back up** to the
+            #   floor — turning the floor into a booster, i.e. a subsidy for a ball with a ruined home.
+            #   Correct semantics: the loss may not push shelter below the floor, but must never raise it.
             if agent.shelter > floor:
                 if agent.shelter - kappa < floor:
-                    ctr["clipped"] += 1        # 本该扣 κ，被截到 floor
+                    ctr["clipped"] += 1        # should have cost κ, clipped at the floor
                 agent.shelter = max(floor, agent.shelter - kappa)
             else:
-                # ★ 真正的饱和 ★ shelter 已 ≤ floor（自然衰减也会把它压下去），
-                #   此后 explore 再也产生不了任何额外损耗 —— Probe C 已失效。
-                #   注意：这不等于 shelter == floor，所以**不能**用
-                #   "贴边时间比例"来度量饱和（那会严重低估）。
+                # ★ True saturation ★ shelter is already ≤ floor (natural decay pushes it down too),
+                #   and from here on explore can produce no further loss — Probe C has expired.
+                #   Note this is not the same as shelter == floor, so the "share of time at the edge"
+                #   **must not** be used to measure saturation (it would badly underestimate it).
                 ctr["saturated"] += 1
         prev[key] = now
 
     apply.kappa = kappa
     apply.floor = floor
-    apply.counters = ctr        # 只读计数，不影响任何状态或随机流
+    apply.counters = ctr        # read-only counters, affecting no state and no random stream
     return apply
 
 
 def novel_world(seed, kappa=0.0):
-    """Probe C 的世界。★ON/OFF 唯一差异是 kappa★ —— 背景完全同构。"""
+    """Probe C's world. ★The only ON/OFF difference is kappa★ — the background is fully isomorphic."""
     return sim.World(seed, **{**scenarios.WORLDS[COMMON], **STORM_OFF})
 
 
 def enter_novel(life, clear_goal=True):
-    """进入 novel/familiar 分支时的统一处理。
+    """Common handling when entering the novel/familiar branch.
 
-    ★ 只清当前正在执行的 intention ★ —— 否则"rich 分身恰好正在 see_the_world、
-    poor 分身恰好正在 improve_home"就会让结果退化成
-    「它只是把进场前正在做的事继续做下去」。
+    ★ Only the intention currently being executed is cleared ★ — otherwise "the rich twin happens to be
+    in the middle of see_the_world while the poor twin happens to be in improve_home" would degrade the
+    result into "it simply carried on with whatever it was doing on entry".
 
-    **不清** traits / trait_floor / knowledge / flags / goal_satiation /
-    memories / hardship —— 那些正是"过去留下的内部结构"，是要测的东西。
+    **Not** cleared: traits / trait_floor / knowledge / flags / goal_satiation / memories / hardship —
+    those are precisely "the internal structure left by the past", which is what is being measured.
     """
     if clear_goal:
         life.agent.goal = None
 
 
-# ---------------------------------------------------------------- 拉平
+# ---------------------------------------------------------------- levelling
 def level_state(agent):
-    """状态拉平（实验 020 口径）。只动资源态，不动历史携带的东西。"""
+    """State levelling (the experiment 020 convention). Only resource state is touched, never what history carries."""
     agent.hunger = LEVEL["hunger"]
     agent.energy = LEVEL["energy"]
     agent.shelter = LEVEL["shelter"]
@@ -232,35 +232,35 @@ def level_state(agent):
     agent.inventory = {"food": LEVEL["food"], "material": LEVEL["material"]}
 
 
-# --------------------------------------- 字段审计（规则 63）+ 状态序列化
+# --------------------------------------- field audit (rule 63) + state serialisation
 #
-# ★ 规则 63 ★「完整可执行状态」必须是**逐项审计**出来的，不能凭印象列。
-#   审计方法：对 v3 的 Agent / World 逐字段 grep 读取点，
-#   **有回读 → EXEC（进 hash、全拉平时必须一起拉平）；只写不读 → LOG。**
+# ★ Rule 63 ★ "complete executable state" must be established by a **field-by-field audit**, not listed from memory.
+#   Audit method: grep the read points of v3's Agent / World field by field,
+#   **read back → EXEC (enters the hash, and must be levelled along with everything else); write-only → LOG.**
 #
-#   第一版犯的错：`"memories": len(ag.memories)` ——
-#   **"有 5 条 memory" ≠ "5 条 memory 内容相同"**，而 memories 会被
-#   `recall()` 回读（sim.py:517/554/563）。同类漏网还有 goal_satiation。
+#   The mistake of the first version: `"memories": len(ag.memories)` —
+#   **"has 5 memories" ≠ "the 5 memories have the same content"**, and memories are read back by
+#   `recall()` (sim.py:517/554/563). goal_satiation slipped through the same way.
 #
 # ── Agent ────────────────────────────────────────────────────────────
-#  EXEC  traits/trait_floor/trait_identity   动作打分直接读
-#  EXEC  hunger/energy/shelter/condition/inventory   状态项
-#  EXEC  hardship/_hardship_anchor           → trait_floor 棘轮
-#  EXEC  flags/knowledge/knowledge_strength  score() 回读
-#  EXEC  memories          ★ recall() 回读（sim.py:517/554/563）★ 必须全量
-#  EXEC  goal                                当前目标影响打分
-#  EXEC  goal_satiation    ★ sim.py:694 回读 —— 目标的不应期 ★
-#  EXEC  action_log        ★ sim.py:619/626 回读 —— 目标进度 ★
+#  EXEC  traits/trait_floor/trait_identity   read directly by action scoring
+#  EXEC  hunger/energy/shelter/condition/inventory   state items
+#  EXEC  hardship/_hardship_anchor           → the trait_floor ratchet
+#  EXEC  flags/knowledge/knowledge_strength  read back by score()
+#  EXEC  memories          ★ read back by recall() (sim.py:517/554/563) ★ must be complete
+#  EXEC  goal                                the current goal affects scoring
+#  EXEC  goal_satiation    ★ read back at sim.py:694 — the goal refractory period ★
+#  EXEC  action_log        ★ read back at sim.py:619/626 — goal progress ★
 #  EXEC  alive / rng(state)
-#  LOG   action_by_hour    sim.py 内无回读，纯记录（分析用）
-#  LOG   goal_by_day       无回读
-#  LOG   goal_history      无回读
-#  STRUCT world            引用，不是状态
+#  LOG   action_by_hour    never read back inside sim.py, pure record (for analysis)
+#  LOG   goal_by_day       never read back
+#  LOG   goal_history      never read back
+#  STRUCT world            a reference, not state
 #
 # ── World ────────────────────────────────────────────────────────────
 #  EXEC  food / objects / p / weather / rng(state)
-#  EXEC  storm_damage      ★ 动态属性，仅暴雨后存在；sim.py:942 回读 ★
-#  LOG   events            仅 influence 写入，无回读
+#  EXEC  storm_damage      ★ dynamic attribute, present only after a storm; read back at sim.py:942 ★
+#  LOG   events            written only by influences, never read back
 #
 # ── Life ─────────────────────────────────────────────────────────────
 #  EXEC  inf_rng(state)          STRUCT  agent / world / influences
@@ -273,7 +273,7 @@ _AG_LOG = ("action_by_hour", "goal_by_day", "goal_history")
 _AG_STRUCT = ("world",)
 
 _W_EXEC = ("food", "objects", "p", "weather", "rng", "storm_damage",
-           "gate_S", "agent")          # 后两项来自 GatedWorld（agent 是引用，单独处理）
+           "gate_S", "agent")          # the last two come from GatedWorld (agent is a reference, handled separately)
 _W_LOG = ("events",)
 
 _L_EXEC = ("inf_rng",)
@@ -281,10 +281,10 @@ _L_STRUCT = ("agent", "world", "influences")
 
 
 def audit_fields(life):
-    """★ 完整性断言 ★ 任何未被分类的字段都会让它失败。
+    """★ Completeness assertion ★ any unclassified field makes it fail.
 
-    v3 已冻结，但**这条断言防的是"我漏看了一个字段"**，
-    而不只是"以后 v3 变了"。第一版就漏了 memories 内容与 goal_satiation。
+    v3 is frozen, but **this assertion guards against "I overlooked a field"**, not merely against
+    "v3 changes later". The first version overlooked both memories content and goal_satiation.
     """
     known = {
         "agent": set(_AG_EXEC) | set(_AG_LOG) | set(_AG_STRUCT),
@@ -295,12 +295,12 @@ def audit_fields(life):
         unknown = set(vars(obj)) - known[name]
         if unknown:
             raise AssertionError(
-                f"✗ {name} 出现未分类字段 {sorted(unknown)} —— "
-                f"必须先判定它是否会被回读（EXEC）再决定入不入 hash。")
+                f"✗ {name} has unclassified fields {sorted(unknown)} — "
+                f"decide whether each is read back (EXEC) before deciding whether it enters the hash.")
 
 
 def _norm(v):
-    """把值规范成可确定性 pickle 的形式"""
+    """Normalise a value into a deterministically picklable form"""
     import random as _r
     from collections import Counter
     if isinstance(v, _r.Random):
@@ -317,8 +317,8 @@ def _norm(v):
 
 
 def exec_state(life):
-    """**可执行**状态（EXEC）—— 全拉平阴性对照用这个。
-    只含会被回读、从而能影响未来行为的字段。"""
+    """**Executable** state (EXEC) — used by the full-levelling negative control.
+    Contains only fields that are read back and can therefore affect future behaviour."""
     audit_fields(life)
     ag, w = life.agent, life.world
     st = {f"ag.{k}": _norm(getattr(ag, k)) for k in _AG_EXEC if hasattr(ag, k)}
@@ -329,7 +329,7 @@ def exec_state(life):
 
 
 def full_state(life):
-    """EXEC + LOG —— 分叉隔离 / 确定性测试用这个（更严格）。"""
+    """EXEC + LOG — used by fork isolation / determinism tests (stricter)."""
     st = exec_state(life)
     ag, w = life.agent, life.world
     st.update({f"ag.{k}": _norm(getattr(ag, k)) for k in _AG_LOG if hasattr(ag, k)})
@@ -349,13 +349,13 @@ def full_hash(life):
     return _h(full_state(life))
 
 
-# ------------------------------------------------- 规则 61：sibling 分叉
+# ------------------------------------------------- rule 61: sibling forking
 def fork(life, floor_off):
-    """从同一 snapshot 分叉出一个**完全隔离**的兄弟分支。
+    """Fork a **fully isolated** sibling branch from the same snapshot.
 
-    ⚠ 024 的 deepcopy 陷阱：`FrozenZero` 是 dict 子类且 `__setitem__` 是 no-op，
-      deepcopy 重建它时正走 `__setitem__` → 复制出**空 dict** → KeyError。
-      它不携带状态（读恒 0、写恒丢），重建等价。
+    ⚠ The deepcopy trap of 024: `FrozenZero` is a dict subclass whose `__setitem__` is a no-op, so
+      deepcopy rebuilds it through `__setitem__` → an **empty dict** is produced → KeyError.
+      It carries no state (reads are always 0, writes are always dropped), so rebuilding is equivalent.
     """
     clone = copy.deepcopy(life)
     if floor_off:
@@ -365,14 +365,14 @@ def fork(life, floor_off):
 
 
 def run_window(life, day0, days, world=None, extra_inf=()):
-    """跑一段窗口，返回 (是否活着, 该窗口内的 [24 小时 × 动作] 计数)"""
+    """Run one window, returning (alive?, the [24 hours × action] counts within that window)"""
     from collections import Counter
     ag = life.agent
     if world is not None:
         life.world = world
         ag.world = world
         if isinstance(world, GatedWorld):
-            world.agent = ag                    # 绑定：shelter 在调用时刻读取
+            world.agent = ag                    # binding: shelter is read at call time
     snap = [Counter(c) for c in ag.action_by_hour]
     infl = list(life.influences) + list(extra_inf)
     for day in range(day0, day0 + days):
@@ -388,9 +388,9 @@ def run_window(life, day0, days, world=None, extra_inf=()):
     return True, [Counter(c) - snap[h] for h, c in enumerate(ag.action_by_hour)]
 
 
-# ---------------------------------------------------------------- 自检
+# ---------------------------------------------------------------- self-checks
 def _test_gate_non_destructive():
-    """规则 60：门关着时库存必须照常 regen、不被烧掉"""
+    """Rule 60: while the gate is shut the stock must regenerate as usual and never be burned"""
     w = GatedWorld(1, gate_S=60.0, **scenarios.WORLDS[COMMON])
 
     class Stub:
@@ -400,49 +400,49 @@ def _test_gate_non_destructive():
     rng = random.Random(0)
     before = w.food
     got = [w.take_food(rng) for _ in range(50)]
-    assert all(g == 0 for g in got), "门关着却取到了食物"
-    assert w.food == before, f"门关着库存被改动：{before} → {w.food}"
+    assert all(g == 0 for g in got), "got food through a shut gate"
+    assert w.food == before, f"stock changed while the gate was shut: {before} → {w.food}"
     for d in range(3):
         for t in range(sim.TICKS_PER_DAY):
             w.tick(d, t)
-    assert w.food >= before, "库存没有照常 regen"
+    assert w.food >= before, "the stock did not regenerate as usual"
     w.agent.shelter = 99.0
-    assert sum(w.take_food(rng) for _ in range(10)) > 0, "门开了却取不到食物"
-    print("  ✓ 规则 60：门关闭不烧库存、regen 正常、开门可取")
+    assert sum(w.take_food(rng) for _ in range(10)) > 0, "gate open but no food obtainable"
+    print("  ✓ rule 60: a shut gate burns no stock, regen is normal, an open gate yields food")
 
 
 def _test_sibling_isolation():
-    """规则 61：突变测试 —— 改一支必须不影响另一支（正反各一次）"""
+    """Rule 61: mutation test — changing one branch must not affect the other (once in each direction)"""
     life = scenarios.make(20000, WB)
     run_window(life, 0, 3)
     level_state(life.agent)
     h0 = full_hash(life)
 
     f, n = fork(life, False), fork(life, False)
-    assert full_hash(f) == h0 and full_hash(n) == h0, "分叉瞬间状态就不一致"
+    assert full_hash(f) == h0 and full_hash(n) == h0, "state already inconsistent at the moment of forking"
 
     hn = full_hash(n)
     f.agent.inventory["food"] += 99
     f.agent.traits["caution"] = 3.0
-    f.agent.memories.append({"day": 999, "text": "突变"})     # ★内容级★
+    f.agent.memories.append({"day": 999, "text": "mutation"})     # ★content level★
     f.agent.goal_satiation["stock_food"] = 999
     f.agent.action_log["explore"] += 7
     f.world.food = 0.0
     f.world.p["food_regen"] = 99.0
     f.agent.rng.random()
-    assert full_hash(n) == hn, "✗ 改 clone F 影响了 clone N —— 分支未隔离"
+    assert full_hash(n) == hn, "✗ changing clone F affected clone N — the branches are not isolated"
 
     hf = full_hash(f)
     n.agent.inventory["material"] += 42
     n.agent.trait_floor["industry"] = 88.0
-    n.agent.memories.append({"day": 998, "text": "反向突变"})
+    n.agent.memories.append({"day": 998, "text": "reverse mutation"})
     n.agent.rng.random()
-    assert full_hash(f) == hf, "✗ 改 clone N 影响了 clone F —— 分支未隔离"
-    print("  ✓ 规则 61：sibling 突变测试双向通过（含 memories 内容 / goal_satiation / action_log / world.p）")
+    assert full_hash(f) == hf, "✗ changing clone N affected clone F — the branches are not isolated"
+    print("  ✓ rule 61: the sibling mutation test passes in both directions (including memories content / goal_satiation / action_log / world.p)")
 
 
 def _test_identical_branches():
-    """完整可执行状态相同 → 放进同一个世界必须【逐位】相同"""
+    """Identical complete executable state → placed in the same world, the runs must be **bit-identical**"""
     life = scenarios.make(20001, WA)
     run_window(life, 0, 5)
     level_state(life.agent)
@@ -451,13 +451,13 @@ def _test_identical_branches():
     wb_ = sim.World(20001, **scenarios.WORLDS[COMMON])
     ra = run_window(a, 5, 7, world=wa_)
     rb = run_window(b, 5, 7, world=wb_)
-    assert ra[0] == rb[0] and ra[1] == rb[1], "✗ 同态双分支不逐位相同 —— 有泄漏"
-    assert full_hash(a) == full_hash(b), "✗ 末态 hash 不同 —— 有泄漏"
-    print("  ✓ 阴性对照：完整状态相同 → 逐位相同")
+    assert ra[0] == rb[0] and ra[1] == rb[1], "✗ two identical branches are not bit-identical — there is a leak"
+    assert full_hash(a) == full_hash(b), "✗ final-state hashes differ — there is a leak"
+    print("  ✓ negative control: identical complete state → bit-identical")
 
 
 def _test_floor_off_fork():
-    """024 的 FrozenZero deepcopy 陷阱不能复发"""
+    """The FrozenZero deepcopy trap of 024 must not come back"""
     scenarios.make = PA.patched_make(False, True)
     try:
         life = scenarios.make(20002, WB)
@@ -467,36 +467,36 @@ def _test_floor_off_fork():
         run_window(c, 3, 3, world=sim.World(20002, **scenarios.WORLDS[COMMON]))
     finally:
         scenarios.make = PA._orig_make
-    print("  ✓ 地板全关下分叉不触发 FrozenZero 的 deepcopy 陷阱")
+    print("  ✓ forking with all floors off does not hit the FrozenZero deepcopy trap")
 
 
 def _test_field_audit():
-    """规则 63：字段完整性断言必须真的会因为新字段而失败"""
+    """Rule 63: the field-completeness assertion must really fail on a new field"""
     life = scenarios.make(20004, WA)
     run_window(life, 0, 2)
-    audit_fields(life)                       # 正常情况必须通过
+    audit_fields(life)                       # must pass under normal conditions
     life.agent.some_new_field = 1
     try:
         audit_fields(life)
     except AssertionError as e:
         assert "some_new_field" in str(e)
     else:
-        raise AssertionError("✗ 完整性断言没有捕获新字段")
+        raise AssertionError("✗ the completeness assertion did not catch a new field")
     del life.agent.some_new_field
-    # memories 内容变化必须改变 hash（第一版的漏洞）
+    # A change in memories content must change the hash (the hole in the first version)
     h = exec_hash(life)
     life.agent.memories.append({"day": 1, "text": "x"})
-    assert exec_hash(life) != h, "✗ memories 内容变化没有改变 hash"
+    assert exec_hash(life) != h, "✗ a change in memories content did not change the hash"
     life.agent.memories.pop()
     assert exec_hash(life) == h
-    # goal_satiation 同理
+    # Same for goal_satiation
     life.agent.goal_satiation["learn"] = 12345
-    assert exec_hash(life) != h, "✗ goal_satiation 变化没有改变 hash"
-    print("  ✓ 规则 63：字段审计断言有效，memories 内容 / goal_satiation 都进 hash")
+    assert exec_hash(life) != h, "✗ a change in goal_satiation did not change the hash"
+    print("  ✓ rule 63: the field audit assertion works, and both memories content and goal_satiation enter the hash")
 
 
 def _test_salt_flat():
-    """Probe B：耦合确实生效，且 λ=0 时与无耦合逐位相同"""
+    """Probe B: the coupling really takes effect, and at λ=0 it is bit-identical to no coupling"""
     def run(lam):
         life = scenarios.make(20003, WB)
         run_window(life, 0, 3)
@@ -508,14 +508,14 @@ def _test_salt_flat():
 
     (a0, _), c0 = run(0.0)
     (a1, _), c1 = run(0.0)
-    assert full_hash(c0) == full_hash(c1), "λ=0 两次不一致"
+    assert full_hash(c0) == full_hash(c1), "λ=0 inconsistent across two runs"
     (_, _), c2 = run(0.5)
-    assert full_hash(c0) != full_hash(c2), "λ=0.5 与无耦合竟然相同 —— 耦合没生效"
-    print("  ✓ Probe B：λ=0 等价于无耦合，λ>0 确实改变轨迹")
+    assert full_hash(c0) != full_hash(c2), "λ=0.5 identical to no coupling — the coupling had no effect"
+    print("  ✓ Probe B: λ=0 equals no coupling, λ>0 really changes the trajectory")
 
 
 def _test_discovery():
-    """Probe A2：α=0 逐位等价于无干预；α>0 确实改变轨迹；且不碰食物经济"""
+    """Probe A2: α=0 is bit-equivalent to no intervention; α>0 really changes the trajectory; and the food economy is untouched"""
     def run(tau, alpha):
         life = scenarios.make(20005, WB)
         run_window(life, 0, 5)
@@ -527,21 +527,21 @@ def _test_discovery():
         return c
 
     a, b = run(12, 0.0), run(12, 0.0)
-    assert full_hash(a) == full_hash(b), "α=0 两次不一致"
+    assert full_hash(a) == full_hash(b), "α=0 inconsistent across two runs"
     c = run(12, 0.0)
     d = run(12, 2.0)
-    assert full_hash(c) != full_hash(d), "α=2 与无干预相同 —— 规则没生效"
-    # ★规则 65★ 不许碰食物经济
+    assert full_hash(c) != full_hash(d), "α=2 identical to no intervention — the rule had no effect"
+    # ★Rule 65★ the food economy must not be touched
     src = discovery_gather.__doc__ or ""
     import inspect
     body = inspect.getsource(discovery_gather)
     for banned in ("world.food", "hunger", "condition", "FOOD_"):
-        assert banned not in body.split('"""')[-1], f"✗ 碰了食物经济：{banned}"
-    print("  ✓ Probe A2：α=0 等价无干预，α>0 改变轨迹，且不触碰食物经济")
+        assert banned not in body.split('"""')[-1], f"✗ touched the food economy: {banned}"
+    print("  ✓ Probe A2: α=0 equals no intervention, α>0 changes the trajectory, and the food economy is untouched")
 
 
 def _test_probe_c():
-    """Probe C：κ=0 逐位等价；κ>0 改变轨迹；ON/OFF 背景同构；下限生效；goal 被清"""
+    """Probe C: κ=0 bit-equivalent; κ>0 changes the trajectory; ON/OFF backgrounds isomorphic; the floor works; goal is cleared"""
     from collections import Counter
 
     def run(seed, kappa, clear=True):
@@ -550,7 +550,7 @@ def _test_probe_c():
         level_state(life.agent)
         c = fork(life, False)
         enter_novel(c, clear_goal=clear)
-        w = novel_world(seed)                       # ★ON/OFF 同一个背景★
+        w = novel_world(seed)                       # ★the same background for ON/OFF★
         inf = (home_neglect(kappa),) if kappa else ()
         _, win = run_window(c, 8, 15, world=w, extra_inf=inf)
         acc = Counter()
@@ -558,25 +558,25 @@ def _test_probe_c():
             acc.update(h)
         return c, acc["explore"]
 
-    # ⚠ 必须挑真的会 explore 的种子 —— 20006 是只纯盖房球（explore=0），
-    #   用它测"κ 有没有生效"永远测不出来（第一版就是这么误报的）。
+    # ⚠ Seeds that really do explore must be chosen — 20006 is a pure builder ball (explore=0), and
+    #   testing "did κ take effect" with it can never show anything (that is how the first version misreported).
     diffs = 0
     for sd in range(20010, 20030):
         a, ne = run(sd, 0.0)
         if ne == 0:
             continue
         b, _ = run(sd, 0.0)
-        assert full_hash(a) == full_hash(b), f"κ=0 两次不一致（seed {sd}）"
+        assert full_hash(a) == full_hash(b), f"κ=0 inconsistent across two runs (seed {sd})"
         c2, _ = run(sd, 0.5)
         if full_hash(a) != full_hash(c2):
             diffs += 1
-    assert diffs >= 3, f"✗ κ=0.5 几乎不改变轨迹（只有 {diffs} 颗种子变化）"
+    assert diffs >= 3, f"✗ κ=0.5 barely changes the trajectory (only {diffs} seeds changed)"
 
-    # 背景同构：ON/OFF 两支都必须 storm_chance=0
-    assert novel_world(1).p["storm_chance"] == 0.0, "背景世界没关掉 storm"
-    assert SHELTER_FLOOR > 30.0, "下限必须高于 sim.py:792 的睡眠阶跃点 30"
+    # Isomorphic background: both ON and OFF arms must have storm_chance=0
+    assert novel_world(1).p["storm_chance"] == 0.0, "the background world did not switch storms off"
+    assert SHELTER_FLOOR > 30.0, "the floor must be above the sleep step point 30 at sim.py:792"
 
-    # ★ 硬下限只能"兜住损耗"，绝不能把已经低于下限的 shelter 抬回去 ★
+    # ★ The hard floor may only "catch" a loss; it must never lift a shelter already below the floor ★
     class Stub:
         shelter = 12.0
         action_log = Counter({"explore": 5})
@@ -585,9 +585,9 @@ def _test_probe_c():
     inf(None, st, 0, 0, None)
     st.action_log["explore"] += 1
     inf(None, st, 0, 1, None)
-    assert st.shelter == 12.0, f"✗ 下限把 shelter 从 12 抬到了 {st.shelter}"
+    assert st.shelter == 12.0, f"✗ the floor lifted shelter from 12 to {st.shelter}"
 
-    # goal 清除只清 intention，不动历史结构
+    # Clearing the goal clears only the intention, never the historical structure
     life = scenarios.make(20007, WA)
     run_window(life, 0, 8)
     level_state(life.agent)
@@ -595,16 +595,16 @@ def _test_probe_c():
     before = (dict(d.agent.traits), dict(d.agent.goal_satiation),
               sorted(d.agent.flags), len(d.agent.memories))
     enter_novel(d)
-    assert d.agent.goal is None, "goal 没被清"
+    assert d.agent.goal is None, "the goal was not cleared"
     after = (dict(d.agent.traits), dict(d.agent.goal_satiation),
              sorted(d.agent.flags), len(d.agent.memories))
-    assert before == after, "✗ 清 goal 时误伤了历史结构"
-    print("  ✓ Probe C：κ=0 等价 OFF、κ>0 生效、背景同构、下限兜住、只清 intention")
+    assert before == after, "✗ clearing the goal damaged the historical structure"
+    print("  ✓ Probe C: κ=0 equals OFF, κ>0 takes effect, backgrounds isomorphic, the floor catches, only the intention is cleared")
 
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print(f"机制层自检   模型来自 {os.path.dirname(sim.__file__)}   "
+    print(f"Mechanism-layer self-check   model from {os.path.dirname(sim.__file__)}   "
           f"{sim.MODEL_VERSION}  COND_RECOVER_AT={sim.COND_RECOVER_AT}")
     _test_gate_non_destructive()
     _test_sibling_isolation()
@@ -614,4 +614,4 @@ if __name__ == "__main__":
     _test_salt_flat()
     _test_discovery()
     _test_probe_c()
-    print("\n全部通过。机制层可用于 group-blind 校准。")
+    print("\nAll passed. The mechanism layer is ready for group-blind calibration.")

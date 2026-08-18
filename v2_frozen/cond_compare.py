@@ -1,48 +1,51 @@
 """
-体质收支三种修法对比 —— 治得了死亡率，会不会顺手抹平世界差异？
-==================================================================
+Three fixes for the condition balance — they cure mortality, but do they flatten the world difference too?
+==========================================================================================================
 
-运行：  python cond_compare.py
+Run:  python cond_compare.py
 
-规则 47：移植后恢复通道几乎从不触发，系统 90–98% 的时间待在死区里被掏空，
-第 30 天之后没有任何球有正收支。三个候选修法（`sim.py` 已参数化）：
+Rule 47: after a transplant the recovery channel almost never fires, the system spends 90–98%
+of its time being drained in the dead zone, and after day 30 no ball has a positive balance.
+Three candidate fixes (already parameterised in `sim.py`):
 
-    ① COND_RECOVER_AT      抬高恢复阈值（30 → 45/55/65），削掉死区
-    ② COND_DEADZONE_RECOVER 死区里也缓慢恢复
-    ③ COND_SHELTER_RECOVER  住所也贡献体质
+    ① COND_RECOVER_AT       raise the recovery threshold (30 → 45/55/65), cutting away the dead zone
+    ② COND_DEADZONE_RECOVER slow recovery inside the dead zone too
+    ③ COND_SHELTER_RECOVER  shelter also contributes to condition
 
-★ 规则 45 的教训 ★ 只看死亡率会选错。**必须同时测比值。**
-让球活下来但抹平世界差异的改法是失败的 —— 而这三个都有这个风险：
-体质普遍变好 → 贫瘠世界的压力变小 → 两个世界可能就没那么不同了。
-③ 的方向甚至不好预判（住所贡献体质 → 富世界材料优势被放大 → 也可能拉大差异）。
+★ The lesson of rule 45 ★ Looking at mortality alone picks the wrong one. **The ratio must be
+measured at the same time.** A fix that keeps the balls alive but flattens the world difference
+has failed — and all three carry that risk: condition improves across the board → the pressure
+of the barren world weakens → the two worlds may no longer be that different.
+The direction of ③ is not even easy to predict (shelter contributing to condition → the rich
 
-判据：两个死亡率 <15%，且两个比值不显著低于「现状」。
+world's material advantage is amplified → it could widen the difference instead).
+Criterion: both mortalities <15%, and neither ratio significantly below "status quo".
 """
 
 import sim
 from fix_compare import ratio_and_death, N_RATIO, N_DEATH
 
-# (标签, 恢复阈值, 死区恢复, 住所恢复)
+# (label, recovery threshold, dead-zone recovery, shelter recovery)
 VARIANTS = [
-    ("现状",                30.0, 0.00, 0.00),
-    ("① 阈值 45",           45.0, 0.00, 0.00),
-    ("① 阈值 55",           55.0, 0.00, 0.00),
-    ("① 阈值 65",           65.0, 0.00, 0.00),
-    ("② 死区 +0.03",        30.0, 0.03, 0.00),
-    ("② 死区 +0.06",        30.0, 0.06, 0.00),
-    ("③ 住所 +0.05",        30.0, 0.00, 0.05),
-    ("③ 住所 +0.10",        30.0, 0.00, 0.10),
-    ("①55 + ③0.05 合用",    55.0, 0.00, 0.05),
+    ("status quo",            30.0, 0.00, 0.00),
+    ("① threshold 45",        45.0, 0.00, 0.00),
+    ("① threshold 55",        55.0, 0.00, 0.00),
+    ("① threshold 65",        65.0, 0.00, 0.00),
+    ("② dead zone +0.03",     30.0, 0.03, 0.00),
+    ("② dead zone +0.06",     30.0, 0.06, 0.00),
+    ("③ shelter +0.05",       30.0, 0.00, 0.05),
+    ("③ shelter +0.10",       30.0, 0.00, 0.10),
+    ("①55 + ③0.05 combined",  55.0, 0.00, 0.05),
 ]
 
 
 def main():
     sim.KNOWLEDGE_WEIGHT, sim.KNOWLEDGE_GOAL_WEIGHT, sim.KNOWLEDGE_FORGET = 12.0, 0.25, 0.02
     print("=" * 104)
-    print(f" 体质收支三修法   022 打开   比值 N={N_RATIO}(60天)   死亡率 N={N_DEATH}(120天)")
+    print(f" Three condition-balance fixes   022 on   ratio N={N_RATIO}(60d)   mortality N={N_DEATH}(120d)")
     print("=" * 104)
-    print(f"  {'修法':<18}{'死亡%完整':>11}{'死亡%无地板':>12}"
-          f"{'比值 完整':>22}{'比值 无地板':>22}")
+    print(f"  {'fix':<24}{'dead% full':>12}{'dead% no floor':>16}"
+          f"{'ratio full':>22}{'ratio no floor':>22}")
     print("  " + "-" * 100)
 
     for label, rec_at, dz, sh in VARIANTS:
@@ -58,8 +61,8 @@ def main():
               f"{r_f:>10.3f} [{ci_f[0]:.3f},{ci_f[1]:.3f}]"
               f"{r_a:>10.3f} [{ci_a[0]:.3f},{ci_a[1]:.3f}]")
 
-    print("\n  判据：两列死亡率都 <15%（无 ⚠），且两列比值都不显著低于「现状」")
-    print("  ⚠ 比值塌了就是失败，哪怕死亡率降到 0")
+    print("\n  Criterion: both mortality columns <15% (no ⚠), and neither ratio column significantly below \"status quo\"")
+    print("  ⚠ A collapsed ratio is a failure, even if mortality drops to 0")
 
 
 if __name__ == "__main__":

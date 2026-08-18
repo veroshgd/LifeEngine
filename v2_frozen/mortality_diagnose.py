@@ -1,21 +1,22 @@
 """
-死亡率诊断 —— 120 天里到底是谁在死、什么时候死、为什么死
+Mortality diagnosis — over 120 days, who dies, when, and why
 ============================================================
 
-运行：  python mortality_diagnose.py
+Run:  python mortality_diagnose.py
 
-规则 42 的直接待办。弛豫检验（实验 022）在 120 天上损失 44.5%，
-任何长时程结论都变成选择效应的函数。**修之前先搞清楚死因。**
+The direct to-do of rule 42. The relaxation test (experiment 022) loses 44.5% at 120 days, so any
+long-horizon conclusion becomes a function of selection effects. **Find the cause of death before fixing it.**
 
-实验 019 有过一次同类问题：死掉的球 46% 的时间在探索、2% 在采集，
-是"在没饭吃的时候还立去远处看看这个志向"在杀它们，
-用 slack 门（规则 27）压到了 7.0%。现在地板全关 + 120 天，它又回来了。
+Experiment 019 had the same class of problem once: the balls that died spent 46% of their time
+exploring and 2% gathering — what killed them was "raising the ambition to go and see distant
+places while there is nothing to eat", and the slack gate (rule 27) pushed it down to 7.0%.
+Now, with all floors off over 120 days, it is back.
 
-四个问题：
-  1. 什么时候死（死亡的时间分布）
-  2. 死前在干什么（动作剖面 vs 幸存者）
-  3. 近因是什么（饿死 / 体质垮 / 两者）
-  4. 是地板全关特有的，还是完整架构也这样
+Four questions:
+  1. When they die (the time distribution of death)
+  2. What they were doing before dying (action profile vs survivors)
+  3. What the proximate cause was (starvation / condition collapse / both)
+  4. Whether it is specific to all-floors-off, or the full architecture does it too
 """
 
 import statistics
@@ -25,16 +26,16 @@ import sim
 import scenarios
 import persistence_ablation as PA
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 N = 400
 SPLIT, TOTAL = 30, 120
 
 
 def run_probe(seed, first):
-    """跑到 120 天。返回死亡日（活着 = None）、死前 10 天动作剖面、末态"""
+    """Run to 120 days. Returns day of death (alive = None), action profile of the last 10 days, final state"""
     life = scenarios.make(seed, first)
     agent = life.agent
-    trace = []          # 每天结束时的快照
+    trace = []          # snapshot at the end of each day
 
     def phase(d0, d1):
         for day in range(d0, d1):
@@ -85,43 +86,43 @@ def study(label, floor_off, k_on):
     dead = [(d, t, a) for d, t, a in res if d is not None]
     alive = [(d, t, a) for d, t, a in res if d is None]
     rate = len(dead) / len(res)
-    print(f"\n  ── {label} ──   死亡 {rate:.1%}  ({len(dead)}/{len(res)})")
+    print(f"\n  ── {label} ──   dead {rate:.1%}  ({len(dead)}/{len(res)})")
     if not dead:
         return
 
-    # 1. 什么时候死
+    # 1. When they die
     days = sorted(d for d, _, _ in dead)
     buckets = Counter((d // 15) * 15 for d in days)
-    print("    死亡时间分布：" + "  ".join(
-        f"{b}-{b+14}天:{buckets[b]}" for b in sorted(buckets)))
+    print("    time distribution of death: " + "  ".join(
+        f"{b}-{b+14}d:{buckets[b]}" for b in sorted(buckets)))
 
-    # 2/3. 死前状态
-    print(f"    死时中位：饥饿 {statistics.median(t[-1][2] for _, t, _ in dead):.0f}"
-          f"  体质 {statistics.median(t[-1][3] for _, t, _ in dead):.0f}"
-          f"  存粮 {statistics.median(t[-1][4] for _, t, _ in dead):.1f}")
+    # 2/3. State before death
+    print(f"    median at death: hunger {statistics.median(t[-1][2] for _, t, _ in dead):.0f}"
+          f"  condition {statistics.median(t[-1][3] for _, t, _ in dead):.0f}"
+          f"  food store {statistics.median(t[-1][4] for _, t, _ in dead):.1f}")
 
     dp = [profile_last(t) for _, t, _ in dead]
     ap = [profile_last(t) for _, t, _ in alive] if alive else []
-    print(f"    {'动作':<18}{'死者':>8}{'幸存':>8}   死前 10 天占比")
+    print(f"    {'action':<20}{'dead':>8}{'alive':>8}   share of the last 10 days")
     for act in sim.ACTIONS:
         d_ = statistics.mean(p[act] for p in dp)
         a_ = statistics.mean(p[act] for p in ap) if ap else 0.0
         mark = "  ←" if d_ - a_ > 0.05 else ""
         print(f"    {act:<18}{d_:>7.1%}{a_:>8.1%}{mark}")
 
-    goals = Counter(t[-1][5]["type"] if t[-1][5] else "无" for _, t, _ in dead)
-    print("    死时在追求：" + "  ".join(
+    goals = Counter(t[-1][5]["type"] if t[-1][5] else "none" for _, t, _ in dead)
+    print("    pursuing at death: " + "  ".join(
         f"{g}:{c/len(dead):.0%}" for g, c in goals.most_common(4)))
 
 
 def main():
     print("=" * 84)
-    print(f" 死亡率诊断   {N} 种子 × 2 世界 × {TOTAL} 天   移植到基准")
+    print(f" Mortality diagnosis   {N} seeds × 2 worlds × {TOTAL} days   transplanted to baseline")
     print("=" * 84)
-    study("完整架构 + 022 打开", floor_off=False, k_on=True)
-    study("地板全关 + 022 打开（= 弛豫检验那一档）", floor_off=True, k_on=True)
-    study("地板全关 + 022 关闭", floor_off=True, k_on=False)
-    study("完整架构 + 022 关闭（= 实验 020 基准）", floor_off=False, k_on=False)
+    study("full architecture + 022 on", floor_off=False, k_on=True)
+    study("all floors off + 022 on (= the relaxation-test variant)", floor_off=True, k_on=True)
+    study("all floors off + 022 off", floor_off=True, k_on=False)
+    study("full architecture + 022 off (= the experiment 020 baseline)", floor_off=False, k_on=False)
 
 
 if __name__ == "__main__":

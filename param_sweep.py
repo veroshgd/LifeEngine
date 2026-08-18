@@ -1,26 +1,27 @@
 """
-参数随机化集合 —— 回答"这是不是一组手调参数刷出来的"
-=========================================================
+Parameter-randomisation set — answering "is this just a hand-tuned parameter set?"
+==================================================================================
 
-运行：  python param_sweep.py                    # 默认 500 组 × 300 种子
-       python param_sweep.py --configs 2000     # 更密
-       python param_sweep.py --seed-offset 10000 --out holdout.csv   # 留出集
+Run:  python param_sweep.py                    # default 500 configs × 300 seeds
+       python param_sweep.py --configs 2000     # denser
+       python param_sweep.py --seed-offset 10000 --out holdout.csv   # holdout set
 
-不是网格扫描。从先验分布里独立抽 N 组参数，每组重跑一遍移植实验，
-报**效应的分布**而不是一个点。结论长这样：
+Not a grid scan. N parameter sets are drawn independently from a prior, the transplant experiment
+is re-run for each, and what is reported is **the distribution of the effect** rather than a point.
+The conclusion reads like this:
 
-    "在 500 组随机采样的参数配置中，移植比值 > 1 的占 X%，中位数 1.Y"
+    "across 500 randomly sampled parameter configurations, X% have a transplant ratio > 1, median 1.Y"
 
-审稿人问的是 "how do I know this isn't a parameter artifact"，
-这句话是唯一能直接回答它的东西。
+What a reviewer asks is "how do I know this isn't a parameter artifact", and this sentence is the
+only thing that answers it directly.
 
-★ 三处方法学修正（相对 transplant.py）★
-  1. 基线用 K=5 次【随机】配对，不是相邻配对。
-     相邻种子生成的球更像 → 基线偏小 → 比值虚高 2.2%（实测）。
-  2. 同时报对数比值。比值 = 均值之比，分母有噪声就系统性上偏（Jensen）。
-  3. 死亡率一起落盘。参数抽到极端值会团灭，那些行必须在分析时剔掉。
+★ Three methodological corrections (relative to transplant.py) ★
+  1. The baseline uses K=5 **random** pairings, not adjacent pairing.
+     Balls from adjacent seeds are more alike → baseline too small → ratio inflated by 2.2% (measured).
+  2. The log ratio is reported too. A ratio = ratio of means, and a noisy denominator biases it systematically upward (Jensen).
+  3. Mortality is written to disk as well. Extreme parameter draws wipe the population out, and those rows must be dropped at analysis time.
 
-断点续跑：结果逐行 flush 到 CSV，中断后重跑同一条命令会跳过已完成的组。
+Resumable: results are flushed to the CSV row by row, and re-running the same command after an interruption skips the configs already done.
 """
 
 import argparse
@@ -33,27 +34,27 @@ import statistics
 import sys
 import time
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
-BASE_PAIRINGS = 5          # 基线随机配对次数（实测 K=5 已饱和）
+WA, WB, COMMON = "rich world", "barren world", "baseline"
+BASE_PAIRINGS = 5          # number of random baseline pairings (K=5 measured to be saturated)
 
-# 先验：("logu", lo, hi) 对数均匀 · ("u", lo, hi) 均匀 · ("int", lo, hi) 整数
-# 区间基本是默认值的 ×0.5 ~ ×2
+# Priors: ("logu", lo, hi) log-uniform · ("u", lo, hi) uniform · ("int", lo, hi) integer
+# The ranges are roughly ×0.5 ~ ×2 of the default
 PRIORS = {
-    "PERSONALITY_WEIGHT":  ("logu", 15.0, 60.0),    # 默认 30.0
-    "TRAIT_DRIFT":         ("logu", 0.60, 2.40),    # 默认 1.20
-    "TRAIT_SATURATION":    ("u",    0.00, 0.98),    # 默认 0.90
-    "LANDMARK_BONUS":      ("logu", 12.5, 50.0),    # 默认 25.0
-    "HARDSHIP_MAX_BOOST":  ("logu", 11.0, 44.0),    # 默认 22.0
-    "FLOOR_DECAY_PER_DAY": ("logu", 0.17, 0.70),    # 默认 0.35
-    "LANDMARK_PERMANENT":  ("u",    0.10, 0.80),    # 默认 0.40
-    "GOAL_BONUS":          ("logu", 16.0, 64.0),    # 默认 32.0
-    "GOAL_OFF_TASK":       ("logu",  7.0, 28.0),    # 默认 14.0
-    "GOAL_SWITCH_MARGIN":  ("logu", 0.125, 0.50),   # 默认 0.25
-    "GOAL_MIN_DAYS":       ("int",   1,    4),      # 默认 2
-    "GOAL_REFRACTORY":     ("int",   3,   12),      # 默认 6
-    "GOAL_STALL_DAYS":     ("int",   2,    8),      # 默认 4
-    "GOAL_SLACK_FOOD":     ("logu",  2.0,  8.0),    # 默认 4.0（规则 27）
-    "GOAL_SLACK_COND":     ("u",    60.0, 100.0),   # 默认 90.0
+    "PERSONALITY_WEIGHT":  ("logu", 15.0, 60.0),    # default 30.0
+    "TRAIT_DRIFT":         ("logu", 0.60, 2.40),    # default 1.20
+    "TRAIT_SATURATION":    ("u",    0.00, 0.98),    # default 0.90
+    "LANDMARK_BONUS":      ("logu", 12.5, 50.0),    # default 25.0
+    "HARDSHIP_MAX_BOOST":  ("logu", 11.0, 44.0),    # default 22.0
+    "FLOOR_DECAY_PER_DAY": ("logu", 0.17, 0.70),    # default 0.35
+    "LANDMARK_PERMANENT":  ("u",    0.10, 0.80),    # default 0.40
+    "GOAL_BONUS":          ("logu", 16.0, 64.0),    # default 32.0
+    "GOAL_OFF_TASK":       ("logu",  7.0, 28.0),    # default 14.0
+    "GOAL_SWITCH_MARGIN":  ("logu", 0.125, 0.50),   # default 0.25
+    "GOAL_MIN_DAYS":       ("int",   1,    4),      # default 2
+    "GOAL_REFRACTORY":     ("int",   3,   12),      # default 6
+    "GOAL_STALL_DAYS":     ("int",   2,    8),      # default 4
+    "GOAL_SLACK_FOOD":     ("logu",  2.0,  8.0),    # default 4.0 (rule 27)
+    "GOAL_SLACK_COND":     ("u",    60.0, 100.0),   # default 90.0
 }
 
 PARAM_NAMES = list(PRIORS)
@@ -63,12 +64,12 @@ FIELDS = (META_FIELDS + ["config_id"] + PARAM_NAMES +
           ["n_move", "n_stay", "dead_move", "dead_stay",
            "ratio_move", "logratio_move", "ratio_stay",
            "goal_ratio_move", "keep"])
-# ⚠ 已有的 sweep_results.csv / holdout.csv 是 v2 的，表头没有 META_FIELDS。
-#   要续跑 v3 的话请换个 --out，不要混进同一个文件。
+# ⚠ The existing sweep_results.csv / holdout.csv are from v2 and their headers lack META_FIELDS.
+#   To continue with v3 use a different --out; do not mix them into the same file.
 
 
 def sample_config(config_id):
-    """config_id 决定参数 —— 同一个 id 永远抽到同一组，续跑才可复现"""
+    """config_id determines the parameters — the same id always draws the same set, so a resumed run is reproducible"""
     rng = random.Random(0xC0FFEE + config_id)
     out = {}
     for name, spec in PRIORS.items():
@@ -83,7 +84,7 @@ def sample_config(config_id):
 
 
 def _shuffled_baseline(windows, k, rng, tv):
-    """K 次独立随机配对。每只球用 K 次，方差远低于相邻配对一次。"""
+    """K independent random pairings. Each ball is used K times, with far lower variance than a single adjacent pairing."""
     out = []
     idx = list(range(len(windows)))
     for _ in range(k):
@@ -94,7 +95,7 @@ def _shuffled_baseline(windows, k, rng, tv):
 
 
 def evaluate(args):
-    """跑一组参数。子进程里执行 —— sim 的全局量改了也只影响本进程。"""
+    """Run one parameter set. Executed in a subprocess — changes to sim globals affect this process only."""
     config_id, n_seeds, seed_offset = args
     import sim
     import scenarios
@@ -120,9 +121,10 @@ def evaluate(args):
         ca = [run_phased(s, WA, dest_a) for s in seeds]
         cb = [run_phased(s, WB, dest_b) for s in seeds]
         live = [i for i in range(n_seeds) if ca[i][0] is not None and cb[i][0] is not None]
-        # 门槛跟着样本量走。★注意★ 这个门槛本身是个选择效应：
-        # 被剔掉的是"参数抽得太狠、球活不下来"的配置，不是随机剔的。
-        # 所以 dead_* 一定要落盘，报结果时说明剔掉了多少、为什么。
+        # The threshold follows the sample size. ★Note★ this threshold is itself a selection effect:
+        # what gets dropped are the configurations where "the parameters were drawn too harshly and the
+        # balls cannot survive", not a random subset. So dead_* must be written to disk, and the report
+        # must state how many were dropped and why.
         if len(live) < max(30, int(0.2 * n_seeds)):
             return None
         rng = random.Random(config_id)
@@ -134,24 +136,24 @@ def evaluate(args):
               _shuffled_baseline([cb[i][0] for i in live], BASE_PAIRINGS, rng, goal_tv))
         mt, mb = statistics.mean(treat), statistics.mean(base)
         mgt, mgb = statistics.mean(gt), statistics.mean(gb)
-        # 对数比值：逐对配 log 差，绕开 E[X/Y] 的上偏
+        # Log ratio: pair up the log differences to sidestep the upward bias of E[X/Y]
         logr = (statistics.mean(math.log(v) for v in treat if v > 0) -
                 statistics.mean(math.log(v) for v in base if v > 0))
         return {"n": len(live), "dead": 1 - len(live) / n_seeds,
                 "r": mt / mb if mb else 0.0, "logr": logr,
                 "gr": mgt / mgb if mgb else 0.0}
 
-    # ★ 两组独立记录 ★「持续」组在贫瘠世界 60 天死亡率高，经常达不到门槛。
-    #   早期版本 stay 一失败就整行丢掉，把完全有效的 move 数据一起扔了 ——
-    #   而 move 才是头条，且它是在【基准世界】测的，死亡率低得多。
+    # ★ Two independent records ★ The "stay" arm has high 60-day mortality in the barren world and often
+    #   misses the threshold. An early version discarded the whole row as soon as stay failed, throwing away
+    #   perfectly valid move data — and move is the headline, measured in the **baseline world** with far lower mortality.
     move = condition(COMMON, COMMON)
     if move is None:
         return None
     stay = condition(WA, WB)
 
-    # ★版本标记★ 这一行到底是哪版模型跑出来的 —— 见 resultmeta.py
+    # ★Version marker★ which model version produced this row — see resultmeta.py
     from resultmeta import meta
-    row = dict(meta("021-4-param_sweep", "移植(move)+持续(stay)", seed_offset))
+    row = dict(meta("021-4-param_sweep", "transplant(move)+persistence(stay)", seed_offset))
     row["config_id"] = config_id
     row.update({k: round(v, 6) if isinstance(v, float) else v for k, v in cfg.items()})
     row.update({
@@ -179,18 +181,18 @@ def main():
     ap.add_argument("--seeds", type=int, default=300)
     ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 2))
     ap.add_argument("--seed-offset", type=int, default=0,
-                    help="留出集用：换一段没碰过的种子，例如 10000")
+                    help="for the holdout set: switch to an untouched seed block, e.g. 10000")
     ap.add_argument("--out", default="sweep_results.csv")
     a = ap.parse_args()
 
     already = done_ids(a.out)
     todo = [(i, a.seeds, a.seed_offset) for i in range(a.configs) if i not in already]
 
-    print(f"参数扫描  {a.configs} 组 × {a.seeds} 种子  "
+    print(f"Parameter sweep  {a.configs} configs × {a.seeds} seeds  "
           f"seed range [{a.seed_offset}, {a.seed_offset + a.seeds})")
-    print(f"已完成 {len(already)}，待跑 {len(todo)}，进程数 {a.workers}")
+    print(f"done {len(already)}, to run {len(todo)}, processes {a.workers}")
     if not todo:
-        print("全部已完成。")
+        print("All done.")
         return
 
     new_file = not os.path.exists(a.out)
@@ -209,10 +211,10 @@ def main():
                 if k % 10 == 0 or k == len(todo):
                     el = time.time() - t0
                     eta = el / k * (len(todo) - k)
-                    print(f"  {k}/{len(todo)}  有效 {n_ok}  "
-                          f"已用 {el/60:.1f}min  剩余 ~{eta/60:.1f}min", flush=True)
+                    print(f"  {k}/{len(todo)}  valid {n_ok}  "
+                          f"elapsed {el/60:.1f}min  remaining ~{eta/60:.1f}min", flush=True)
 
-    print(f"\n完成，写入 {a.out}。用 python sweep_report.py 看结果。")
+    print(f"\nFinished, written to {a.out}. Use python sweep_report.py to view the results.")
 
 
 if __name__ == "__main__":

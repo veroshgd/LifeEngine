@@ -1,29 +1,29 @@
-"""⚠ 已废弃（实验 018）
-=====================
-两个原因：
-  1. 判据 `spread > 8` 在自己的种群规模下低于噪声地板
-     （pop=300 时噪声 95 分位是 10.48，pop=450 是 9.18）→ 会给纯噪声打 ★
-  2. 分组比较已被 paired.py 的配对实验取代，后者灵敏度高得多
+"""⚠ DEPRECATED (experiment 018)
+=====================================================================================================
+Two reasons:
+  1. The criterion `spread > 8` is below the noise floor at its own population size
+     (at pop=300 the 95th percentile of noise is 10.48, at pop=450 it is 9.18) → it would award ★ to pure noise
+  2. Group comparison has been superseded by the paired experiment in paired.py, which is far more sensitive
 
-保留文件只为历史可追溯。请改用：
-    python paired.py     数值层
-    python behavior.py   行为层
-    python ablation.py   机制贡献
+The file is kept only for historical traceability. Use instead:
+    python paired.py     numeric layer
+    python behavior.py   behaviour layer
+    python ablation.py   mechanism contribution
 """
 
 raise SystemExit(__doc__)
 
 """
-参数扫描 —— 找出"那条窄带"
+Parameter sweep — finding "that narrow band"
 
-运行：  python sweep.py
+Run:  python sweep.py
 
-推理推不出正确的参数，只能扫。这个脚本对每组参数跑一遍种群，
-输出三个判据：
+The right parameters cannot be reasoned out, only swept. This script runs one population per
+parameter set and reports three criteria:
 
-  spread  用户类型之间的性格差距   目标 > 8    ← 核心卖点
-  peaks   性格类型的数量（有效）   目标 >= 3   ← 多峰
-  death   死亡率                  目标 < 10%
+  spread  personality gap between user types   goal > 8    ← the core selling point
+  peaks   number of (effective) personality types  goal >= 3   ← multimodality
+  death   mortality                            goal < 10%
 """
 
 import statistics
@@ -46,7 +46,7 @@ def evaluate(pw, drift, hunger, pop=300, days=30):
         return {"spread": 0.0, "peaks": 0, "death": 1 - len(alive) / pop,
                 "sigma": 0.0, "styles": Counter()}
 
-    # 用户类型之间的最大性格差距
+    # Largest personality gap between user types
     spread = 0.0
     for t in sim.TRAITS:
         means = [statistics.mean([a.traits[t] for a in alive if a.archetype == n])
@@ -68,7 +68,7 @@ def main():
             for hr in (2.2, 1.2, 0.7)]
 
     print("=" * 74)
-    print(" 参数扫描  ——  目标: spread>8, peaks>=3, death<10%")
+    print(" Parameter sweep  ——  goal: spread>8, peaks>=3, death<10%")
     print("=" * 74)
     print(f"{'PW':>4} {'drift':>6} {'hunger':>7} | {'spread':>7} {'peaks':>6} "
           f"{'death':>7} {'sigma':>6} |")
@@ -89,20 +89,20 @@ def main():
     print("\n" + "=" * 74)
     if winners:
         winners.sort(key=lambda x: -x[1]["spread"])
-        print(f" 找到 {len(winners)} 组可用参数。最佳：")
+        print(f" Found {len(winners)} usable parameter sets. Best:")
         (pw, dr, hr), r = winners[0]
         print(f"   PERSONALITY_WEIGHT = {pw}")
         print(f"   TRAIT_DRIFT        = {dr}")
         print(f"   HUNGER_RATE        = {hr}")
         print(f"\n   spread={r['spread']:.1f}  peaks={r['peaks']}  "
               f"death={r['death']:.1%}")
-        print("   自发形成的类型：")
+        print("   types that emerged on their own:")
         for s, n in r["styles"].most_common():
             print(f"     {s:<8} {n:4d}")
     else:
-        print(" 没有一组参数同时满足三个判据 —— 说明是结构问题，不是调参问题。")
+        print(" No parameter set satisfies all three criteria — this is a structural problem, not a tuning problem.")
         best = max(results, key=lambda x: x[1]["spread"])
-        print(f" 最接近的： PW={best[0][0]} drift={best[0][1]} "
+        print(f" Closest: PW={best[0][0]} drift={best[0][1]} "
               f"hunger={best[0][2]}  spread={best[1]['spread']:.1f}")
 
 

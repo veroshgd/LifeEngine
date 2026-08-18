@@ -1,30 +1,31 @@
 """
-持久性 —— 把因去掉之后，哪个环境因素还留得住？
-================================================
+Persistence — once the cause is removed, which environmental factor still holds?
+================================================================================
 
-运行：  python persistence.py
+Run:  python persistence.py
 
-`transplant.py` 证明了组合世界（丰富↔贫瘠）的差异在移植后保留 91%。
-这个脚本把那个组合**拆成单因素**，逐个问同一个问题：
+`transplant.py` showed that the difference of the combined worlds (rich↔barren) retains 91%
+after a transplant. This script **splits that combination into single factors** and asks the
+same question of each one:
 
-    第 0–29 天   世界 A / 世界 B      ← 造成差异
-    第 30–59 天  两边都换成「基准」    ← 把因去掉
-    只在后 30 天的窗口上测量
+    days 0–29    world A / world B          ← creates the difference
+    days 30–59   both switched to "baseline"  ← removes the cause
+    measured only on the second 30-day window
 
-★ 主指标是【持久性】，不是【当下差异】★
-一个只在"当前条件不同"时才存在的差异，是温度计不是性格。
-产品要的那句「以前有一次下很大的雨…从那以后我就不太喜欢没有准备」
-要求的是移植后**仍然**存在。
+★ The main metric is **persistence**, not **current difference** ★
+A difference that exists only while "the current conditions differ" is a thermometer, not a
+personality. The line the product wants — "there was a heavy rain once… ever since then I have
+not liked being unprepared" — requires it to **still** exist after the transplant.
 
-★ 要验的机制假设 ★
-一个因素能不能留下来，取决于它**有没有写进持久结构**：
+★ The mechanistic hypothesis to test ★
+Whether a factor survives depends on **whether it was written into a persistent structure**:
 
-    knowledge（语义记忆）  ·  trait_identity（永久身份）  ·  flags（关键经历）
+    knowledge (semantic memory)  ·  trait_identity (permanent identity)  ·  flags (landmark experiences)
 
-预测：书 > 天气 > 材料 > 食物速率。
-书会写进 knowledge（"书里有我没见过的世界"）并生成 `learn` 目标；
-食物再生速率不写进任何持久结构，它只是当下的资源水位。
-如果这个预测成立，就说明**持久性来自结构，不来自强度**。
+Prediction: books > weather > material > food rate.
+Books are written into knowledge ("books hold worlds I have not seen") and generate a `learn` goal;
+the food regrowth rate is written into no persistent structure at all — it is only the current
+resource level. If this prediction holds, then **persistence comes from structure, not from strength**.
 """
 
 import statistics
@@ -37,27 +38,27 @@ from transplant import run_phased, window_tv, SPLIT, TOTAL
 from paired import pad
 
 SEEDS = 150
-COMMON = "基准"
+COMMON = "baseline"
 
-# 单因素对 + 组合作为参照
+# Single-factor pairs + the combination as a reference
 FACTORS = [
-    ("有书",     COMMON,     "书"),
-    ("有音乐",   COMMON,     "音乐"),
-    ("常下雨",   "天气稳定", "天气"),
-    ("材料丰富", "材料稀缺", "材料"),
-    ("食物丰富", "食物贫瘠", "食物速率"),
-    ("丰富世界", "贫瘠世界", "组合（参照）"),
+    ("has books",     COMMON,            "books"),
+    ("has music",     COMMON,            "music"),
+    ("rainy",         "stable weather",  "weather"),
+    ("material-rich", "material-scarce", "material"),
+    ("food-rich",     "food-poor",       "food rate"),
+    ("rich world",    "barren world",    "combination (reference)"),
 ]
 
 GOAL_TYPES = list(sim.GOAL_ACTIONS)
 
 
 def goal_profile_window(agent):
-    """★目标层★ 只看窗口内每天在追求什么。
+    """★Goal layer★ only what it pursued each day inside the window.
 
-    这是 018 发现的最强载体：目标 TV 的比值普遍高于作息 TV，
-    而且它可以直接讲成一句话（"它这半个月都在囤粮"），
-    也是 LLM 接进来时最自然的接口。
+    This is the strongest carrier found in 018: the ratio of goal TV is generally above that of
+    routine TV, and it can be stated in one sentence ("it has spent the last fortnight hoarding
+    food"), which also makes it the most natural interface once an LLM is wired in.
     """
     days = [g for g in agent.goal_by_day[SPLIT:TOTAL] if g]
     n = len(days) or 1
@@ -73,8 +74,8 @@ _COHORT_CACHE = {}
 
 
 def cohort(first, second, seeds):
-    """★带缓存★ 六个因素 × 四个 cohort，基准世界会被重复算很多遍。
-    后面要跑 120 天和多方向还原，这个开销会变得难受。"""
+    """★Cached★ six factors × four cohorts, so the baseline world would be recomputed many times.
+    With 120-day runs and multi-direction restoration coming, that cost becomes painful."""
     key = (first, second, len(seeds))
     if key not in _COHORT_CACHE:
         _COHORT_CACHE[key] = [run_phased(s, first, second) for s in seeds]
@@ -82,14 +83,14 @@ def cohort(first, second, seeds):
 
 
 def measure(cohA, cohB, seeds):
-    """返回作息比值、目标比值、以及持久结构的差异"""
+    """Return the routine ratio, the goal ratio, and the differences in persistent structure"""
     live = [i for i, (a, b) in enumerate(zip(cohA, cohB))
             if a[0] is not None and b[0] is not None]
     if len(live) < 20:
         return None
     pairs = [(cohA[i], cohB[i]) for i in live]
 
-    # 基线只用两边都活下来的种子 —— 否则筛选过的组内方差偏小，比值虚高
+    # The baseline uses only seeds alive on both sides — otherwise the filtered within-group variance is too small and the ratio is inflated
     base = []
     for coh in (cohA, cohB):
         al = [coh[i] for i in live]
@@ -100,10 +101,11 @@ def measure(cohA, cohB, seeds):
     gu = statistics.mean(goal_tv(a[0], b[0]) for a, b in pairs)
     gb = statistics.mean(goal_tv(a[0], b[0]) for a, b in base)
 
-    # 持久结构：这个因素在球身上留下了什么？
-    # ⚠ 第一版算的是 len(b) - len(a)，那是"B 比 A 多几条"，不是"两边不一样"。
-    #    两只球各有 3 条**完全不同**的 knowledge，差值会算成 0 —— 系统性低估。
-    #    改成集合的对称差（有多少条只有一边有）。
+    # Persistent structure: what did this factor leave on the ball?
+    # ⚠ The first version computed len(b) - len(a), which is "how many more B has than A", not
+    #    "how far the two differ". Two balls with 3 **completely different** knowledge entries each
+    #    would score 0 — a systematic underestimate. Changed to the symmetric difference of the
+    #    sets (how many entries only one side has).
     def keys(agent):
         return (set(agent.knowledge),
                 {t for t, v in agent.trait_identity.items() if v > 0},
@@ -127,14 +129,14 @@ def measure(cohA, cohB, seeds):
 def main():
     seeds = list(range(SEEDS))
     print("=" * 100)
-    print(f" 持久性实验   {SEEDS} 颗种子   第 0–{SPLIT-1} 天分化，"
-          f"第 {SPLIT}–{TOTAL-1} 天在【基准世界】里测量")
+    print(f" Persistence experiment   {SEEDS} seeds   days 0–{SPLIT-1} diverge, "
+          f"days {SPLIT}–{TOTAL-1} measured in the **baseline world**")
     print("=" * 100)
-    print("  「持续」= 后半生留在原世界（因还在）   "
-          "「移植」= 后半生两边都换成基准（因去掉）")
-    print(f"\n  {pad('因素', 14)}{pad('持续 作息', 11, True)}{pad('移植 作息', 11, True)}"
-          f"{pad('保留', 8, True)}{pad('持续 目标', 11, True)}"
-          f"{pad('移植 目标', 11, True)}{pad('保留', 8, True)}{pad('死亡', 8, True)}")
+    print("  \"stay\" = second half spent in the original world (cause still present)   "
+          "\"move\" = second half switched to baseline on both sides (cause removed)")
+    print(f"\n  {pad('factor', 24)}{pad('stay routine', 14, True)}{pad('move routine', 14, True)}"
+          f"{pad('retained', 10, True)}{pad('stay goal', 12, True)}"
+          f"{pad('move goal', 12, True)}{pad('retained', 10, True)}{pad('dead', 8, True)}")
     print("  " + "-" * 84)
 
     rows = []
@@ -142,7 +144,7 @@ def main():
         stay = measure(cohort(wa, wa, seeds), cohort(wb, wb, seeds), seeds)
         move = measure(cohort(wa, COMMON, seeds), cohort(wb, COMMON, seeds), seeds)
         if stay is None or move is None:
-            print(f"  {pad(label, 14)}  —— 样本不足")
+            print(f"  {pad(label, 24)}  — not enough samples")
             continue
         keep_h = move["hr"] / stay["hr"] if stay["hr"] else 0
         keep_g = move["gr"] / stay["gr"] if stay["gr"] else 0
@@ -154,52 +156,53 @@ def main():
               f"{pad(f'{keep_g:.0%}', 8, True)}"
               f"{pad(f'{move['dead']:.1%}', 8, True)}{star}")
 
-    print("\n  ★ = 移植后比值仍 ≥ 1，也就是把因去掉之后差异还站得住")
+    print("\n  ★ = the ratio is still ≥ 1 after the transplant, i.e. the difference survives removing the cause")
 
-    # --- 机制：留得住的因素，是不是写进了持久结构？ ---
+    # --- mechanism: do the factors that survive get written into persistent structure? ---
     print("\n" + "=" * 100)
-    print(" 机制检验：留得住的因素，有没有写进持久结构？")
+    print(" Mechanism check: were the surviving factors written into persistent structure?")
     print("=" * 100)
-    print(f"  {pad('因素', 14)}{pad('移植后作息', 12, True)}{pad('移植后目标', 12, True)}"
-          f"{pad('语义记忆差', 12, True)}{pad('永久身份差', 12, True)}"
-          f"{pad('关键经历差', 12, True)}")
+    print(f"  {pad('factor', 24)}{pad('routine after move', 20, True)}{pad('goal after move', 18, True)}"
+          f"{pad('semantic memory diff', 22, True)}{pad('permanent identity diff', 25, True)}"
+          f"{pad('landmark diff', 15, True)}")
     for label, stay, move, kh, kg in rows:
         print(f"  {pad(label, 14)}{pad(f'{move['hr']:.2f}', 12, True)}"
               f"{pad(f'{move['gr']:.2f}', 12, True)}"
               f"{pad(f'{move['dk']:.2f}', 12, True)}"
               f"{pad(f'{move['di']:.2f}', 12, True)}"
               f"{pad(f'{move['df']:.2f}', 12, True)}")
-    print("\n  三列都是【对称差】：平均有几条只存在于其中一边（越大越不一样）")
-    print("  语义记忆 = knowledge 键   永久身份 = trait_identity 非零维度   "
-          "关键经历 = flags")
-    print("  假设：写进这三列的因素才留得住；只改资源水位的因素留不住。")
-    print("  ⚠ 但 knowledge 和 memories 目前【不进 score()】，是只写不读的，")
-    print("     所以第一列大不代表行为上留得住 —— 见实验 019 规则 30。")
+    print("\n  All three columns are **symmetric differences**: how many entries on average exist on only one side (larger = more different)")
+    print("  semantic memory = knowledge keys   permanent identity = non-zero trait_identity dimensions   "
+          "landmark = flags")
+    print("  Hypothesis: only factors written into these three survive; factors that only move the resource level do not.")
+    print("  ⚠ But knowledge and memories currently **do not enter score()** — they are written and never read,")
+    print("     so a large first column does not mean it survives behaviourally — see experiment 019 rule 30.")
 
-    # --- 还原相跑三个方向 ---
-    # ⚠ 「基准」不是中立的：它的 objects 是空的，在"有没有书"这件事上
-    #    它等于贫瘠世界。丰富分身移植过去会**失去书**，`learn` 整条目标通路
-    #    被砍掉；贫瘠分身什么都没失去。这是不对称的适应成本，会混进结果里。
-    #    所以还原相至少要跑三个方向。
+    # --- run the restoration phase in three directions ---
+    # ⚠ "baseline" is not neutral: its objects are empty, so on the question of "are there books"
+    #    it equals the barren world. A rich twin moved there **loses its books**, and the whole
+    #    `learn` goal channel is cut away; the barren twin loses nothing. That is an asymmetric
+    #    adaptation cost which would contaminate the result. So the restoration phase must be run
+    #    in at least three directions.
     print("\n" + "=" * 100)
-    print(" 还原相的方向依赖：移植到不同的世界，结论一样吗")
+    print(" Direction dependence of the restoration phase: transplanted into different worlds, is the conclusion the same?")
     print("=" * 100)
-    print(f"  {pad('因素', 14)}" + "".join(pad(f"→{d}", 14, True)
-                                            for d in ("基准", "丰富世界", "贫瘠世界")))
+    print(f"  {pad('factor', 24)}" + "".join(pad(f"→{d}", 16, True)
+                                            for d in ("baseline", "rich world", "barren world")))
     for wa, wb, label in FACTORS:
         cells = ""
-        for dest in ("基准", "丰富世界", "贫瘠世界"):
+        for dest in ("baseline", "rich world", "barren world"):
             m = measure(cohort(wa, dest, seeds), cohort(wb, dest, seeds), seeds)
             cells += pad(f"{m['hr']:.2f}" if m else "—", 14, True)
         print(f"  {pad(label, 14)}{cells}")
-    print("\n  方向之间差很多 → 测到的东西里混着「移植过去要重新适应」的成本，")
-    print("  不是纯粹的持久性。三个方向都 ≥1 才叫稳。")
+    print("\n  Large differences between directions → what we measured is mixed with the cost of \"having to re-adapt after the move\",")
+    print("  not pure persistence. Only ≥1 in all three directions counts as solid.")
 
-    # --- 性格残留 ---
+    # --- residual personality ---
     print("\n" + "=" * 100)
-    print(" 移植 30 天后仍然存在的性格差（后 − 前）")
+    print(" Personality difference still present 30 days after the transplant (second − first)")
     print("=" * 100)
-    print(f"  {pad('因素', 14)}" + "".join(pad(t, 13, True) for t in sim.TRAITS))
+    print(f"  {pad('factor', 24)}" + "".join(pad(t, 13, True) for t in sim.TRAITS))
     for label, stay, move, kh, kg in rows:
         print(f"  {pad(label, 14)}"
               + "".join(pad(f"{move['traits'][t]:+.1f}", 13, True)

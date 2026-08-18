@@ -1,18 +1,18 @@
 """
-P1 —— 接线后，无地板档比值还能不能 > 1
-==========================================
+P1 — after wiring, can the no-floor variant still reach a ratio > 1?
+====================================================================
 
-运行：  python p1_test.py
+Run:  python p1_test.py
 
-预注册 [[实验022 预注册 —— 记忆接入决策]] 第 4 节：
+Preregistration [[Experiment 022 preregistration — memory wired into decisions]] §4:
 
-    P1：接线后无地板档移植比值 > 1，N=1500，bootstrap 95% CI 下界 > 1.00
+    P1: after wiring, the no-floor transplant ratio > 1, N=1500, bootstrap 95% CI lower bound > 1.00
 
-基准（021，022 关闭）：−全部地板①② = 1.044 [0.996, 1.094]，p≈0.07 n.s.
+Baseline (021, 022 off): −all floors ①② = 1.044 [0.996, 1.094], p≈0.07 n.s.
 
-★ 种子：20000–21499 ★ 预注册第 6 节保留给 022 确认，此前从未使用。
-★ 基线：K=5 随机配对（规则 35），不是相邻配对。
-★ 同时给 bootstrap CI 和符号置换 p（规则 34 + 021 第 5 节的方法）。
+★ Seeds: 20000–21499 ★ reserved in §6 of the preregistration for the 022 confirmation, never used before.
+★ Baseline: K=5 random pairing (rule 35), not adjacent pairing.
+★ Both a bootstrap CI and a sign-permutation p are reported (rule 34 + the method of 021 §5).
 """
 
 import random
@@ -24,7 +24,7 @@ import persistence_ablation as PA
 from transplant import run_phased, window_tv
 from significance_main import per_seed_delta, sign_perm_p, cohen_dz
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 N_SEEDS = 1500
 SEED0 = 20000
 BASE_K = 5
@@ -70,7 +70,7 @@ def analyse(label, cfg):
     base = shuffled_base(wa, BASE_K, rng) + shuffled_base(wb, BASE_K, rng)
     ratio = statistics.mean(treat) / statistics.mean(base)
 
-    # cluster bootstrap：按 agent 重采样
+    # cluster bootstrap: resample by agent
     boots = []
     for _ in range(N_BOOT):
         pick = [rng.randrange(n) for _ in range(n)]
@@ -87,7 +87,7 @@ def analyse(label, cfg):
     dz = cohen_dz(deltas)
     dead = 1 - n / N_SEEDS
     star = "***" if p < 0.001 else "**" if p < 0.01 else "*" if p < 0.05 else "n.s."
-    ok = "✓ 过" if lo > 1.0 else "✗ 不过"
+    ok = "✓ pass" if lo > 1.0 else "✗ fail"
     print(f"  {label:<20}{n:>6}{dead:>8.1%}{ratio:>8.3f}  [{lo:.3f}, {hi:.3f}]"
           f"{obs:>+9.4f}{dz:>7.2f}{p:>9.4f} {star:<5}{ok}")
     return ratio, lo, hi
@@ -95,22 +95,22 @@ def analyse(label, cfg):
 
 def main():
     print("=" * 108)
-    print(f" P1 确认   seeds {SEED0}–{SEED0+N_SEEDS-1}（预注册保留段，首次使用）"
-          f"   N={N_SEEDS}   基线 K={BASE_K} 随机配对")
+    print(f" P1 confirmation   seeds {SEED0}–{SEED0+N_SEEDS-1} (preregistered reserved block, first use)"
+          f"   N={N_SEEDS}   baseline K={BASE_K} random pairing")
     print("=" * 108)
-    print(f"  {'条件':<20}{'n':>6}{'死亡':>8}{'比值':>8}  {'95% CI':<18}"
-          f"{'δ均值':>9}{'dz':>7}{'p':>9}      P1")
+    print(f"  {'condition':<22}{'n':>6}{'dead':>8}{'ratio':>8}  {'95% CI':<18}"
+          f"{'mean δ':>9}{'dz':>7}{'p':>9}      P1")
     print("  " + "-" * 104)
 
-    for tag, (w, gw, f) in [("022 关闭", (0.0, 0.0, 0.0)),
-                            ("022 打开", (12.0, 0.25, 0.02))]:
+    for tag, (w, gw, f) in [("022 off", (0.0, 0.0, 0.0)),
+                            ("022 on", (12.0, 0.25, 0.02))]:
         sim.KNOWLEDGE_WEIGHT, sim.KNOWLEDGE_GOAL_WEIGHT, sim.KNOWLEDGE_FORGET = w, gw, f
         print(f"\n  ── {tag}  (W={w} GW={gw} FORGET={f}) ──")
-        analyse("完整架构", dict())
-        analyse("−全部地板①②", dict(floor=True))
+        analyse("full architecture", dict())
+        analyse("−all floors ①②", dict(floor=True))
 
-    print("\n  P1 判据：【022 打开 + −全部地板①②】那一行的 CI 下界 > 1.00")
-    print("  基准（022 关闭）：1.044 [0.996, 1.094]，p≈0.07 n.s.")
+    print("\n  P1 criterion: on the **022 on + −all floors ①②** row, the CI lower bound > 1.00")
+    print("  Baseline (022 off): 1.044 [0.996, 1.094], p≈0.07 n.s.")
 
 
 if __name__ == "__main__":
