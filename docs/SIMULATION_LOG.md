@@ -3718,144 +3718,144 @@ and the **informational output** of `explore`.
 
 ### Additional warnings for the three eligible channels (to be plugged before the next round)
 
-- **`goal 结构`（最强）**：99.3% 的球采用过 ≥2 种目标、主目标占比 p90−p10 = 0.533、
-  87.1% 没有被单一目标垄断。goal 直接进 `score()`，两个世界共用同一套
-  `GOAL_ACTIONS`。⚠ Q4 是"不直接决定生死"而非"不可能影响存活" ——
-  可行性校准仍须照常验存活 ≈ 100%。
-- **`knowledge`**：⚠ **key 级别的 Q6 不对称** —— `books` 这条 knowledge
-  只能由 `read` 获得，而 `read` 需要书，**书只在丰富世界**。
-  通道整体合格（其余 key 两边都拿得到），但**任何 probe 都不得触碰
-  book 来源的 knowledge**，否则退回规则 67 的陷阱。
-- **`explore` 非食物产出`**：⚠ **Q3 只有 23.0%，刚过 20% 线** ——
-  意思是 **77% 的球已经拿到 `loves_exploring`**，信息性产出**接近饱和**。
-  这与 A2 的失败机理（加成落在用不掉的地方）同型，**风险最高**。
+- **`goal structure` (the strongest)**: 99.3% of balls have adopted ≥2 goal types, dominant-goal share p90−p10 = 0.533,
+  87.1% are not monopolised by a single goal. Goals feed straight into `score()`, and the two worlds share one and the same
+  `GOAL_ACTIONS`. ⚠ Q4 means "does not directly decide life or death", not "cannot possibly affect survival" —
+  the feasibility calibration must still verify survival ≈ 100% as usual.
+- **`knowledge`**: ⚠ **a Q6 asymmetry at the key level** — the `books` knowledge entry
+  can only be acquired through `read`, `read` requires books, and **books exist only in the rich world**.
+  The channel as a whole is eligible (every other key is obtainable on both sides), but **no probe may touch
+  book-sourced knowledge**, or it falls straight back into the rule-67 trap.
+- **`explore` non-food output**: ⚠ **Q3 is only 23.0%, barely past the 20% line** —
+  meaning **77% of the balls already hold `loves_exploring`**; the informational output is **close to saturation**.
+  This is isomorphic to A2's failure mechanism (the bonus lands where it cannot be spent) — **the highest risk of the three**.
 
-### 若下一轮三个通道也全部不合格
+### If all three channels also fail in the next round
 
-那时才以「v3 不具备可干净检验 generalization 的动作经济」封存 026，
-并分叉 v4。**v4 的设计目标届时非常明确 —— 不是让模型更复杂，
-而是补上被实验暴露的缺口：至少一个【不决定生死】【近乎全员可参与】
-【具有多种有效策略】【允许 agent 对新 contingency 产生行为适应】的经济。**
+only then is 026 sealed under "v3 does not have an action economy in which generalization can be tested cleanly",
+and v4 is forked. **v4's design goal would then be very clear — not to make the model more complex,
+but to fill the gap the experiments exposed: at least one economy that is "not life-or-death", "open to nearly everyone",
+"supports several effective strategies" and "lets agents adapt behaviourally to a new contingency".**
 
-> ★ 方法论上的关键区别 ★
-> 升级 v4 **不是为了"把论文结果调出来"**，
-> 而是因为 **group-blind feasibility testing 已经明确证明
-> frozen v3 缺少测量这个问题所需的自由度**。这两个动机差别极大。
+> ★ The key methodological distinction ★
+> Upgrading to v4 is **not about "tuning until the paper's result shows up"**;
+> it is because **group-blind feasibility testing has clearly demonstrated that
+> frozen v3 lacks the degrees of freedom required to measure this question**. Those two motives are worlds apart.
 
 
-## goal-pair 小审计：Probe C 的放行前提（`goal_pair_audit.py`，n=591）
+## A small goal-pair audit: the precondition for clearing Probe C (`goal_pair_audit.py`, n=591)
 
-capacity audit 的「99.3% 用过 ≥2 种 goal」不能自动说明
-`see_the_world` / `improve_home` 这**两个特定目标**够普遍。单独查：
+The capacity audit's "99.3% used ≥2 goal types" does not automatically establish that
+these **two specific goals**, `see_the_world` / `improve_home`, are common enough. Checked on their own:
 
 ```
-goal              立过的 agent   占 goal-days   人均天数   个体占比 p90−p10
+goal                adopted    goal-days%  days/agent   share p90−p10
 improve_home         95.9%        25.3%       7.6        0.433  ★
 stock_food           94.2%        25.3%       7.6        0.567
 see_the_world        96.1%        48.0%      14.4        0.533  ★
 learn                 0.0%         0.0%       0.0        0.000
 recover              16.6%         1.3%       0.4        0.067
 
-两种【都】经历过的 agent ： 92.7%      ← 冲突才有对象
-这一对合计占 goal-days  ： 73.3%
-目标切换次数（30 天）    ： 中位 10（p10 2，p90 12）
+agents that adopted both        : 92.7%      ← the conflict needs subjects
+this pair's share of goal-days  : 73.3%
+goal switches (30 days)         : median 10 (p10 2, p90 12)
 ```
 
-**放行条件大幅满足。** 这一对是 common garden 里的**主导目标对**，
-不是边角料，而且 92.7% 的球两种都立过 —— 冲突有充分的作用对象。
+**The clearance condition is met by a wide margin.** This pair is the **dominant goal pair** in the common garden,
+not a fringe case, and 92.7% of the balls have adopted both — the conflict has plenty of subjects to act on.
 
-⚠ 顺带确认了两件事：
-- **`learn` 参与率 0.0%** —— 与 `read = 0` 一致（基准世界无书）。
-  所以 M0 的 goal 特征里，`learn` 与 `recover`（16.6%）接近死维度，
-  **别把特征集用死维度撑数**。
-- 目标切换中位 10 次/30 天 → **goal switch 动力学本身很活跃**，
-  Probe C 想作用的就是这个。
+⚠ Two things were confirmed along the way:
+- **`learn` participation is 0.0%** — consistent with `read = 0` (the baseline world has no books).
+  So among M0's goal features, `learn` and `recover` (16.6%) are near-dead dimensions;
+  **do not pad the feature set with dead dimensions**.
+- Goal switching runs at a median of 10 times per 30 days → **the goal-switch dynamics are lively in themselves**,
+  and that is exactly what Probe C sets out to act on.
 
-### shelter 的两个结构点（核对了代码，支持 40 这个下限）
-
-```
-sim.py:792   s += 10 if self.shelter > 30 else -5        ← 睡眠打分的阶跃
-sim.py:662   if self.shelter < 75:  pri = (75-shelter)/75*0.8 + c   ← improve_home 优先级
-sim.py:611   clamp(self.shelter / 80.0, 0, 1)            ← improve_home 目标进度
-```
-
-**shelter = 30 确实是个结构点**（睡眠打分从 +10 跳到 −5）。
-所以硬下限取 **40** 是有依据的：既避开 30 的阶跃，
-又落在 `improve_home` 优先级**有响应**的区间（< 75）内 ——
-而拉平点 shelter = 50 本来就在这个区间里，进入时 `improve_home` 已经是活跃的。
-
-
-## Probe C「离家失修」：退役（`novel_calibrate3.py`，N=300）
-
-机制：每次 explore 使 shelter 损耗 κ（硬下限 40），`build` 按原规则修复；
-**ON/OFF 背景完全同构**（都 `storm_chance=0`），唯一差异是 κ；
-分叉后只清 `agent.goal`，不动 traits/floors/knowledge/flags/goal_satiation。
+### Two structural points in shelter (checked against the code; they support the floor of 40)
 
 ```
-   κ      饱和率    被截断率    失败频次（20 格）
- 0.05     75.3%     0.0%      ②未饱和<20%      20/20
- 0.10     76.1%     0.1%      ④动作landscape变 20/20
- 0.20     77.6%     0.1%      ⑤goal层也变      19/20
- 0.40     80.4%     0.1%      ③两goal仍活跃     5/20
+sim.py:792   s += 10 if self.shelter > 30 else -5        ← the step in the sleep score
+sim.py:662   if self.shelter < 75:  pri = (75-shelter)/75*0.8 + c   ← improve_home priority
+sim.py:611   clamp(self.shelter / 80.0, 0, 1)            ← improve_home goal progress
+```
+
+**shelter = 30 really is a structural point** (the sleep score jumps from +10 to −5).
+So taking **40** as the hard floor is well founded: it steers clear of the step at 30,
+while still sitting inside the range (< 75) where the `improve_home` priority is **responsive** —
+and the levelling point shelter = 50 already lies in that range, so `improve_home` is active on entry.
+
+
+## Probe C "the home falls into disrepair": retired (`novel_calibrate3.py`, N=300)
+
+Mechanism: each explore wears shelter down by κ (hard floor 40), while `build` repairs it under the original rule;
+**the ON/OFF backgrounds are perfectly isomorphic** (both `storm_chance=0`), the only difference being κ;
+after the fork only `agent.goal` is cleared, leaving traits/floors/knowledge/flags/goal_satiation untouched.
+
+```
+    κ    satur.   trunc.      failure mode         cells
+ 0.05     75.3%     0.0%      ② unsaturated <20%   20/20
+ 0.10     76.1%     0.1%      ④ action landscape   20/20
+ 0.20     77.6%     0.1%      ⑤ goal layer too     19/20
+ 0.40     80.4%     0.1%      ③ both goals active   5/20
  0.80     85.0%     0.3%
 ```
 
-### ★ 规则 70：饱和度要量"干预还能不能施加"，不是"变量贴没贴边" ★
+### ★ Rule 70: saturation must measure "can the intervention still be applied", not "is the variable pinned to its bound" ★
 
-我最初把饱和定义成 `P(shelter == 40)`（贴边时间比例）。**这是错的。**
-Probe C 的守卫是 `if shelter > 40`，而 shelter 有 **0.35/tick 的自然衰减**，
-会自己滑到 40 以下；此后 explore 再多也**静默失效**，
-但 shelter 并不会停在 40，所以"贴边比例"接近 0 —— **严重低估饱和**。
+I first defined saturation as `P(shelter == 40)` (the fraction of time pinned to the bound). **That was wrong.**
+Probe C's guard is `if shelter > 40`, and shelter carries a **natural decay of 0.35/tick**,
+so it slides below 40 on its own; from then on, however much the agent explores, the effect **fails silently**,
+yet shelter does not stop at 40, so the "pinned fraction" stays near 0 — **a severe underestimate of saturation**.
 
-正确定义：**explore 发生时因 `shelter ≤ 40` 而无法再施加损耗的比例**。
-实测 **75–85%**（阈值 20%）。两个口径差了两个数量级，结论相反。
-**被截断率只有 0.0–0.3%**，正是"贴边口径会显示无饱和"的直接证据。
+The correct definition: **the fraction of explores at which the wear can no longer be applied because `shelter ≤ 40`**.
+Measured at **75–85%** (threshold 20%). The two conventions differ by two orders of magnitude and give opposite conclusions.
+**The truncation rate is only 0.0–0.3%**, which is direct evidence that "the pinned-to-bound convention will show no saturation".
 
-### ⚠ 真正的原因：shelter 是**双峰**的，不是"稳态在 32"
+### ⚠ The real reason: shelter is **bimodal**, not "in a steady state at 32"
 
-我上一条说"稳态 ≈ 32"也不准确。直接测 OFF 条件下的逐日轨迹（n=237）：
-
-```
-进入后第N天    中位    p10    p90    <40 的比例   <30 的比例
-第 0          41.6   41.6   99.7      0.0%       0.0%
-第 1          33.2   33.2   99.0     63.6%       0.0%
-第 2          24.8   24.8   97.9     61.9%      61.9%
-第 5           0.0    0.0   99.3     51.7%      51.7%
-第 29          0.0    0.0   97.6     54.4%      53.4%
-```
-
-**p10 = 0.0 而 p90 = 97.6 —— 极端双峰。**
-约 52% 的球把 shelter 彻底放弃、长期为 0；另外约 48% 一直维持在 ~98。
-"均值 32–41"完全是双峰混出来的假象。
-
-对 Probe C 而言：
-
-- **52% 的球**：第 2 天起 shelter ≤ 40 → κ **永远打不到**
-- **48% 的球**：shelter ~98，一次 build 就 +22 → κ=0.8 也是**毛毛雨**
-
-**没有任何人群落在 κ 能起作用的区间里。**
-
-### ★ 规则 71：v3 的资源状态普遍双峰，梯度型干预没有中间地带可作用 ★
-
-把四轮并起来看，同一个形状反复出现：
+My earlier note saying "steady state ≈ 32" was inaccurate as well. Measuring the day-by-day trajectory directly under the OFF condition (n=237):
 
 ```
-材料    77% 恒为 0    23% 囤到 100–200        （规则 68）
-shelter 52% 恒为 0    48% 维持 ~98           （本节）
-食物    全员紧约束     但 eat 跨个体 SD=0.0007  （规则 64/66）
+day after entry  median    p10    p90  share <40  share <30
+day 0              41.6   41.6   99.7       0.0%       0.0%
+day 1              33.2   33.2   99.0      63.6%       0.0%
+day 2              24.8   24.8   97.9      61.9%      61.9%
+day 5               0.0    0.0   99.3      51.7%      51.7%
+day 29              0.0    0.0   97.6      54.4%      53.4%
 ```
 
-**v3 的正反馈（性状漂移 + 目标持续）会把 agent 推向专精**，
-于是每条资源轴都塌成"全投入 / 全放弃"两堆。
+**p10 = 0.0 while p90 = 97.6 — extremely bimodal.**
+About 52% of the balls give up on shelter entirely and sit at 0 for good; the other ~48% hold it at ~98 throughout.
+The "mean of 32–41" is purely an artefact of mixing the two modes.
 
-> **讽刺的是：正是这套产生持久个体差异的正反馈机制，
-> 同时消灭了梯度型 novel contingency 可以作用的中间地带。**
+For Probe C this means:
 
-这可能才是 A / B / A2 / C 四次失败的**共同根因**，
-而不是四个各自独立的设计失误。
+- **52% of the balls**: from day 2 onward shelter ≤ 40 → κ **never lands at all**
+- **48% of the balls**: shelter ~98, and a single build adds +22 → even κ=0.8 is a mere **drizzle**
 
-⚠ **但不据此宣布 026 终结** —— 上次就是这么早了一步（规则 69）。
-capacity audit 里还有一个通道**不是双峰**：
+**No population at all falls in the range where κ could do anything.**
+
+### ★ Rule 71: v3's resource states are bimodal across the board, leaving gradient-type interventions no middle ground to act on ★
+
+Putting the four rounds side by side, the same shape keeps reappearing:
+
+```
+material   77% stuck at 0    23% hoard 100–200             (rule 68)
+shelter    52% stuck at 0    48% hold at ~98               (this section)
+food       binding for all   but eat cross-ind. SD=0.0007  (rules 64/66)
+```
+
+**v3's positive feedback (trait drift + goal persistence) pushes agents toward specialisation**,
+so every resource axis collapses into two heaps: "all in" and "all out".
+
+> **The irony: the very positive-feedback machinery that produces persistent individual differences
+> is also what wipes out the middle ground on which a gradient-type novel contingency could act.**
+
+This may well be the **common root cause** of all four failures — A / B / A2 / C —
+rather than four independent design mistakes.
+
+⚠ **But 026 is not declared over on this basis** — that is exactly the step taken too early last time (rule 69).
+There is still one channel in the capacity audit that is **not bimodal**:
 
 ```
 knowledge   99.7% 至少有 1 条    87.8% 少于 4 条    → 分布是【梯度】的，不是双峰
