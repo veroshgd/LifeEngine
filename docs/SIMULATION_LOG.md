@@ -3059,264 +3059,264 @@ jobs = [... (ci, w, s0, min(CHUNK, N - s0)) ...          # should be seed0 + N -
 At `seed0 = 0` the two happen to be equal; at `seed0 = 50000`, `N − s0 = 1500 − 50000` is **negative**
 → `range(s0, s0 + negative)` is empty → every task simulates 0 seeds.
 
-**关键：`scenarios.make` 对 50000–51499 一次都没被调用，没跑过任何一个 tick，
-没有产生任何观测。** 所以 final block **未被烧掉**，修复后重跑不构成
-adaptive analysis —— 那段种子的数据我们一个字节都没看到。
-作废文件保留为 `final_confirm_result.VOID_bug.txt`（开头写明作废原因）。
+**The key point: `scenarios.make` was never called once for 50000–51499; not a single tick was run and
+no observation was produced.** So the final block **was not burned**, and re-running after the fix is not
+adaptive analysis — we did not see one byte of data from that seed block.
+The void file is kept as `final_confirm_result.VOID_bug.txt` (with the reason for voiding stated at the top).
 
-> ### ★ 规则 57：彩排必须用与正式运行**同样形状**的参数 ★
-> 全尺寸彩排做在 `seed0 = 0` 上，而那正是这个 bug 唯一不发作的取值 ——
-> 等于把正式要走的代码路径整条跳过了。
-> **不要用 0 / 1 / 空集这类会让边界情况消失的特例做彩排。**
-> 修复后的复检改用 `--seed0 20000`（已烧掉的 022 段，不消耗新种子），
-> 走的是和 final 完全相同的非零偏移路径。
+> ### ★ Rule 57: a rehearsal must use parameters of **the same shape** as the official run ★
+> The full-size rehearsal was done at `seed0 = 0`, which is precisely the one value at which this bug does not fire —
+> so it skipped the entire code path the official run would take.
+> **Do not rehearse with special cases like 0 / 1 / the empty set, which make boundary conditions disappear.**
+> The re-check after the fix used `--seed0 20000` (the already-burned 022 block, consuming no new seeds),
+> which takes exactly the same non-zero-offset path as the final run.
 
-**一个正面结果**：预注册第 4 节那条「有效 n 不足判为**无效**而非不显著」
-把故障显示成了 `⚠ 无效`，而不是悄悄输出一个基于空样本的数字。
-如果当初写的是"n 太小就报不显著"，这份空跑看起来会像一个真实的阴性结论。
+**One positive result**: §4 of the preregistration, "insufficient effective n is judged **invalid** rather than not significant",
+displayed the failure as `⚠ invalid` instead of quietly outputting a number based on an empty sample.
+Had it said "report not significant if n is too small", this empty run would have looked like a genuine negative conclusion.
 
-事后加的两道硬拦截（都会直接中止、不产生输出文件）：
-① 覆盖率自检：计划模拟次数必须精确等于 `条件数 × 2 × N`；
-② `n = 0` 拦截，并声明「n=0 是故障不是死亡率」。
+Two hard stops added afterwards (both abort immediately and produce no output file):
+① a coverage self-check: the planned number of simulations must equal `number of conditions × 2 × N` exactly;
+② an `n = 0` interception, declaring that "n=0 is a failure, not a mortality rate".
 
-## 5. ★ FINAL CONFIRMATION 结果 ★（seeds 50000–51499，只跑一次）
+## 5. ★ FINAL CONFIRMATION results ★ (seeds 50000–51499, run once)
 
 ```
-条件                    n     死亡丰  死亡贫    比值   95% CI              δ均值   dz      p
-H1  完整架构           1441   0.0%   3.9%   1.142  [1.098, 1.183]  +0.0444  0.20  0.0001
-P1  −全部地板①②        1449   0.0%   3.4%   1.134  [1.090, 1.175]  +0.0417  0.18  0.0001
-P2② 删 knowledge     1448   0.1%   3.3%   1.102  [1.056, 1.141]  +0.0309  0.14  0.0001
-NC③ 删 memories      1449   0.0%   3.4%   1.134  [1.090, 1.175]  +0.0417  0.18  0.0001
-R52 −地板 · 022关     1429   1.7%   3.1%   1.046  [1.002, 1.086]  +0.0147  0.06  0.0154
+condition                  n    dead rich  dead barren   ratio   95% CI            mean δ   dz      p
+H1  full architecture     1441   0.0%       3.9%       1.142  [1.098, 1.183]  +0.0444  0.20  0.0001
+P1  −all floors ①②        1449   0.0%       3.4%       1.134  [1.090, 1.175]  +0.0417  0.18  0.0001
+P2② delete knowledge      1448   0.1%       3.3%       1.102  [1.056, 1.141]  +0.0309  0.14  0.0001
+NC③ delete memories       1449   0.0%       3.4%       1.134  [1.090, 1.175]  +0.0417  0.18  0.0001
+R52 −floors · 022 off     1429   1.7%       3.1%       1.046  [1.002, 1.086]  +0.0147  0.06  0.0154
 ```
 
-### 判据裁决
+### Criterion verdicts
 
-| 判据 | 结果 | 数值 |
+| Criterion | Result | Value |
 |---|---|---|
-| **H1** 主效应 | **✓ 过** | 1.142 [1.09816, 1.18343] |
-| **P1** 地板全关后仍 > 1 | **✓ 过** | 1.134 [1.09043, 1.17507] |
-| **P2** 删 knowledge | **✗ 不过** | 落差 +0.032 < 0.05，CI 重叠 |
-| **R52** | **◐ 落在检出边界，本判据无法裁决** | 1.046 [1.00208, 1.08609] |
-| 阴性对照 情节记忆 | **✓ 逐位相同** | 0.344305459704 vs 0.344305459704 |
+| **H1** main effect | **✓ pass** | 1.142 [1.09816, 1.18343] |
+| **P1** still > 1 with all floors off | **✓ pass** | 1.134 [1.09043, 1.17507] |
+| **P2** delete knowledge | **✗ fail** | drop +0.032 < 0.05, CIs overlap |
+| **R52** | **◐ on the detection boundary; this criterion cannot decide** | 1.046 [1.00208, 1.08609] |
+| negative control, episodic memory | **✓ bit-identical** | 0.344305459704 vs 0.344305459704 |
 
-### 事前预测对照（预注册第 7 节，逐条照抄）
-
-```
-        预测                  实测              符合？
-H1      过, 1.12–1.16        过, 1.142         ✓ 完全符合
-P1      过, 1.07–1.10        过, 1.134         ⚠ 方向对，点估计【高出预测区间】
-P2      不过, 落差≈0.03       不过, 落差 0.032   ✓ 精确命中
-R52     不过, 1.03–1.06      边界, 1.046       比值落在预测区间内，判读为「无法裁决」
-情节记忆 逐位相同             逐位相同           ✓
-```
-
-⚠ **P1 的点估计高于事前预测区间**（预测 1.07–1.10，实测 1.134）。
-如实记下，**不事后加宽预测区间**。原因大概率是预测抄的是 023 v3 重验值
-（1.090，seeds 20000+），而种子块之间本来就有 ±0.04 的浮动
-（H1 在三个块上分别是 1.172 / 1.148 / 1.142）。
-
-### R52：为什么 8/8 仍然判「无法裁决」
-
-边界诊断：8 个分析种子的下界范围 `[1.00100, 1.00454]`，MC SD = 0.00103，
-**8/8 都 > 1.00** —— 蒙特卡洛意义上它是稳的。
-
-但预注册修订 A 的门槛是 `|lo − 1.00| ≥ 0.01`，实测 `lo − 1 = 0.00208`。
-**照预注册判「◐ 无法裁决」。**
-
-> ### ★ 这一条要抵住诱惑 ★
-> 「8/8 都过了，为什么不算过？」—— 因为门槛是**跑之前**定的，
-> 且定的理由不只是蒙特卡洛噪声，还有"只赢万分之二十的 CI 下界，
-> 不足以支撑一个科学主张"。
-> **看到结果之后再去争论门槛该不该是 0.01，就是 adaptive analysis。**
-> 修订 A 写在没看 final 数据的时候，就照它执行。
-
-### R52 的实质（描述性，非判据）
-
-三个独立种子块上的点估计高度一致，方向从未变过：
+### Comparison with the prior predictions (preregistration §7, copied line by line)
 
 ```
-021 开发块   1.036   n.s.
-021 留出块   1.057   **
-FINAL 块     1.046   p=0.0154, dz=0.06
+        prediction            measured          match?
+H1      pass, 1.12–1.16      pass, 1.142       ✓ exact match
+P1      pass, 1.07–1.10      pass, 1.134       ⚠ direction right, point estimate **above the predicted interval**
+P2      fail, drop≈0.03      fail, drop 0.032  ✓ precisely on target
+R52     fail, 1.03–1.06      boundary, 1.046   the ratio falls inside the predicted interval; read as "cannot decide"
+episodic memory  bit-identical   bit-identical   ✓
 ```
 
-**一个方向稳定、幅度很小（≈+0.04）、始终贴着检出限的残余效应。**
-诚实的表述：*地板全关之后仍有一个小的残余差异，方向在三个独立种子块上一致，
-但幅度小到我们预注册的判据无法裁决它是否 > 1。*
-规则 52 的悬案**保持公开**，不用一次性资源硬判。
+⚠ **P1's point estimate is above the prior predicted interval** (predicted 1.07–1.10, measured 1.134).
+Recorded faithfully; **the predicted interval is not widened after the fact**. The likely cause is that the prediction copied the 023 v3 revalidation value
+(1.090, seeds 20000+), while seed blocks fluctuate by ±0.04 anyway
+(H1 gives 1.172 / 1.148 / 1.142 across the three blocks).
 
-## 6. persistence 这一层的收口
+### R52: why 8/8 is still judged "cannot decide"
 
-| 命题 | 最终状态 |
+The boundary diagnostic: across 8 analysis seeds the lower bound ranges over `[1.00100, 1.00454]`, MC SD = 0.00103,
+and **8/8 are > 1.00** — in the Monte Carlo sense it is stable.
+
+But the threshold of preregistration amendment A is `|lo − 1.00| ≥ 0.01`, and the measured `lo − 1 = 0.00208`.
+**Per the preregistration it is judged "◐ cannot decide".**
+
+> ### ★ This is where the temptation must be resisted ★
+> "8/8 passed, why does that not count as a pass?" — because the threshold was set **before the run**,
+> and it was set not only for Monte Carlo noise but also because "winning by twenty parts in ten thousand on a CI lower bound
+> is not enough to support a scientific claim".
+> **Arguing about whether the threshold should have been 0.01 after seeing the result is adaptive analysis.**
+> Amendment A was written without seeing the final data, so it is executed as written.
+
+### The substance of R52 (descriptive, not a criterion)
+
+The point estimates on three independent seed blocks agree closely and the direction has never changed:
+
+```
+021 development block   1.036   n.s.
+021 holdout block       1.057   **
+FINAL block             1.046   p=0.0154, dz=0.06
+```
+
+**A residual effect with a stable direction, a very small magnitude (≈+0.04), and always hugging the detection limit.**
+The honest statement: *with all floors off there remains a small residual difference whose direction agrees across three independent seed blocks,
+but whose magnitude is too small for our preregistered criterion to decide whether it exceeds 1.*
+Rule 52's open case **stays open**; a one-shot resource is not spent forcing a verdict.
+
+## 6. Closing out the persistence layer
+
+| Proposition | Final status |
 |---|---|
-| 不同经历 → 持久的行为差异 | **✓ 确认**（H1，全新种子块，1.142） |
-| 不是 mortality artifact | ✓（v3 死亡率 3–4%，效应未减反增） |
-| episodic memory 不是载体 | **✓ 很强**（三次独立运行都逐位 no-op） |
-| semantic knowledge 不是主要载体 | **✓**（P2 在 v2/v3/final 三次都不过） |
-| floor architecture 很重要 | ✓（1.142 → 1.046） |
-| anchor 的具体 snapshot 几乎不重要 | ✓（024，只解释 1.3%） |
-| 无 floor 的微弱 residual | **◐ 未决**，方向稳定、幅度 ≈+0.04 |
+| different experience → a persistent behavioural difference | **✓ confirmed** (H1, brand-new seed block, 1.142) |
+| not a mortality artifact | ✓ (v3 mortality 3–4%, the effect grew rather than shrank) |
+| episodic memory is not the carrier | **✓ very strong** (a bit-identical no-op in all three independent runs) |
+| semantic knowledge is not the main carrier | **✓** (P2 fails in all three: v2/v3/final) |
+| the floor architecture matters a great deal | ✓ (1.142 → 1.046) |
+| the anchor's specific snapshot barely matters | ✓ (024, explains only 1.3%) |
+| a faint residual with no floor | **◐ undecided**, direction stable, magnitude ≈+0.04 |
 
-**可以写进论文的主句：**
+**The main sentence that can go into the paper:**
 
 > Experience-dependent differentiation can be enhanced by semantic knowledge,
 > but long-term persistence is primarily carried by a separate
 > event-triggered consolidation mechanism.
 
-⚠ **射程**（预注册第 0.5 节）：以上确认的是 **persistence architecture**。
-**没有**证明 generalized individuality —— 即这些差异能否在**双方都没经历过的
-新情境**里泛化成不同决策。那是下一阶段 novel-situation generalization 的事。
-**论文里这两句不能混。**
+⚠ **Scope** (preregistration §0.5): what is confirmed above is the **persistence architecture**.
+It does **not** demonstrate generalized individuality — whether those differences generalize into different decisions in a
+**situation neither side has experienced**. That belongs to the next stage, novel-situation generalization.
+**The two must not be conflated in the paper.**
 
-## 7. 下一步
+## 7. Next
 
-persistence 这一层到此收口，不再解剖当前模型。
-下一个问题就是最开始那个：**历史留下来的东西，能不能作用在从未见过的未来。**
-
----
-
-# ★ persistence 阶段封存 ★（2026-08-16）
-
-实验 011–025 到此结束。执行部分全部跑完，无遗留进程。
-
-```
-v2_frozen/   COND_RECOVER_AT = 30    实验 011–022 的原始模型
-v3_frozen/   COND_RECOVER_AT = 65    论文候选架构，MODEL_VERSION = "v3"
-FINAL_PREREGISTRATION.md             写死并执行完毕（含修订 A）
-final_confirm_result.txt             seeds 50000–51499，只跑一次
-final_confirm_result.VOID_bug.txt    第一次空跑的作废记录（见 025 §4）
-```
-
-已烧掉、不可再作 holdout 的种子段：
-`0–1499`、`10000–11499`、`20000–21499`、`50000–51499`。
-
-**从这里之后的工作属于新阶段，不再回头解剖 persistence。**
+The persistence layer closes out here, and the current model will not be dissected further.
+The next question is the one from the very beginning: **can what history left behind act on a future never seen before.**
 
 ---
 
-# 实验 026 —— NOVEL-SITUATION（设计 v3 定稿，未执行）
+# ★ The persistence stage is sealed ★ (2026-08-16)
 
-设计全文：`ai-sandbox/NOVEL_SITUATION_DESIGN.md`（v3）
-**设计已收敛，不再发散。** 未碰 `60000–61499`，未改 `v3_frozen/`。
-下一步：写机制层与 group-blind 校准脚本，在 `20000+` 上定 `S` 与 `λ`。
-
-## ★★ 规则 61：counterfactual sibling branches ★★
-
-**这是整个设计里最重要的一条，比 RF 用 8 层还是 12 层重要得多。**
-
-**错的做法**（v2 的隐含假设）：
+Experiments 011–025 end here. Every execution has finished and no process is left running.
 
 ```
-agent → 熟悉世界跑 W 天测 B_familiar → 再进冻土测 B_novel
+v2_frozen/   COND_RECOVER_AT = 30    the original model of experiments 011–022
+v3_frozen/   COND_RECOVER_AT = 65    the paper-candidate architecture, MODEL_VERSION = "v3"
+FINAL_PREREGISTRATION.md             fixed in writing and executed (including amendment A)
+final_confirm_result.txt             seeds 50000–51499, run once
+final_confirm_result.VOID_bug.txt    the void record of the first empty run (see 025 §4)
 ```
 
-**那 W 天的 familiar 测量本身就是一段额外经历**，会继续改变
-traits / goal / trait_floor / knowledge / hardship。
-到进冻土时，预测的**已经不是"同一个历史状态面对两个未来"**。
+Seed blocks burned and no longer usable as a holdout:
+`0–1499`, `10000–11499`, `20000–21499`, `50000–51499`.
 
-**必须的做法**：
+**Everything after this belongs to a new stage; persistence will not be dissected again.**
+
+---
+
+# Experiment 026 — NOVEL-SITUATION (design v3 settled, not executed)
+
+The full design: `ai-sandbox/NOVEL_SITUATION_DESIGN.md` (v3)
+**The design has converged and will not be expanded further.** `60000–61499` untouched, `v3_frozen/` unmodified.
+Next: write the mechanism layer and the group-blind calibration script, and fix `S` and `λ` on `20000+`.
+
+## ★★ Rule 61: counterfactual sibling branches ★★
+
+**This is the most important item in the whole design, far more so than whether the RF uses 8 layers or 12.**
+
+**The wrong way** (v2's implicit assumption):
 
 ```
-development 结束 → 状态拉平 → 完整 snapshot（含 RNG）
+agent → run W days in the familiar world and measure B_familiar → then enter the frozen ground and measure B_novel
+```
+
+**Those W days of familiar measurement are themselves an extra stretch of experience** and keep changing
+traits / goal / trait_floor / knowledge / hardship.
+By the time it enters the frozen ground, what is predicted is **no longer "one historical state facing two futures"**.
+
+**The necessary way**:
+
+```
+end of development → state levelling → a complete snapshot (including RNG)
                                    ↙            ↘
                               clone F          clone N
-                              熟悉世界          Novel 世界
+                              familiar world      novel world
                                  ↓                ↓
                              B_familiar        B_novel
 ```
 
-两个 clone 在**分叉瞬间**完整可执行状态与 **RNG state 相同**，
-**任何一支之后发生的事都不得反馈给另一支**，两支跑**同样长度 W**。
+At the **instant of forking** the two clones have identical complete executable state and **identical RNG state**,
+**nothing that happens in either branch may feed back into the other**, and both run for **the same length W**.
 
-⚠ 分叉后必须重建 `FrozenZero()`（024 踩过的 deepcopy 陷阱）。
+⚠ `FrozenZero()` must be rebuilt after forking (the deepcopy trap hit in 024).
 
-## 特征 / 目标 / 损失（定稿）
+## Features / target / loss (settled)
 
-- **`B_familiar` = 182 维**：168（24 小时 × 7 动作，每小时内归一）
-  + 7（全窗口动作占比）+ 7（后半段 − 前半段变化量）。
-  后 14 维是确定性摘要，**不引入新信息**，只让 RF 更容易读到"几点做什么"
-  和"熟悉环境中行为是否还在漂移"。
-  **不用 7 维** —— 否则审稿人一句"history 只是补回了你自己压缩掉的
-  circadian/temporal 信息"就挡不住。182 维让 G1 更难过，**但过了更硬**。
-- **`B_novel` = 7 维动作占比**（刻意让 M0 占便宜：182 维 → 预测 7 维）
-- **损失 = TV 距离**（接得上项目一贯的行为指标）：
-  `d_i = TV(实际, M0预测) − TV(实际, M1预测)`。
-  通俗含义：**知道过去以后，对这只球在新世界里怎么分配行为时间，
-  预测得更准了多少。** 一颗 seed 的双胞胎**先取平均**，再做 seed-level 推断。
-- ⚠ **拉平后 `entry_state` 在主分析里是常量**（按构造全同），
-  `M0 = f(B_familiar)`；它只在未拉平的配对匹配次分析里才是真变量。
+- **`B_familiar` = 182 dimensions**: 168 (24 hours × 7 actions, normalised within each hour)
+  + 7 (whole-window action shares) + 7 (second half − first half changes).
+  The last 14 are deterministic summaries and **introduce no new information**; they merely make it easier for the RF to read "what it does at what hour"
+  and "whether behaviour is still drifting in a familiar environment".
+  **Not 7 dimensions** — otherwise one reviewer sentence, "history is only restoring the
+  circadian/temporal information you compressed away yourself", would be unanswerable. 182 dimensions make G1 harder to pass, **but harder to dismiss once passed**.
+- **`B_novel` = 7-dimensional action shares** (deliberately favouring M0: 182 dimensions → predicting 7)
+- **loss = TV distance** (continuing the project's usual behavioural metric):
+  `d_i = TV(actual, M0 prediction) − TV(actual, M1 prediction)`.
+  In plain terms: **how much better we predict how this ball will allocate its behaviour in the new world
+  once we know its past.** The twins of one seed are **averaged first**, then seed-level inference is done.
+- ⚠ **After levelling, `entry_state` is a constant in the main analysis** (identical by construction),
+  so `M0 = f(B_familiar)`; it is a real variable only in the unlevelled paired-matching secondary analysis.
 
-## ★ 规则 56 强化：消灭分析随机性，而不只是测量它 ★
+## ★ Rule 56 strengthened: eliminate analysis randomness rather than merely measuring it ★
 
-R52 的教训是"换个分析种子结论就翻"。这次从源头堵死：
+The lesson of R52 was "change the analysis seed and the conclusion flips". This time it is blocked at the source:
 
-- **CV fold 确定性**：`fold = deterministic_hash(seed) % K`，双胞胎永远同 fold
-- **RF `random_state` 固定**，`n_estimators = 1000` 压低森林随机性
-- **bootstrap 固定 analysis seed，replicates 提到 10 000**
+- **deterministic CV folds**: `fold = deterministic_hash(seed) % K`, with twins always in the same fold
+- **the RF `random_state` fixed**, and `n_estimators = 1000` to suppress forest randomness
+- **the bootstrap uses a fixed analysis seed, with replicates raised to 10,000**
 
-**正式分析本质上是 deterministic 的。** 8 种子彩排降级为稳定性诊断。
+**The formal analysis is essentially deterministic.** The 8-seed rehearsal is demoted to a stability diagnostic.
 
-## 模型与判据
+## Models and criteria
 
-- **RF 为 primary**，二次基展开 Ridge 作稳健性，**不要求都显著**；不用 k-NN。
-- 超参 group-blind 小网格（`max_depth {8,12,None}` × `min_samples_leaf {5,10,20}`
-  × `max_features {sqrt,0.5,1.0}`），**只优化 M0** ——
-  调参脚本不接收 history，**更不许看哪个模型让 M1−M0 最大**；
-  **性能接近时预先规定选更正则化的那个。**
-- 推断：`ΔOOS` 的种子聚类 bootstrap 95% CI 下界 > 0。置换检验降为 secondary。
-- **容量对照判「容量不足」需两个条件同时成立**：对照自身 CI 下界 > 0，
-  **且**点估计 ≥ 真 history 的 50%。（只看点估计会让一个很噪的 C1
-  恰好到 51% 就把实验判死。50% 是人为护栏，不假装是理论常数。）
+- **RF is primary**, with Ridge on a quadratic basis expansion for robustness, **and both are not required to be significant**; no k-NN.
+- A group-blind small hyperparameter grid (`max_depth {8,12,None}` × `min_samples_leaf {5,10,20}`
+  × `max_features {sqrt,0.5,1.0}`), **optimising M0 only** —
+  the tuning script does not receive history, and is **still less** allowed to look at which model maximises M1−M0;
+  **when performance is close, the more regularised option is specified in advance.**
+- Inference: the seed-cluster bootstrap 95% CI lower bound of `ΔOOS` > 0. The permutation test is demoted to secondary.
+- **Declaring "insufficient capacity" from a capacity control requires both conditions at once**: the control's own CI lower bound > 0,
+  **and** its point estimate ≥ 50% of the true history's. (Looking at the point estimate alone would let one noisy C1
+  that happens to reach 51% kill the experiment. 50% is a deliberate guardrail and is not pretended to be a theoretical constant.)
 
-## 校准（规则 58，group-blind）
+## Calibration (rule 58, group-blind)
 
-pooled 合格条件：两策略各 20–80%；总存活 ≥80%；5 天内达标 ≤50%；
-**门确实打得开**（窗口结束前达标 20–80%）；
-**不是伪分岔**（两策略存活率**各 ≥80% 且相差 ≤10pp**）。取满足条件的最小 `S`/`λ`。
+Pooled pass conditions: each of the two strategies 20–80%; overall survival ≥80%; meeting the gate within 5 days ≤50%;
+**the gate really does open** (20–80% meet it before the window ends);
+**not a pseudo-fork** (each strategy's survival **≥80% individually and differing by ≤10pp**). Take the smallest `S`/`λ` satisfying the conditions.
 
-> ### ★ 找不到满足条件的 S / λ 怎么办 ★
-> **说明这个 probe 的设计本身不够干净，不应该为了让它能跑而放宽标准。**
-> 026 测的是 strategy transfer，**不是重新研究 survival selection**。
+> ### ★ What if no S / λ satisfies the conditions ★
+> **Then the probe's design is not clean enough, and the standards must not be relaxed just to let it run.**
+> 026 measures strategy transfer, **not a fresh study of survival selection**.
 
-Probe B 压成一维 λ：`c_f = λ·k_food`（k=1）、`c_s = λ·k_shelter`（k=22）——
-二维空间里"最小耦合强度"没有唯一含义。
+Probe B is compressed into a one-dimensional λ: `c_f = λ·k_food` (k=1) and `c_s = λ·k_shelter` (k=22) —
+in a two-dimensional space "minimum coupling strength" has no unique meaning.
 
-## 规则 60：可供性门控必须 non-destructive
+## Rule 60: affordance gating must be non-destructive
 
-Probe A **绝不能**写 `world.food = 0`。`take_food` 是从**库存**扣
-（`sim.py:181-186`），清零 = 每 tick 烧掉世界存粮 → 那是"毁掉食物"，
-不是"取不到食物"。改用 `GatedWorld` 子类：库存照常 regen，只改取用规则；
-`shelter` 在调用时刻读取（无一 tick 延迟）；门关着时按 v3 相同条件消耗一次
-rng 抽样，**让门只改可供性、不扰动随机流**。
+Probe A **must never** write `world.food = 0`. `take_food` deducts from the **stock**
+(`sim.py:181-186`), so zeroing it burns the world's food store every tick — that is "destroying food",
+not "being unable to reach food". Use a `GatedWorld` subclass instead: the stock regenerates as usual and only the access rule changes;
+`shelter` is read at call time (no one-tick lag); and when the gate is shut, one rng draw is consumed under the same condition as v3,
+**so the gate changes only affordance and does not perturb the random stream**.
 
-> 一般教训：**在有库存/存量语义的变量上做临时限制，不能改写存量，
-> 要改取用规则。**
+> The general lesson: **when temporarily restricting a variable with stock semantics, do not rewrite the stock;
+> change the access rule.**
 
-## G3 仍是机制问题，不是必要条件
+## G3 is still a mechanism question, not a necessary condition
 
-若 persistence 本来就由 floor 携带，
+If persistence is carried by the floor in the first place,
 `history → floor consolidation → novel context → new divergence`
-**完全可以是真正的 generalization**。**载体可以还是同一个，
-新的是它对未见问题产生了新的功能后果。**
-关 floor 后 G1 消失 → *generalization depends on the same consolidation
-architecture*，**不是失败**。
+**it can perfectly well be genuine generalization**. **The carrier may stay the same;
+what is new is that it produces new functional consequences on an unseen problem.**
+G1 disappearing with the floor off → *generalization depends on the same consolidation
+architecture*, which is **not a failure**.
 
-## 命名判据
+## The naming criterion
 
-**两个结构正交的 probe 都过 G1 → 才允许用 *generalized individuality*；
-只过一个 → 只能写 *novel-context transfer*。** 禁止事后追加 probe。
+**Both structurally orthogonal probes passing G1 → only then may *generalized individuality* be used;
+only one passing → only *novel-context transfer* may be written.** Adding probes afterwards is forbidden.
 
-## ★★ 规则 62：behavior window 与 consequence window 必须分离 ★★
+## ★★ Rule 62: the behaviour window and the consequence window must be separated ★★
 
-校准允许 novel probe 里死掉近 20%，但 G1 预测的是 **7 维动作占比**。
-若一只球第 8 天死、另一只活满窗口：
+Calibration allows nearly 20% of the novel probe to die, but G1 predicts a **7-dimensional action share**.
+If one ball dies on day 8 and another survives the whole window:
 
-- **删掉死亡个体** → 又制造 **survivor selection**
-  —— 那正是 persistence 阶段花大量实验才清理掉的东西（规则 44）
-- **直接用死亡前的行为** → **观察窗口长度不同**，占比不可比；
-  而且死亡本身可能就是 rich/poor 历史造成的
-  → G1 会把**"谁活得久"**和**"怎么做决策"**混在一起
+- **dropping the dead** → creates **survivor selection** again
+  — exactly what the persistence stage spent a great many experiments cleaning out (rule 44)
+- **using the behaviour up to death directly** → **the observation windows have different lengths**, so the shares are not comparable;
+  and death itself may be caused by the rich/poor history
+  → G1 would mix **"who lives longer"** with **"how decisions are made"**
 
 所以拆成两个窗口：
 
