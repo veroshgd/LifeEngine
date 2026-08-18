@@ -4089,7 +4089,7 @@ which makes for a strong sentence in the paper.
 ## ★ Rule 71 causal ablation results: the second half is withdrawn ★ (`rule71_ablation.py`, N=300)
 
 ```
-TRAIT_DRIFT   n  (a) ratio(b) shelt.pol (b) mat.split (c) flippable    margin   mat.mid
+TRAIT_DRIFT   n      ratio    shelt.pol     mat.split     flippable    margin   mat.mid
    0.00     289      1.021        31.1%         93.8%         41.1%      3.95      6.2%
    0.30     288      1.012        56.2%         93.8%         38.6%      4.29      6.3%
    0.60     290      1.058        60.9%         93.6%         37.6%      4.57      6.4%
@@ -4139,155 +4139,155 @@ When sealing 026 I wrote:
 
 **That sentence is falsified by this ablation and is withdrawn.** The correct statement is:
 
-> **阻挡 026 四个 probe 的资源双峰，主要是 v3【资源动力学本身】的性质
-> （material 只被 build 以 3/次消耗、shelter 以 0.35/tick 单调衰减），
-> 与产生 persistence 的性状正反馈基本无关。**
+> **The resource bimodality that blocked all four 026 probes is mainly a property of v3's resource dynamics
+> themselves (material is consumed only by `build` at 3 per use; shelter decays monotonically at 0.35/tick),
+> and has essentially nothing to do with the trait positive feedback that produces persistence.**
 
-所以 026 的封存结论要**降级为更保守、也更准确的版本**：
+So the 026 sealing conclusion has to be **downgraded to a more conservative and more accurate version**:
 
-> **v3 的资源经济不支持梯度干预** —— 而不是 ~~"正反馈消灭了可塑性"~~。
+> **The v3 resource economy does not support gradient interventions** — not ~~"positive feedback wiped out plasticity"~~.
 
-前者数据撑得住，后者是个更漂亮但**没有证据**的机制故事。
+The data support the former; the latter is a prettier mechanistic story with **no evidence** behind it.
 
-> ### ★ 规则 75：机制故事越漂亮，越要用定向消融去证伪 ★
-> "同一个机制的两面"读起来非常像论文的 highlight，
-> 而且它与 026 的全部观察都相容 —— 但**相容不等于因果**。
-> 一次 5 档的定向消融（约 20 分钟）就把它推翻了。
-> **在把一个机制解释写进论文之前，先问：能不能直接把那个机制关掉试试。**
+> ### ★ Rule 75: the prettier the mechanistic story, the more it needs a targeted ablation to falsify it ★
+> "Two sides of one mechanism" reads exactly like a paper highlight,
+> and it is compatible with every observation in 026 — but **compatibility is not causality**.
+> A single five-level targeted ablation (about 20 minutes) overturned it.
+> **Before writing a mechanistic explanation into a paper, ask whether that mechanism can simply be switched off and tested.**
 
 
 ---
 
-# ★ v3 persistence paper package 收尾 ★
+# ★ Wrapping up the v3 persistence paper package ★
 
-## 1. repo 修复 + 复现入口
+## 1. Repo repair + reproduction entry point
 
-`pytest --collect-only` 从 **10 个 collection error / 收不到测试**
-变成 **8 个测试正常收集、全绿（0.6 秒）**。
+`pytest --collect-only` went from **10 collection errors / no tests collected**
+to **8 tests collected normally, all green (0.6 s)**.
 
-根因：根目录、`v2_frozen/`、`v3_frozen/` 各有一套同名模块
-（`p1_test.py` / `p2_test.py` / `relaxation_test.py` / `rule48_test.py` /
-`test_022_regression.py`），pytest 按 basename 建模块名 → `import file mismatch`。
-**不能靠改 frozen 目录解决**（有 SHA 校验），所以在根目录加 `pytest.ini`
-限定 `testpaths = tests` 并排除两个 frozen 目录。
-顺带解决了另一个隐患：根目录那些 `*_test.py` **不是 pytest 测试而是实验脚本**，
-之前会被 `*_test.py` 模式误收，一跑就是几十分钟的模拟。
+Root cause: the root directory, `v2_frozen/` and `v3_frozen/` each hold a set of identically named modules
+(`p1_test.py` / `p2_test.py` / `relaxation_test.py` / `rule48_test.py` /
+`test_022_regression.py`), and pytest derives module names from the basename → `import file mismatch`.
+**It cannot be solved by editing the frozen directories** (they are SHA-checked), so a `pytest.ini` was added at the root
+restricting `testpaths = tests` and excluding the two frozen directories.
+That incidentally removed another hazard: the `*_test.py` files in the root are **experiment scripts, not pytest tests**,
+and used to be swept up by the `*_test.py` pattern, launching simulations that ran for tens of minutes.
 
-新增：`tests/test_selfcheck.py`（冻结完整性 / 冻结导入 / AST 比对 v2-v3 唯一差异 /
-机制层 6 项 / 规则 72 回归 / 确定性）、`pytest.ini`、`requirements.txt`、
-`REPRODUCE.md`（三层复现 + 产物来自哪个模型 + 种子账本）。
-废弃与退役脚本加了头部标记，**一个都没删**。
+Added: `tests/test_selfcheck.py` (frozen integrity / frozen imports / AST comparison of the single v2–v3 difference /
+6 mechanism-layer checks / the rule-72 regression / determinism), plus `pytest.ini`, `requirements.txt` and
+`REPRODUCE.md` (three reproduction tiers + which model each artifact came from + the seed ledger).
+Deprecated and retired scripts were given a header marker; **not one was deleted**.
 
-> ### ★ 规则 76：测试写完要做突变检验，否则"全绿"可能是假的 ★
-> 8 个测试 0.6 秒跑完，看着像没真跑。故意改坏
-> `v3_frozen/SHA256SUMS.txt` 的一个校验值 → 测试立刻变红；还原 → 全绿。
-> **没有突变检验的绿色不算数。**
+> ### ★ Rule 76: run a mutation check after writing tests, or "all green" may be fake ★
+> Eight tests finishing in 0.6 s looks like nothing actually ran. Deliberately corrupting one
+> checksum in `v3_frozen/SHA256SUMS.txt` → the tests turn red at once; restoring it → all green again.
+> **Green without a mutation check does not count.**
 >
-> 另：第一版的"v2/v3 只差一个常量"测试用**剥掉 `#` 注释后逐行比对**，
-> 结果 v3 docstring 里那段说明被当成代码差异。改用 **AST 比对并剥 docstring**
-> 才是真正的"可执行差异"。
+> Also: the first version of the "v2/v3 differ by one constant" test compared **line by line after stripping `#` comments**,
+> so the explanatory paragraph in the v3 docstring counted as a code difference. Switching to an **AST comparison with docstrings stripped**
+> is what actually measures the "executable difference".
 
-## 2. ODD 模型描述（`ODD.md`）—— 当作最后一次静态审计
+## 2. The ODD model description (`ODD.md`) — treated as a final static audit
 
-按 ODD 规范写，每一句都回代码核对。**审计出七条"我知道所以没写"的隐含机制**：
-
-```
-take_food            以为可清零 world.food 封锁 → 实为从【库存】扣，清零 = 烧存粮
-memories             以为纯日志 → 被 recall() 回读
-action_log           以为纯日志 → 喂【目标进度】
-goal_satiation       漏了 → 被回读（不应期）
-storm_damage         漏了 → 【动态属性】，暴雨后才存在
-explore 食物产出      以为足以独立维生 → 0.14/tick vs 需 0.11/tick，扣睡眠为负
-knowledge_strength   以为是连续通道 → 近乎二值（0 或 0.98）
-```
-
-### ★ 规则 77：行号引用必须标明是哪一版的行号 ★
-
-`v2_frozen/sim.py` 1013 行，`v3_frozen/sim.py` 1043 行，
-**偏移不是常数**（头部 docstring +27，中部 `MODEL_VERSION` 再 +3）：
+Written to the ODD standard, with every sentence checked back against the code. **The audit turned up seven implicit mechanisms of the "I knew it, so I never wrote it down" kind**:
 
 ```
-                        v2     v3    偏移
+take_food            assumed zeroing world.food would block it → it actually deducts from stock; zeroing = burning the larder
+memories             assumed a pure log → read back by recall()
+action_log           assumed a pure log → feeds goal progress
+goal_satiation       missed entirely → read back (refractory period)
+storm_damage         missed entirely → a dynamic attribute, existing only after a storm
+explore food output  assumed enough to live on → 0.14/tick vs 0.11/tick needed; net of sleep it is negative
+knowledge_strength   assumed a continuous channel → nearly binary (0 or 0.98)
+```
+
+### ★ Rule 77: a line-number reference must state which version's numbering it uses ★
+
+`v2_frozen/sim.py` has 1013 lines, `v3_frozen/sim.py` has 1043,
+and **the offset is not constant** (+27 from the header docstring, then a further +3 from `MODEL_VERSION` in the middle):
+
+```
+                        v2     v3   offset
 def take_food           154    181   +27
 KNOWLEDGE_WEIGHT×know   805    835   +30
 hardship += deficit     936    966   +30
 _hardship_anchor        938    968   +30
 ```
 
-⚠ **本记录里实验 023 及更早引用的 `sim.py:NNN` 用的是 v2 编号**，
-在 `v3_frozen/` 里要 +27 或 +30。`ODD.md` 的行号已统一为 v3_frozen 编号。
+⚠ **The `sim.py:NNN` references in experiment 023 and earlier in this log use v2 numbering**;
+in `v3_frozen/` add 27 or 30. The line numbers in `ODD.md` have been unified to v3_frozen numbering.
 
-### 新发现的隐藏机制：平局裁决
+### A newly discovered hidden mechanism: tie-breaking
 
-`max((score, action))` 在分数相同时按**动作名字母序**裁决 →
-`sleep` 恒胜、`build` 恒败。**实测 19,200 个决策 tick 中精确平局 0 次**，
-存在但从未触发。仍然记下 —— 若日后有人改动打分让平局变常见，
-行为会系统性偏向 `sleep`，而这一点此前不在任何文档里。
+When scores are equal, `max((score, action))` breaks the tie by **alphabetical order of the action name** →
+`sleep` always wins and `build` always loses. **Measured over 19,200 decision ticks, exact ties occurred 0 times**;
+it exists but has never fired. Recorded anyway — if someone later changes the scoring so that ties become common,
+behaviour will be systematically biased toward `sleep`, and that was not documented anywhere until now.
 
-## 3. Paper-claim audit（`CLAIMS.md`）
+## 3. Paper-claim audit (`CLAIMS.md`)
 
-每个 claim 落到三类之一：**A 主结果**（v3 冻结后直接支持）、
-**B 机制结果**（定向消融支持）、**C 限制**（无证据，明确不声称）。
+Every claim lands in one of three classes: **A main results** (directly supported after the v3 freeze),
+**B mechanism results** (supported by targeted ablation), **C limitations** (no evidence; explicitly not claimed).
 
 ```
-A1 持久行为差异          final H1 = 1.142 [1.098,1.183] + 稳健性 78.3%
-A2 不是 mortality artifact 死亡率 8.1%→4.3% 而效应未减反增
-A3 不依赖地板的通路       final P1 = 1.134 [1.090,1.175]
-A4 离散记忆不是长期载体   final P2 不过（v2/v3/final 三次一致）
-A5 情节记忆逐位 no-op     三次运行 fingerprint 完全相同
+A1 persistent behavioural difference    final H1 = 1.142 [1.098,1.183] + robustness 78.3%
+A2 not a mortality artifact             mortality 8.1%→4.3%, yet the effect grew rather than shrank
+A3 floor-independent pathway            final P1 = 1.134 [1.090,1.175]
+A4 discrete memory not the carrier      final P2 does not pass (v2/v3/final agree three times)
+A5 episodic memory a bitwise no-op      fingerprints identical across three runs
 
-B1 TRAIT_DRIFT 因果驱动   消融 1.021→1.575 + 参数扫描 ρ=+0.442（两法独立印证）
-B2 地板承担大部分持久性   1.142 → 1.046
-B3 起作用的是"地板存在过" anchor 内容只解释 1.3%，阴性对照逐位相同
-B4 阈值 65 需跨过怠惰谷   丰富世界 24.3%→36.3%→2.0%
+B1 TRAIT_DRIFT causally drives it       ablation 1.021→1.575 + sweep ρ=+0.442 (two independent methods)
+B2 floors carry most of persistence     1.142 → 1.046
+B3 what matters is that floors existed  anchor content explains only 1.3%; negative control bitwise identical
+B4 threshold 65 clears the idle valley  rich world 24.3%→36.3%→2.0%
 
-C1 无地板残余效应         ⛔ 落在检出边界，无法裁决（不许说有，也不许说没有）
-C2 目标轴                 ⛔ 不作主张（v3 参数集合 48.7%）
-C3 novel generalization   ⛔ 不许写"失败"；只能写"v3 架构无法提供干净的
-                            novel-contingency 测试接口"
-C4 正反馈降低可塑性        ⛔ 整条删除（被消融证伪）
-C5 intended purpose       ⛔ 不许声称模拟真实人格形成
-C6 架构射程               ⛔ 禁止"agent 学会/理解/意识到"这类措辞
+C1 no floor-free residual effect        ⛔ sits on the detection boundary, undecidable (claim neither presence nor absence)
+C2 goal axis                            ⛔ no claim made (48.7% over the v3 parameter set)
+C3 novel generalization                 ⛔ may not be written as "failure"; only as "the v3 architecture cannot provide
+                                        a clean novel-contingency test interface"
+C4 positive feedback cuts plasticity    ⛔ the whole line is deleted (falsified by ablation)
+C5 intended purpose                     ⛔ may not claim to simulate real personality formation
+C6 architectural scope                  ⛔ wording like "the agent learns / understands / realizes" is forbidden
 ```
 
-另附**禁止措辞速查表**与**数字来源核对表**
-（标明哪些数字来自 v2，不得当作 v3 的证据）。
+Also attached: a **forbidden-wording quick reference** and a **number-provenance checklist**
+(marking which numbers come from v2 and must not be used as v3 evidence).
 
 ---
 
-## ★ 阶段线：v3 persistence paper package 收尾完成 ★
+## ★ Phase line: the v3 persistence paper package is complete ★
 
-实验阶段到此结束。产出清单：
+The experimental phase ends here. Deliverables:
 
 ```
-v2_frozen/ v3_frozen/            两版冻结 + SHA256
-FINAL_PREREGISTRATION.md         预注册（含修订 A）
-final_confirm_result.txt         预注册最终确认（seeds 50000–51499，跑过一次）
-sweep_results_v3.csv             v3 参数稳健性
-NOVEL_SITUATION_DESIGN.md        026 设计（已封存，阴性结果）
-ODD.md                           模型描述 / 静态审计
-CLAIMS.md                        claim ↔ 证据对照 + 禁止措辞
-REPRODUCE.md  pytest.ini  tests/ 复现入口
-模拟实验记录.md                    全部过程（含所有被推翻的结论，原文保留）
+v2_frozen/ v3_frozen/            both frozen versions + SHA256
+FINAL_PREREGISTRATION.md         preregistration (including amendment A)
+final_confirm_result.txt         preregistered final confirmation (seeds 50000–51499, run once)
+sweep_results_v3.csv             v3 parameter robustness
+NOVEL_SITUATION_DESIGN.md        026 design (sealed, negative result)
+ODD.md                           model description / static audit
+CLAIMS.md                        claim ↔ evidence mapping + forbidden wording
+REPRODUCE.md  pytest.ini  tests/ reproduction entry point
+docs/SIMULATION_LOG.md           the entire process (every overturned conclusion kept verbatim)
 ```
 
-规则累计 **1–77**，其中 **43、48、50、71 的一部分、规则 33** 是被后续实验
-**撤回或修正**的 —— 原文一律保留并注明何时被何证据推翻。
+Rules accumulated: **1–77**, of which **43, 48, 50, part of 71, and rule 33** were
+**withdrawn or revised** by later experiments — the originals are all kept, annotated with when and by what evidence they were overturned.
 
 ---
 
-# ★★ v3 线锁死 ★★（2026-08-17）
+# ★★ The v3 line is locked ★★ (2026-08-17)
 
-**不再挖 v3 persistence，不再补第 78、79 条机制实验。**
+**No further digging into v3 persistence, and no 78th or 79th mechanism experiment.**
 
-唯一的重开条件：**发现会改变已有结论的真 bug**。
-（"想到一个新的机制解释""想再验一个漂亮的假说"都不算。）
+The only condition for reopening: **finding a real bug that would change an existing conclusion**.
+("I thought of a new mechanistic explanation" and "I would like to test one more pretty hypothesis" do not count.)
 
-## 分工写死
+## The division of labour is fixed
 
 ```
-v3   回答：过去能不能【留下】。            —— 已完成，见 CLAIMS.md 的 A/B 两类
-v4   回答：留下来的东西能不能【用于未来】。 —— 实验 027
+v3   answers: can the past be left behind at all?      — done, see classes A/B in CLAIMS.md
+v4   answers: can what was left be used for the future? — experiment 027
 ```
 
 ## 实验 027 —— Novel-Task Transfer（下一阶段，未开始）
