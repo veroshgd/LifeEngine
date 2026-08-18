@@ -2290,254 +2290,254 @@ T =        30      40      45      50      55      60      65      70
 net/tick  −0.009  +0.003  +0.021  +0.048  +0.082  +0.111  +0.133  +0.144
 ```
 
-**零点在 T≈38，不在 55–65。** 现状（T=30）的 −0.009/tick = −0.22/天，
-和 3f 实测的 −0.12 ~ −0.15/天同量级 ✓ —— 规则 46「没有稳态」由此有了闭式来源。
+**The zero is at T≈38, not between 55 and 65.** The status quo (T=30) gives −0.009/tick = −0.22/day,
+the same order as the −0.12 to −0.15/day measured in §3f ✓ — rule 46's "no steady state" now has a closed-form source.
 
-按这条曲线，抬到 45 就该全好了。但 3g 实测 45 档还是 46.3%。**矛盾在哪？**
+By this curve, raising it to 45 should fix everything. But §3g measured 46.3% at the 45 variant. **Where is the contradiction?**
 
-### 2. ★ 负反馈：饥饿分布会自己上移，吃掉六成修复 ★
+### 2. ★ Negative feedback: the hunger distribution shifts up by itself and eats 60% of the fix ★
 
-因为分布不是外生的。逐档实测（完整架构）：
+Because the distribution is not exogenous. Measured per variant (full architecture):
 
 ```
-              死亡%    饿的中位   P(饿>70)   p5–p95 宽   用【自己】的分布算 T 处净收支
-现状          16.7%     53.8       2.8%       32.5      −0.009  ← 负，无稳态
-① 阈值 55      1.7%     56.2       9.0%       35.0      +0.030
-① 阈值 60      1.7%     58.8      11.6%       32.5      +0.043
-① 阈值 65      1.7%     58.8      14.2%       35.0      +0.056
-③ 住所 +0.10   5.0%     56.2       7.4%       32.5      （同上表口径）
+              dead%   median hunger   P(hunger>70)   p5–p95 width   net balance at T using its **own** distribution
+status quo    16.7%      53.8            2.8%           32.5         −0.009  ← negative, no steady state
+① threshold 55  1.7%      56.2            9.0%           35.0         +0.030
+① threshold 60  1.7%      58.8           11.6%           32.5         +0.043
+① threshold 65  1.7%      58.8           14.2%           35.0         +0.056
+③ shelter +0.10 5.0%      56.2            7.4%           32.5         (same convention as above)
 ```
 
-体质一好，`sim.py:733` 的 `urgency = max((饿−60)/40, (85−体质)/85, 0)` 就松了 ——
-球少觅食，**饥饿中位上移 5 分、P(饿>70) 翻五倍**，把抬阈值的收益吃掉约 60%
-（T=65 处：外推 +0.133，实际只剩 +0.056）。
+As soon as condition improves, the `urgency = max((hunger−60)/40, (85−condition)/85, 0)` at `sim.py:733` slackens —
+the ball forages less, **median hunger rises 5 points and P(hunger>70) quintuples**, eating about 60% of the gain from raising the threshold
+(at T=65: extrapolated +0.133, only +0.056 left in reality).
 
-> ### ★ 规则 49（上）：体质修复会被行为负反馈部分抵消 ★
-> `urgency` 同时读体质和饥饿，所以"让球更健康"会直接"让球更懈怠"。
-> 任何体质层的改动都要按**自己那档的饥饿分布**重算收支，
-> 拿现状的分布外推会高估两倍以上。
+> ### ★ Rule 49 (part one): a condition fix is partly cancelled by behavioural negative feedback ★
+> `urgency` reads both condition and hunger, so "making the ball healthier" directly "makes the ball lazier".
+> Any change at the condition layer must have its balance recomputed **on that variant's own hunger distribution**;
+> extrapolating from the status quo distribution overestimates it by more than a factor of two.
 >
-> 好消息：负反馈 = 自稳。3g 担心的"任何动 HUNGER_RATE / FOOD_NUTRITION
-> 的参数都会让死亡率爆掉"**不成立** —— 系统对扰动有回复力。
+> The good news: negative feedback = self-stabilisation. §3g's worry that "any change to HUNGER_RATE / FOOD_NUTRITION
+> will make mortality explode" **does not hold** — the system has restoring force against perturbation.
 
-顺带：p5–p95 宽度稳定在 30–35 分，和 `FOOD_NUTRITION = 20` 同量级 ——
-饥饿确实是一条窄锯齿，两个阶跃阈值（70 和 T）都卡在这条锯齿里。
-结构脆弱性是真的，但被负反馈软化了。
+Incidentally: the p5–p95 width stays at 30–35 points, the same order as `FOOD_NUTRITION = 20` —
+hunger really is a narrow sawtooth, and both step thresholds (70 and T) sit inside it.
+The structural fragility is real, but softened by the negative feedback.
 
-### 3. ★ 规则 49（下）：怠惰谷 —— 中间档更致命，而且只打丰富世界 ★
+### 3. ★ Rule 49 (part two): the sloth valley — the middle variants are deadlier, and only for the rich world ★
 
-3g 的配对死亡率把两个世界糊成了一个数（`fix_compare.py:52` 的 `live`
-要求两支都活）。拆开（`death_split.py`，N=300，120 天）：
-
-```
-                  ── 完整架构 ──          ── 地板全关 ──
-                丰富    贫瘠   推算配对   丰富    贫瘠   推算配对   3g实测
-现状            0.7%   18.7%   19.2%    24.3%   23.3%   42.0%    40.7%
-① 阈值 55       7.7%    6.3%   13.5%    36.3%   14.0%   45.2%    43.3%   ← 丰富↑12pp
-① 阈值 60       3.7%    5.3%    8.8%    18.0%    8.0%   24.6%      —
-① 阈值 65       0.7%    4.3%    5.0%     2.0%    5.3%    7.2%     7.3%
-③ 住所 +0.10    0.0%    6.7%    6.7%    25.3%   16.0%   37.3%    34.0%
-```
-
-先看对账：「推算配对」= `1−(1−p丰)(1−p贫)`，与 3g 实测**每一格差 ≤3.3pp**。
-两支近似独立，且这条独立的新流水线复现了 cond_compare —— 交叉验证通过。
-
-再看真相。**贫瘠世界那一支是单调改善的**（23.3 → 14.0 → 8.0 → 5.3）。
-爆掉的是**丰富世界**：`24.3% → 36.3%（T=55） → 18.0%（T=60） → 2.0%（T=65）`。
-
-> ### ★ 规则 49：抬恢复阈值要**越过一个谷**，谷只存在于富养的球身上 ★
-> 机制接规则 49（上）：抬阈值 → 体质↑ → urgency 松 → 怠惰 → 饥饿上移。
-> **贫瘠世界养出来的球勤劳地板高（规则 47 的 hardship 棘轮），扛得住怠惰；
-> 丰富世界的球没有这个刹车，一松就滑进 P(饿>70)。**
-> 中间档（55/60）恢复的收益还没盖过怠惰的损失 → 净变差。
-> 到 65 才越过谷。
->
-> 所以 3g 看到的"55→65 的悬崖"是**怠惰谷的远侧坡**，不是均衡饥饿度的阈值。
-> **两条曲线（富/贫）的差被误读成了一条曲线的阶跃。**
->
-> 推论：**①阈值 65 的余量方向和 3g 想的相反** —— 危险的是往下调（掉回谷里），
-> 往上调是安全的。65 离谷底（55）有 10 分，可以采用。
-
-### 4. hardship 棘轮没被掐掉（这是 3g 判据表测不到的那项）
-
-抬恢复阈值 = 体质常驻高位 = `sim.py:936` 的 `deficit=(100−体质)/100` 趋零
-= `sim.py:941` 的 `trait_floor ← hardship_norm × 22` 可能失效。
-而 `sim.py:890` 体质 ≥99.5 时 hardship 还会**遗忘**。
-**这条棘轮正是 021 第 3 节和 022 在研究的东西，两条判据都看不见它**
-（无地板那一列本来就把地板关了）。实测（完整架构，只算幸存者）：
+§3g's paired mortality smeared the two worlds into one number (`live` at `fix_compare.py:52`
+requires both arms to survive). Split apart (`death_split.py`, N=300, 120 days):
 
 ```
-              末体质  hardship  hnorm   地板−身份  fears_hunger 触发率
-现状           34.9    48.5     0.997    78.18        100%
-① 阈值 55      55.1    32.9     0.931    77.15         93%
-① 阈值 60      64.1    27.5     0.866    76.40         88%
-① 阈值 65      68.6    23.5     0.827    75.68         86%
-③ 住所 +0.10   61.9    32.2     0.843    76.15         88%
+                  ── full architecture ──      ── all floors off ──
+                rich   barren  predicted pair  rich   barren  predicted pair  §3g measured
+status quo      0.7%   18.7%      19.2%      24.3%   23.3%      42.0%       40.7%
+① threshold 55  7.7%    6.3%      13.5%      36.3%   14.0%      45.2%       43.3%   ← rich ↑12pp
+① threshold 60  3.7%    5.3%       8.8%      18.0%    8.0%      24.6%         —
+① threshold 65  0.7%    4.3%       5.0%       2.0%    5.3%       7.2%        7.3%
+③ shelter +0.10 0.0%    6.7%       6.7%      25.3%   16.0%      37.3%       34.0%
 ```
 
-**基本证伪了，①65 可以采用**：hnorm 只从 1.00 掉到 0.83，
-棘轮强度 21.9 → 18.2 分，没被掐掉。但挖出两件该记的事：
+First the reconciliation: "predicted pair" = `1−(1−p_rich)(1−p_barren)`, differing from §3g's measurement by **≤3.3pp in every cell**.
+The two arms are approximately independent, and this independent new pipeline reproduces cond_compare — cross-validation passes.
 
-> ### ★ 规则 50：hardship 棘轮是二值开关，不是渐变信号 ★
-> `hardship_norm = 1 − exp(−hardship/1.5)`，`HARDSHIP_SCALE = 1.5` 意味着
-> 累积约 5 天赤字就顶到 1.0 —— 而实测 hardship 是 **23–48**。
-> **所有球、所有档位都饱和在天花板上。**
+Now the truth. **The barren-world arm improves monotonically** (23.3 → 14.0 → 8.0 → 5.3).
+What explodes is the **rich world**: `24.3% → 36.3% (T=55) → 18.0% (T=60) → 2.0% (T=65)`.
+
+> ### ★ Rule 49: raising the recovery threshold has to **cross a valley**, and the valley exists only for well-fed balls ★
+> The mechanism follows rule 49 (part one): raise the threshold → condition↑ → urgency slackens → sloth → hunger shifts up.
+> **Balls raised in the barren world have a high industry floor (the hardship ratchet of rule 47) and can withstand sloth;
+> rich-world balls have no such brake, and one slackening slides them into P(hunger>70).**
+> At the middle variants (55/60) the recovery gain does not yet cover the sloth loss → a net worsening.
+> Only at 65 is the valley crossed.
 >
-> 那么地板携带的个体差异就**不可能**来自"苦吃了多少"，只能来自
-> `_hardship_anchor`（`sim.py:938`）——**第一次挨饿那一刻的性格快照被冻住**。
-> 这正是第 4 节那句"持久性只能来自作用于性状变量本身的棘轮"的机制层版本，
-> 可以直接写进论文：**地板不是记忆，是一次不可逆的采样。**
+> So the "cliff between 55 and 65" seen in §3g is **the far slope of the sloth valley**, not a threshold in the equilibrium hunger level.
+> **The difference between two curves (rich/barren) was misread as a step in one curve.**
 >
-> ⚠ 要盯的量因此不是 hnorm 均值，而是 **fears_hunger 触发率：100% → 86%**。
-> ①65 让 14% 的球**从不进入棘轮**，这会改变 021 第 3 节消融的分母构成。
+> Corollary: **the margin direction of ①threshold 65 is the opposite of what §3g assumed** — the danger is lowering it (falling back into the valley),
+> and raising it is safe. 65 is 10 points from the valley floor (55) and can be adopted.
 
-> **⚠ 上面这句"14% 从不进入棘轮"是错的，023 第 7 节改正。**
-> `fears_hunger` 和 `_hardship_anchor` 是**两个不同的事件**：
-> anchor 在 `sim.py:965` 首次 `condition < 100` 时就写入（近乎全员），
-> `fears_hunger` 要 `hardship_norm ≥ 0.5`（`HARDSHIP_STORY_AT`）才记，是**叙事路标**。
-> 实测 anchor 存在率 v2/v3 **逐位相同**（96.5% / 98.2% / 97.5%）——
-> 掉的只有路标。**棘轮本身没有少人进，改变的是采样时刻。**
+### 4. The hardship ratchet was not cut off (the item the §3g criteria table cannot see)
 
-### 5. ★ 规则 48 降级：一半是选择效应 ★（`rule48_test.py`）
-
-3g 的比值每档算在**各自的幸存子集**上，死亡率一降进入统计的就是另一批球 ——
-而规则 48 想说的恰恰是"筛掉谁会改变比值"，两者完全缠在一起。三个改进：
-① 共同种子集（全档 × 两世界都活）；② 逐种子配对 δ + 符号置换（3g 比的是
-N_BOOT=400 的 CI 重不重叠，本来就判不出显著）；③ 各档共用同一组对手索引。
+Raising the recovery threshold = condition permanently high = `deficit=(100−condition)/100` at `sim.py:936` tends to zero
+= `trait_floor ← hardship_norm × 22` at `sim.py:941` may stop working.
+And at `sim.py:890`, hardship is **forgotten** once condition ≥99.5.
+**That ratchet is exactly what 021 §3 and 022 are studying, and neither criterion can see it**
+(the no-floor column already has the floors switched off). Measured (full architecture, survivors only):
 
 ```
-              ── 完整架构 (n共同=741/800) ──        ── 地板全关 (n共同=747/800) ──
-            自己集比值  共同集比值  Δvs现状   p      自己集比值  共同集比值  Δvs现状   p
-现状          1.098      1.090      —       —        1.082      1.072      —       —
-① 阈值 55     1.109      1.092   +0.0027  0.196 n.s.  1.101      1.085   +0.0048  0.003 **
-① 阈值 60     1.110      1.100   +0.0053  0.027 *     1.114      1.091   +0.0068  0.001 ***
-① 阈值 65     1.134      1.109   +0.0086  0.002 **    1.114      1.090   +0.0068  0.002 **
-③ 住所 +0.10  1.117      1.108   +0.0055  0.000 ***   1.087      1.073   +0.0005  0.662 n.s.
+              final cond  hardship  hnorm   floor−identity  fears_hunger trigger rate
+status quo       34.9      48.5     0.997      78.18            100%
+① threshold 55   55.1      32.9     0.931      77.15             93%
+① threshold 60   64.1      27.5     0.866      76.40             88%
+① threshold 65   68.6      23.5     0.827      75.68             86%
+③ shelter +0.10  61.9      32.2     0.843      76.15             88%
 ```
 
-> ### ★ 规则 48（修正）：比值确实真升了，但一半是选择效应，且效应很小 ★
-> ①65 vs 现状的差：自己集 +0.036 → 共同集 **+0.019**。
-> **3g 那个"意外"里约 47% 是选择效应**（无地板列 44%，一致）。
-> 剩下的一半是真的：p=0.002，但 **dz 只有 0.11–0.14** —— 极小效应，
-> 靠 N=741 的配对才测得出来。
+**Essentially falsified, and ①65 can be adopted**: hnorm only falls from 1.00 to 0.83,
+and the ratchet strength goes 21.9 → 18.2 points without being cut off. But two things worth recording turned up:
+
+> ### ★ Rule 50: the hardship ratchet is a binary switch, not a graded signal ★
+> `hardship_norm = 1 − exp(−hardship/1.5)`, and `HARDSHIP_SCALE = 1.5` means
+> about 5 days of accumulated deficit pins it at 1.0 — while the measured hardship is **23–48**.
+> **Every ball, in every variant, is saturated at the ceiling.**
 >
-> 原假说"生存压力压缩行为方差"方向对，**但不足以支撑 3g 那句"含义不小"**。
-> 说"此前 60 天窗口的比值被幸存者筛选压低"是对的，
-> 说"真实分化幅度显露出来"则夸大了一倍。
+> So the individual difference the floor carries **cannot** come from "how much suffering there was"; it can only come from
+> `_hardship_anchor` (`sim.py:938`) — **the personality snapshot at the moment of first going hungry, frozen in place**.
+> This is the mechanistic version of §4's sentence "persistence can only come from a ratchet acting on the trait variables themselves",
+> and can go straight into the paper: **the floor is not a memory, it is one irreversible sample.**
 >
-> 旁证（不是本脚本测的）：规则 34 说比值估计量 N 小则虚高，
-> 现状的有效 N 最小、比值却最低 —— **偏差方向解释不了这个现象**，
-> 所以剩下的那一半不是 Jensen 偏差伪装的。
+> ⚠ The quantity to watch is therefore not the mean hnorm but the **fears_hunger trigger rate: 100% → 86%**.
+> ①65 means 14% of balls **never enter the ratchet**, which changes the composition of the denominator in the 021 §3 ablation.
 
-**顺带一个判别信息**：③住所 在完整架构上最强（p=0.0001），
-在地板全关上**完全归零**（p=0.66）。说明 ③ 的比值增益**依赖地板机制**，
-而 ①65 两边都显著、幅度一致（+0.0086 / +0.0068）——
-**①65 的增益不走地板通路**。对 021 第 3 节要重跑的东西来说，
-①65 是更干净的选择。
+> **⚠ The sentence above about "14% never enter the ratchet" is wrong, and is corrected in 023 §7.**
+> `fears_hunger` and `_hardship_anchor` are **two different events**:
+> the anchor is written at `sim.py:965` the first time `condition < 100` (nearly everyone), while
+> `fears_hunger` requires `hardship_norm ≥ 0.5` (`HARDSHIP_STORY_AT`) and is a **narrative landmark**.
+> The measured anchor-presence rate is **bit-identical** in v2/v3 (96.5% / 98.2% / 97.5%) —
+> only the landmark falls. **No fewer balls enter the ratchet itself; what changed is the moment of sampling.**
 
-### 6. 结论：采用 ① 阈值 65，标 v3
+### 5. ★ Rule 48 downgraded: half of it is a selection effect ★ (`rule48_test.py`)
 
-四条判据现在都过了，且都有机制解释而不只是数字：
+§3g computed each variant's ratio on **its own surviving subset**, so as mortality falls a different batch of balls enters the statistic —
+and what rule 48 wants to say is precisely that "who gets filtered out changes the ratio"; the two are entangled. Three improvements:
+① a common seed set (alive in all variants × both worlds); ② per-seed paired δ + sign permutation (§3g compared whether
+N_BOOT=400 CIs overlapped, which could never decide significance); ③ every variant shares one set of opponent indices.
 
-| 判据 | 结果 |
+```
+              ── full architecture (n common=741/800) ──   ── all floors off (n common=747/800) ──
+            own-set ratio  common-set ratio  Δvs status  p      own-set ratio  common-set ratio  Δvs status  p
+status quo      1.098          1.090          —       —            1.082          1.072          —       —
+① threshold 55  1.109          1.092       +0.0027  0.196 n.s.      1.101          1.085       +0.0048  0.003 **
+① threshold 60  1.110          1.100       +0.0053  0.027 *         1.114          1.091       +0.0068  0.001 ***
+① threshold 65  1.134          1.109       +0.0086  0.002 **        1.114          1.090       +0.0068  0.002 **
+③ shelter +0.10 1.117          1.108       +0.0055  0.000 ***       1.087          1.073       +0.0005  0.662 n.s.
+```
+
+> ### ★ Rule 48 (revised): the ratio really did rise, but half of it is a selection effect and the effect is very small ★
+> The ①65 vs status quo difference: own set +0.036 → common set **+0.019**.
+> **About 47% of §3g's "surprise" is a selection effect** (44% in the no-floor column, consistent).
+> The other half is real: p=0.002, but **dz is only 0.11–0.14** — a tiny effect,
+> detectable only thanks to N=741 pairs.
+>
+> The original hypothesis "survival pressure compresses behavioural variance" points the right way, **but does not support §3g's "the implication is considerable"**.
+> Saying "the ratios in earlier 60-day windows were suppressed by survivor filtering" is right;
+> saying "the true magnitude of differentiation became visible" overstates it by a factor of two.
+>
+> Circumstantial evidence (not tested by this script): rule 34 says the ratio estimator is inflated at small N,
+> and the status quo has the smallest effective N yet the lowest ratio — **the direction of that bias cannot explain this**,
+> so the remaining half is not Jensen bias in disguise.
+
+**One incidental discriminating fact**: ③shelter is strongest under the full architecture (p=0.0001)
+and **falls to exactly zero** with all floors off (p=0.66). So ③'s ratio gain **depends on the floor mechanism**,
+while ①65 is significant on both sides with the same magnitude (+0.0086 / +0.0068) —
+**①65's gain does not run through the floor channel.** For the purposes of re-running 021 §3,
+①65 is the cleaner choice.
+
+### 6. Conclusion: adopt ① threshold 65 and label it v3
+
+All four criteria now pass, and each has a mechanistic explanation rather than being just a number:
+
+| Criterion | Result |
 |---|---|
-| 死亡率（配对，完整/无地板） | 5.0% / 7.2%，两列都 <15% ✅ |
-| 比值不塌 | 共同集上反而 +0.019，p=0.002 ✅ |
-| 参数余量 | 谷底在 55，65 在谷外；危险方向是**下调**不是上调 ✅ |
-| hardship 棘轮存活 | hnorm 1.00→0.83，触发率 100%→86% ⚠ 需在重跑时一并报告 |
+| mortality (paired, full/no floor) | 5.0% / 7.2%, both columns <15% ✅ |
+| the ratio does not collapse | on the common set it actually rises by +0.019, p=0.002 ✅ |
+| parameter margin | the valley floor is at 55 and 65 is outside it; the dangerous direction is **downward**, not upward ✅ |
+| the hardship ratchet survives | hnorm 1.00→0.83, trigger rate 100%→86% ⚠ must be reported alongside the re-run |
 
-"为什么是 65"现在有答案了：**不是扫出来的，是因为 55–60 落在怠惰谷里，
-65 是越过谷之后的第一个整十值。** 这句话审稿人能接受。
+"Why 65" now has an answer: **it was not swept for; 55–60 fall inside the sloth valley and
+65 is the first round ten past it.** A reviewer can accept that sentence.
 
-⚠ **重跑 021 第 3 节 / 022 时必须一并报告 fears_hunger 触发率** ——
-v2 是 100%，v3 是 86%，消融的分母变了。
+⚠ **When re-running 021 §3 / 022, the fears_hunger trigger rate must be reported alongside** —
+v2 gives 100% and v3 gives 86%, so the denominator of the ablation has changed.
 
-## 4. 对论文的影响
+## 4. Implications for the paper
 
-审稿人那句"你不是发现了不可逆性，你是把不可逆性写进去了"**仍未被回答**。
-诚实的结论（预注册第 4 节第三档预先写好的）：
+The reviewer's line "you did not discover irreversibility, you wrote irreversibility in" **is still unanswered**.
+The honest conclusion (pre-written as the third case of §4 of the preregistration):
 
-> 在本架构中，接到行为上的离散结构（flags、knowledge）不足以维持移植后的
-> 个体差异；持久性只能来自作用于性状变量本身的棘轮。
+> In this architecture, discrete structures wired into behaviour (flags, knowledge) are not sufficient to maintain
+> individual differences after a transplant; persistence can only come from a ratchet acting on the trait variables themselves.
 
-**主线应改为：刻画产生持久个体差异所需的最小机制，并指出离散记忆结构不在其中。**
+**The main line should become: characterising the minimal mechanism needed to produce persistent individual differences, and pointing out that discrete memory structures are not part of it.**
 
-> ### ★ 预注册这次真的起作用了 ★
-> 如果没有事先写死 P2 的阈值，看到 P1 的 1.058 / p=0.0001 几乎必然会宣布成功，
-> 然后被审稿人用同一个删除测试打回来。**这段经历本身值得写进论文的 Methods。**
+> ### ★ The preregistration really did its job this time ★
+> Without P2's threshold fixed in advance, seeing P1's 1.058 / p=0.0001 would almost certainly have led to declaring success,
+> followed by a reviewer sending it back using the very same deletion test. **This experience itself belongs in the paper's Methods.**
 
 ---
 
-## 复现方式
+## How to reproduce
 
 ```powershell
 cd C:\Users\yinan\Desktop\ai-sandbox
-python scenarios.py            # 种群报告
-python environment.py          # 环境实验（当下差异）
-python transplant.py           # 移植：差异是不是性格
-python leveling.py             # ★状态拉平：曲线是发现还是伪影★
-python deletion.py             # ★删除阶梯：差异存在哪一层★
-python persistence_ablation.py # ★持久性是不是写死的★
-python persistence.py          # 单因素持久性 + 机制检验 + 三方向还原
-python behavior.py             # 行为层 + 目标层主载体
-python paired.py               # 配对实验：数值层
-python ablation.py             # 消融：机制贡献 + 零假设自检
-python diagnose.py             # 关键经历触发率
-python significance.py         # 置换检验（分组比较）
-python param_sweep.py          # ★参数随机化集合：效应是不是手调出来的★
-python sweep_report.py         # 读 sweep_results.csv，出论文能引的那几句
-python significance_main.py    # ★主结论的 p 值（逐种子 δ + 符号置换）★
-python test_022_regression.py  # 022 回归：KNOWLEDGE_* 归零须复现 021
-python p1_test.py              # 022 P1：接线后地板全关还能不能 > 1
-python p2_test.py              # 022 P2：非嵌套删除，是不是 knowledge 撑的
-python relaxation_test.py      # 弛豫：剩下的 1.04 是持久还是没漂完
-python mortality_diagnose.py   # 死因诊断（⚠ 结论被规则 45 推翻，保留作反例）
-python fix_compare.py          # 行为层三改法对比（⚠ 八档全部失败）
-python cond_compare.py         # ★体质收支三修法 × 死亡率 + 比值★
-python cliff_probe.py          # ★悬崖探针：饥饿分布 + 净收支预测 + hardship 棘轮★
-python death_split.py          # ★死亡率拆回单个世界 → 怠惰谷（规则 49）★
-python rule48_test.py          # ★规则 48 判别：共同种子集 + 逐种子配对★
-python v3_revalidate.py       # ★v3 机制重验：021§3 / 022 P1 / P2 同种子对照 v2★
-python anchor_probe.py --verify # ★A：anchor 日 v2/v3 逐种子核对（证伪 023§7.5）★
-python anchor_probe.py         # ★B：anchor 内容干预 + 阴性对照（规则 54）★
-python sweep.py                # ⚠ 已废弃
-python food_sweep.py           # ⚠ 已废弃
+python scenarios.py            # population report
+python environment.py          # environment experiment (the current difference)
+python transplant.py           # transplant: is the difference a personality
+python leveling.py             # ★state levelling: is the curve a discovery or an artefact★
+python deletion.py             # ★the deletion ladder: which layer the difference lives in★
+python persistence_ablation.py # ★is persistence hardcoded★
+python persistence.py          # single-factor persistence + mechanism check + three-direction restoration
+python behavior.py             # behaviour layer + goal layer as the main carrier
+python paired.py               # the paired experiment: numeric layer
+python ablation.py             # ablation: mechanism contributions + the null self-check
+python diagnose.py             # landmark trigger rates
+python significance.py         # permutation test (group comparison)
+python param_sweep.py          # ★the parameter-randomisation set: is the effect hand-tuned★
+python sweep_report.py         # read sweep_results.csv and produce the sentences the paper can quote
+python significance_main.py    # ★the p value of the main result (per-seed δ + sign permutation)★
+python test_022_regression.py  # 022 regression: zeroing KNOWLEDGE_* must reproduce 021
+python p1_test.py              # 022 P1: can the no-floor variant still exceed 1 after wiring
+python p2_test.py              # 022 P2: non-nested deletion; is knowledge what holds it up
+python relaxation_test.py      # relaxation: is the remaining 1.04 persistence or unfinished drift
+python mortality_diagnose.py   # cause-of-death diagnosis (⚠ its conclusion was overturned by rule 45; kept as a counterexample)
+python fix_compare.py          # comparison of the three behaviour-layer fixes (⚠ all eight variants failed)
+python cond_compare.py         # ★three condition-balance fixes × mortality + ratio★
+python cliff_probe.py          # ★cliff probe: hunger distribution + net-balance prediction + the hardship ratchet★
+python death_split.py          # ★split mortality back into single worlds → the sloth valley (rule 49)★
+python rule48_test.py          # ★rule 48 discrimination: common seed set + per-seed pairing★
+python v3_revalidate.py       # ★v3 mechanistic revalidation: 021§3 / 022 P1 / P2 same-seed against v2★
+python anchor_probe.py --verify # ★A: anchor day checked seed by seed for v2/v3 (falsifying 023§7.5)★
+python anchor_probe.py         # ★B: anchor content intervention + negative control (rule 54)★
+python sweep.py                # ⚠ deprecated
+python food_sweep.py           # ⚠ deprecated
 ```
 
 ---
 
-# 实验 023 —— 模型版本化：v2 冻结，v3 分叉
+# Experiment 023 — versioning the model: v2 frozen, v3 forked
 
-> **分界线。** 今天这一步不是"又一次调参"，而是模型从
-> **exploratory architecture** 进入 **论文候选 architecture**。
-> 011–022 全部在 v2 下完成，作为开发历史保留；v3 从这里分叉出去。
+> **A dividing line.** Today's step is not "another round of tuning" but the model moving from an
+> **exploratory architecture** into a **paper-candidate architecture**.
+> 011–022 were all completed under v2 and are kept as development history; v3 forks off from here.
 
 > Experiments 011–022 were conducted under model v2 and are retained as
 > development history rather than overwritten by subsequent model correction.
 
-## 1. v2 冻结
+## 1. v2 frozen
 
-`ai-sandbox/v2_frozen/`（2026-08-15）：改动之前的**完整**源码 + 原始结果
-（30 个文件 + `SHA256SUMS.txt` + `README.md`）。自包含，
-`cd v2_frozen && python <脚本>.py` 可以直接复现任何 011–022 的历史数字。
+`ai-sandbox/v2_frozen/` (2026-08-15): the **complete** source and raw results as they stood before the change
+(30 files + `SHA256SUMS.txt` + `README.md`). Self-contained, so
+`cd v2_frozen && python <script>.py` reproduces any historical number from 011–022 directly.
 
-⚠ **2306 行以前的旧数字一律保留**，包括已被推翻的（规则 43 被规则 45 推翻、
-3g 的"悬崖"被 3h 推翻）。保留原文 + 注明何时被何证据推翻 ——
-这个习惯在论文里就是 Methods 里那段"预注册起了作用"的同类材料。
+⚠ **Every old number before line 2306 is kept**, including those already overturned (rule 43 overturned by rule 45,
+§3g's "cliff" overturned by §3h). Keeping the original text and noting when and by what evidence it was overturned —
+that habit is exactly the same material as the "the preregistration did its job" paragraph in the paper's Methods.
 
-## 2. v3 的定义：只改了一个数
+## 2. The definition of v3: one number changed
 
 ```python
 # sim.py
 MODEL_VERSION = "v3"
-COND_RECOVER_AT = 65.0   # v3: condition-stability correction（v2 = 30.0）
+COND_RECOVER_AT = 65.0   # v3: condition-stability correction (v2 = 30.0)
 ```
 
-逐位对比确认：`v2_frozen/` 与主目录的**唯一可执行差异**就是这个常量
-（其余全是注释和新增的 `MODEL_VERSION`）。所以"v2 臂"= 在 v3 代码里设回 30.0，
-与跑 `v2_frozen/` 等价 —— 重验脚本就是这么做的。
+A bit-for-bit comparison confirms: the **only executable difference** between `v2_frozen/` and the main directory is this constant
+(everything else is comments and the new `MODEL_VERSION`). So the "v2 arm" = setting it back to 30.0 in the v3 code,
+which is equivalent to running `v2_frozen/` — and that is exactly what the revalidation script does.
 
-### 为什么是 65（这一句要能顶住审稿人）
+### Why 65 (this sentence has to withstand a reviewer)
 
 **不是"扫参数发现 65 死亡率最低"**，而是有完整的闭环机制解释（3h 节 / 规则 49）：
 
