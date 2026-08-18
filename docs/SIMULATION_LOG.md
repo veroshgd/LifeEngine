@@ -4990,7 +4990,7 @@ The v1 file is kept intact, with an assertion guaranteeing it still reproduces t
 ### ① ② EXPOSURE
 
 ```
-mechanism   eligible seedspotential trialsrealized trials(λ=1)
+mechanism       eligible      potential     realized(λ=1)
 v1 one-shot        45.0%           0.75              0.69
 v2 stateful        45.0%           7.18              6.96
 ```
@@ -5000,7 +5000,7 @@ and it has not been — and should not be — stretched to the body's 80/80.**
 ### ③ POTENCY (counterfactual memory swap on the λ=0 frozen decision state)
 
 ```
-mechanism      opps base p(sw) med          saturatedmean|Δp| (λ=1)
+mechanism      opps     base p(sw)             satur.      mean|Δp|
 v1 one-shot     300          0.208               0.0%        0.2205
 v2 stateful    2873          0.400               0.0%        0.2807
 ```
@@ -5027,7 +5027,7 @@ v2 stateful 4.00    -9.607   -9.710    -9.659   [-10.815, -8.549]       yes    +
 ### ⑤ DOWNSTREAM (a consequence only, not a criterion)
 
 ```
-mechanism   λ     traj chgΔlatency(V−S)   Δpost-rev acc
+mechanism   λ     traj chg    Δlat(V−S)   Δpost-rev acc
 v1 one-shot 1.00     17.8%       -0.125         +0.0029
 v2 stateful 0.25     30.8%       -0.875         +0.0115
 v2 stateful 1.00     43.2%       -4.058         +0.0535
@@ -5039,155 +5039,155 @@ the ceiling is eligibility, as constructed: seeds that never trigger retrieval a
 
 ### ★ Conclusion of the probe phase ★
 
-> **v1 的问题确实是"retrieved evidence 没有形成持续的 decision state"，
-> 而不是 λ 不够。**
-> 阈值、任务、种子一个没动，只把检索改成 stateful，
-> pooled M 就从 −0.10 走到 **−3.99 trial**（λ=1，38×）。
+> **v1's problem really was that "the retrieved evidence never formed a persistent decision state",
+> not that λ was too small.**
+> With not one threshold, task or seed changed, making retrieval stateful on its own
+> moved pooled M from −0.10 to **−3.99 trial** (λ=1, a factor of 38).
 
-### ⚠ 风险方向已经翻转（留给校准，今天不处理）
-
-```
-机制现在可能【太强】：λ=4 时 −9.7 trial，而 latency 量程只有 0–36。
-手工记忆处在【最大可能对比度】（m_S=−0.667，m_V=+0.667）。
-真实的 Stable/Volatile 历史产生的 |m| 会小得多。
-→ −4 trial 是【最大记忆对比度下的上界】，不是预期效应量。
-```
-
-⚠ 另一条要盯住的：**ACTIVE 窗口与 latency 终点在构造上重叠**
-（怀疑大致在切换成功时被解除）。做强结论之前需要一个
-**不由同一窗口定义的终点**。
-
-### 今天仍然没做
+### ⚠ The direction of risk has flipped (left to calibration, not handled today)
 
 ```
-⛔ (b) 放宽 SURPRISE_RUN_MIN     ⛔ (d) 多 change-point 任务
-⛔ λ 最终值   ⛔ final seeds   ⛔ preregistration   ⛔ SESOI
-⛔ Stable/Volatile outcome      ⛔ 把 memory 加进 sim.py
+the mechanism may now be TOO STRONG: −9.7 trial at λ=4, while the latency range is only 0–36.
+the hand-built memories sit at the MAXIMUM POSSIBLE CONTRAST (m_S=−0.667, m_V=+0.667).
+real Stable/Volatile histories will produce a much smaller |m|.
+→ −4 trial is an UPPER BOUND under maximum memory contrast, not an expected effect size.
 ```
 
-**这仍然不是 029 scientific success**：记忆是手工造的、λ 没冻结、
-Stable/Volatile 根本还没跑。
+⚠ Another thing to watch: **the ACTIVE window and the latency endpoint overlap by construction**
+(the suspicion is dispelled roughly when the switch succeeds). Before any strong conclusion we need
+**an endpoint that is not defined by that same window**.
 
-### 复现方式（新增）
+### Still not done today
 
-- `memory_transfer_probe2.py` —— v2 stateful retrieval + exposure×potency 分解
-  → `memory_transfer_probe2_result.txt`、`memory_transfer_probe2_console.txt`
-- v1 `memory_transfer_probe.py` **保留不动**，v2 里有断言保证它仍逐位复现
+```
+⛔ (b) relaxing SURPRISE_RUN_MIN   ⛔ (d) a multi-change-point task
+⛔ final λ value   ⛔ final seeds   ⛔ preregistration   ⛔ SESOI
+⛔ Stable/Volatile outcome         ⛔ adding memory into sim.py
+```
+
+**This is still not a scientific success for 029**: the memories are hand-built, λ is not frozen,
+and Stable/Volatile has not been run at all.
+
+### How to reproduce (new)
+
+- `memory_transfer_probe2.py` — v2 stateful retrieval + the exposure×potency decomposition
+  → `memory_transfer_probe2_result.txt`, `memory_transfer_probe2_console.txt`
+- v1 `memory_transfer_probe.py` is **left untouched**; v2 carries an assertion that it still reproduces bit for bit
 
 ---
 
-## ★ probe v3：resolution 时序 bug 修正 + endpoint 改组（2026-08-18）★
+## ★ probe v3: the resolution timing bug fixed + endpoints reorganised (2026-08-18) ★
 
-### 修的 bug
+### The bug that was fixed
 
-v2 的循环顺序是 `choice → reward → PE → 判 RESOLVED（用旧 Q）→ 更新 Q`。
-于是这一 trial 的新证据**刚好**让新策略 Q 超过 suspect 时，判定时它还没写进 Q。
+v2's loop order was `choice → reward → PE → test RESOLVED (on the old Q) → update Q`.
+So whenever this trial's new evidence was **exactly** what pushed the new strategy's Q past the suspect's, it had not yet been written into Q at test time.
 
 > **resolution test was originally evaluated before incorporating the current
 > outcome into Q, allowing retrieved evidence to persist for one extra decision
 > after the resolution criterion had effectively been met.**
 
-修正为 `… → PE → **更新 Q** → 用更新后的 Q 判 RESOLVED`。
-`calm_run` 那条保持不变（它本来就该用 pre-update 的 PE ——
-prediction error 按定义就是对**当时的**预期而言）。
+Corrected to `… → PE → **update Q** → test RESOLVED on the updated Q`.
+The `calm_run` condition is unchanged (it should use the pre-update PE anyway —
+a prediction error is by definition relative to the expectation held **at that moment**).
 
-**v1、v2 的文件与结果原封保留、不覆盖**，v3 里有断言硬保证它们仍逐位复现。
+**The v1 and v2 files and results are kept intact and not overwritten**; v3 carries assertions guaranteeing they still reproduce bit for bit.
 
-### 修正的影响：效果缩水，故事不变
+### Effect of the fix: the effect shrinks, the story does not change
 
 ```
-λ      pooled M pre-fix   pooled M fixed      Δ     方向一致
-0.25       -0.887            -0.786       +0.101      是
-1.00       -3.989            -3.621       +0.368      是
-4.00       -9.659            -9.486       +0.173      是
+λ      pooled M pre-fix   pooled M fixed      Δ     same sign
+0.25       -0.887            -0.786       +0.101      yes
+1.00       -3.989            -3.621       +0.368      yes
+4.00       -9.659            -9.486       +0.173      yes
 λ=1  potential exposure 7.18 → 6.77   realized 6.96 → 6.53
-λ=1  Δ反转后正确率 +0.0535 → +0.0499
+λ=1  Δpost-reversal accuracy +0.0535 → +0.0499
 ```
 
-> ### ★ 这个 bug 的方向会【放大】效果 ★
-> 修掉以后核心机制**仍然明显存在**，M_C / M_K 在所有 λ 上依旧同号。
-> 「bug 存在、方向利于自己、修掉后结论不变」——
-> 这是最好的一种情况，必须**主动记录**，不能等别人问。
+> ### ★ The direction of this bug **inflated** the effect ★
+> After the fix the core mechanism is **still clearly present**, and M_C / M_K still share a sign at every λ.
+> "A bug existed, its direction favoured us, and the conclusion survives the fix" —
+> that is the best possible case, and it has to be **reported unprompted**, not only when someone asks.
 
-### ★ endpoint 改组：latency 降级 ★
+### ★ Endpoint reorganisation: latency is demoted ★
 
-> ### ★ 规则 89：primary endpoint 不能与机制自身的活跃窗口构造性重叠 ★
-> `ACTIVE` 的退出条件 ≈「Q 证明新策略更好」，
-> restricted switch latency ≈「新策略开始稳定占优」——**两者天然绑在一起**。
-> latency 仍可报（它很好地描述"memory 让切换发生得多快"），
-> 但**不能**当 029 最强的科学 endpoint。
+> ### ★ Rule 89: the primary endpoint must not overlap by construction with the mechanism's own active window ★
+> The exit condition of `ACTIVE` ≈ "Q proves the new strategy is better",
+> and restricted switch latency ≈ "the new strategy starts to dominate stably" — **the two are inherently bound together**.
+> Latency can still be reported (it describes "how much faster memory makes the switch happen" very well),
+> but it **cannot** be 029's strongest scientific endpoint.
 
-**新 primary candidate：post-change cumulative errors**
-
-```
-C_i = Σ_{t=40..79} 1(choice_t ≠ correct_option_t)      规则变化后一共选错多少次
-ΔC  = C(V-memory) − C(S-memory)                        V 有帮助时 ΔC < 0
-```
-
-与 `post_correct` 恒等（`C = 40(1 − post_correct)`，已写成断言），但单位直接是 trial。
-好处：窗口由任务事先固定 / 不读 ACTIVE 或 RESOLVED / 无 never-switch censoring /
-所有 agent 都有 / 好定 SESOI / 测的就是实际 functional cost。
+**The new primary candidate: post-change cumulative errors**
 
 ```
-ΔC（primary 候选）    M_C      M_K   pooled        95% CI（描述性）    方向一致
-v3 fixed  λ=0.25   -0.415   -0.480   -0.448   [-0.616, -0.279]        是
-v3 fixed  λ=1.00   -1.995   -2.053   -2.024   [-2.394, -1.670]        是
-v3 fixed  λ=4.00   -6.340   -6.433   -6.386   [-7.176, -5.629]        是
-Δlatency（secondary） λ=1     -3.708   -3.535   -3.621                 是
+C_i = Σ_{t=40..79} 1(choice_t ≠ correct_option_t)      how many wrong choices after the rule change
+ΔC  = C(V-memory) − C(S-memory)                        ΔC < 0 when V helps
 ```
 
-**Primary 问"实际少犯多少错"，secondary（latency / exposure / potency /
-ACTIVE 段长 / realized retrieval）解释"为什么"。**
+It is identical to `post_correct` (`C = 40(1 − post_correct)`, written as an assertion) but its unit is directly trials.
+Advantages: the window is fixed in advance by the task / it never reads ACTIVE or RESOLVED / no never-switch censoring /
+every agent has one / a SESOI is easy to set / it measures the actual functional cost.
 
-⚠ 手工 MEM_S/MEM_V = ±0.667 是**最大对比度** → 以上全是**上界**，不是预期效应量。
+```
+ΔC (primary cand.)      M_C      M_K   pooled     95% CI (descr.)   same sign
+v3 fixed  λ=0.25     -0.415   -0.480   -0.448    [-0.616, -0.279]         yes
+v3 fixed  λ=1.00     -1.995   -2.053   -2.024    [-2.394, -1.670]         yes
+v3 fixed  λ=4.00     -6.340   -6.433   -6.386    [-7.176, -5.629]         yes
+Δlatency (2nd) λ=1   -3.708   -3.535   -3.621                             yes
+```
+
+**The primary asks "how many fewer mistakes are actually made"; the secondaries (latency / exposure / potency /
+ACTIVE segment length / realized retrieval) explain "why".**
+
+⚠ The hand-built MEM_S/MEM_V = ±0.667 is the **maximum contrast** → everything above is an **upper bound**, not an expected effect size.
 
 ---
 
-## ★ 手工 memory probe 阶段结束 → 进入 acquisition（`memory_acquisition_probe.py`）★
+## ★ The hand-built memory probe phase ends → on to acquisition (`memory_acquisition_probe.py`) ★
 
-**下一步不是校准 λ。** 在不知道真实 Stable/Volatile 到底产生 m = 0.03 还是 0.30 之前，
-争论 λ 取 .25 还是 1 没有科学意义。正式顺序：
-
-```
-修 resolution bug → 锁 independent endpoint → 造真实 Stable/Volatile histories
-→ 让 history 自己生成 Episode → 观察真实 memory evidence 分布 → 最后才校准 λ
-```
-
-### ★ 关键设计：两边都经历 surprise ★
-
-❌ 「Stable 从来没有 surprise，Volatile 有很多」→ memory 区别会退化成
-"一个有数据、一个没数据"，太容易。
-✅ **同一种表面现象，意味着不同的东西。**
+**The next step is not calibrating λ.** Until we know whether real Stable/Volatile histories produce m = 0.03 or 0.30,
+arguing about λ = .25 versus 1 has no scientific meaning. The official order:
 
 ```
-t <  20     原策略 p_high、另一个 p_low        ← 两条件相同
-t 20–27     ★两个都掉到 p_low★                ← 两条件【逐位相同】
-t ≥  28     Stable：原策略恢复 / Volatile：另一个变好
+fix the resolution bug → lock an independent endpoint → build real Stable/Volatile histories
+→ let the histories generate Episodes themselves → observe the real memory-evidence distribution → only then calibrate λ
 ```
 
-奖励抽样共用同一条随机流 → **两个条件在 t<28 上逐位相同**（已核 100 种子 ×3 问题）。
-**光看异常本身分不出身处哪个世界**，差异只在"这次异常意味着什么"。
+### ★ Key design: both sides experience surprise ★
+
+❌ "Stable never has a surprise while Volatile has many" → the memory difference would degenerate into
+"one has data and the other does not", which is far too easy.
+✅ **The same surface phenomenon means different things.**
+
+```
+t <  20     original strategy p_high, the other p_low   ← identical in both conditions
+t 20–27     ★both drop to p_low★                        ← bitwise identical in both conditions
+t ≥  28     Stable: the original recovers / Volatile: the other becomes the good one
+```
+
+Reward sampling shares a single random stream → **the two conditions are bitwise identical for t<28** (verified on 100 seeds × 3 problems).
+**The anomaly on its own does not reveal which world you are in**; the difference lies only in "what this anomaly means".
 
 ### matching diagnostics
 
 ```
-① 总 trial 数            150.00 = 150.00   ✓
-② 总 reward opportunity  105.60 = 105.60   ✓
+① total trials             150.00 = 150.00   ✓
+② total reward opps        105.60 = 105.60   ✓
 ④ first-good=index0      0.4783 = 0.4783   ✓
-③ episode 数              2.88 vs 3.67     ≠（行为产物，报告）
-  实际拿到的总 reward     82.99 vs 73.19    ≠（见下面 caveat）
+③ episode count             2.88 vs 3.67   ≠ (a behavioural product; reported)
+  total reward obtained    82.99 vs 73.19  ≠ (see the caveat below)
 ```
 
-### ★ 真实经历长出来的 m —— 方向完全正确 ★
+### ★ The m grown from real experience — the direction is exactly right ★
 
 ```
-             n(可定义 m)   mean m     SD      p10     中位数     p90    m>0
+             n(m defined)  mean m     SD      p10     median     p90    m>0
 Stable            94      -0.3783  0.3410  -0.7500  -0.4000  0.0000    8.5%
 Volatile          96      +0.5257  0.2240  +0.2647  +0.5000 +0.8333  100.0%
-分离度 = +0.9040   手工版 = +1.3333   →  真实经历达到手工版的 67.8%
+separation = +0.9040   hand-built = +1.3333   →  real experience reaches 67.8% of the hand-built version
 ```
 
-**Stable 为负（stay 划算）、Volatile 为正（switch 划算），与设计一致。**
+**Stable is negative (staying pays) and Volatile positive (switching pays), consistent with the design.**
 真实经历确实能自己长出我们手工 memory 所代表的那种 relational evidence。
 
 ### ⚠⚠ 但卡在 yield：只有 24% 的 agent 长出可定义的 m ⚠⚠
