@@ -4438,142 +4438,142 @@ functionally close to nothing.
 > **What the past leaves behind is very real;
 > the part of it that transfers through this particular interface into an unknown future is very faint.**
 
-这是一个**信息量很高的阴性/边界结果**，而不是失败：
-它把"个体差异能否影响未来"从一个模糊的大问题，
-变成了一个**有量级、有门槛、有接口依赖性**的具体结论。
+This is a **highly informative negative/boundary result**, not a failure:
+it turns "can individual differences affect the future" from a vague grand question
+into a concrete conclusion **with a magnitude, a threshold and an interface dependency**.
 
-## 027 之后
+## After 027
 
-按 closure rule，**看到结果后不再改任何关键设计**。027 到此结束。
-`60000–61499` 已烧，不可再用。
+Per the closure rule, **no key design element is changed once the results have been seen**. 027 ends here.
+`60000–61499` is burned and may not be reused.
 
 
-## ★ 027 结论定稿（措辞已收紧）★
+## ★ Final wording of the 027 conclusion (tightened) ★
 
-> **过去形成的差异可以在一个全新任务中留下统计上可检测的痕迹，
-> 但通过 `curiosity/caution → novelty style` 这一条【预先指定的接口】
-> 传过去以后，效应只有约 0.08 trial，远低于预设的 1-trial 功能门槛 ——
-> 因此 persistence 并没有自动转化成有实际量级的 novel-task adaptation。**
+> **Differences formed by the past can leave a statistically detectable trace in an entirely new task,
+> but once carried through the single pre-specified interface `curiosity/caution → novelty style`,
+> the effect is only about 0.08 trial, far below the pre-set 1-trial functional threshold —
+> so persistence did not automatically convert into novel-task adaptation of any practical size.**
 
-### ⚠ 更正："8/8" 必须写成 analysis-level Monte Carlo stability
+### ⚠ Correction: "8/8" must be described as analysis-level Monte Carlo stability
 
-我先前把 `判显著 8/8` 表述成"8/8 可检出"，容易被读成"重复了 8 次都复现"。
-**不对。** 那 8 次用的是**同一批 1428 对数据**，只更换**分析层**随机种子。
+I earlier phrased `judged significant 8/8` as "detectable 8/8", which reads too easily as "replicated 8 times out of 8".
+**Wrong.** Those 8 runs used **the same 1428 pairs of data** and varied only the **analysis-layer** random seed.
 
-- ✅ 它证明的是：`p = 0.0464` **不是 bootstrap / 置换的蒙特卡洛抖动造成的**
-- ⛔ 它**不能**证明 sampling replication 强
-- ⚠ 而且 **CI 上界只有 −0.0035** —— 统计证据本身就贴着零边界
+- ✅ What it does prove: `p = 0.0464` **is not an artefact of bootstrap / permutation Monte Carlo jitter**
+- ⛔ What it **cannot** prove: that sampling replication is strong
+- ⚠ And **the CI upper bound is only −0.0035** — the statistical evidence itself hugs the zero boundary
 
-论文里只能写 **analysis-level Monte Carlo stability**。
+In the paper this may only be written as **analysis-level Monte Carlo stability**.
 
-> ### ★ 规则 80：区分"分析层稳定"与"抽样层可复制" ★
-> 换分析随机种子重跑 = 只排除了 MC 噪声；
-> 换**数据**重跑 = 才是复制。两者在报告里绝不能混用同一个词。
+> ### ★ Rule 80: distinguish "analysis-layer stability" from "sampling-layer replicability" ★
+> Re-running with a different analysis seed = ruling out MC noise, nothing more;
+> re-running with different **data** = replication. The two must never share a word in a report.
 
-## ★ 全研究现在有两个不同量级的事实 ★
+## ★ The study now holds two facts of very different magnitude ★
 
 ```
-过去 → 持久行为差异              明显
-    v3 final persistence ratio = 1.142；500 组参数中 78.3% 同向
+past → persistent behavioural difference             large
+    v3 final persistence ratio = 1.142; 78.3% of 500 parameter sets point the same way
 
-持久差异 → 陌生任务中的功能迁移    极弱
-    027 reversal latency = −0.0798 trial，整个 CI 落在 ±1 等价区间内
-    初始学习（H1）甚至没有证据
+persistent difference → functional transfer in a strange task    very weak
+    027 reversal latency = −0.0798 trial; the whole CI lies inside the ±1 equivalence region
+    initial learning (H1) has no evidence at all
 ```
 
-> ### ★ 核心命题（这可能就是这套实验独有的贡献）★
+> ### ★ The core proposition (this may be the contribution unique to this set of experiments) ★
 > **Persistent individuality ≠ automatically functional generalization.**
 >
-> 一个 AI 可以真的被过去"养成不一样"，
-> **但这并不意味着这种不同会在它以后遇到的新问题上产生明显作用。**
+> An AI really can be "raised into something different" by its past,
+> **but that does not mean the difference will matter noticeably on the new problems it meets later.**
 
 ---
 
-# 实验 028 —— Interface-Width Test of Historical Transfer（设计中，未开始）
+# Experiment 028 — Interface-Width Test of Historical Transfer (in design, not started)
 
-**名字刻意不叫 generalization。** 因为 027 逼出了一个关键的概念区分：
-
-```
-有没有历史信息            ← v3 证明存在
-新任务能不能【访问】这些信息  ← 027 证明：经一条窄接口只读得到极微弱的功能影响
-```
-
-**028 专门把这两件事拆开。**
-
-## ★ 铁律：接口更宽 ≠ 给历史更大权重 ★
-
-⛔ **绝不能**做成 `027: β=0.05 → 0.08 trial` / `028: β=0.5 → 2 trial`，
-然后说"看，宽接口能迁移"。**那只是我们自己把历史信号放大了三倍/十倍。**
-
-✅ 正确做法：**固定历史→任务的总耦合强度，只改变任务能读取多少个
-彼此不同的历史维度。**
+**The name deliberately avoids "generalization".** 027 forced out a key conceptual distinction:
 
 ```
-窄接口   只读 curiosity / caution           （= 027）
-宽接口   读 curiosity / caution / industry   ← 但总 coupling budget 与窄接口相同
+is the historical information there at all    ← v3 proved it is
+can a new task access that information        ← 027 proved: through one narrow interface only a very faint functional effect is readable
 ```
 
-不是"一根管子 0.05 → 三根管子各 0.05（信号变三倍）"，
-而是**同一份预算 K 分布到更多历史维度上**。
+**028 exists specifically to prise these two apart.**
 
-## primary question（不是"宽接口显不显著"）
+## ★ Iron rule: a wider interface ≠ giving history a larger weight ★
 
-> **在总 coupling strength 相同的情况下，
-> broad-history interface 是否产生比 narrow interface 更大的
-> 跨历史 novel-task effect？**
+⛔ It must **never** be built as `027: β=0.05 → 0.08 trial` / `028: β=0.5 → 2 trial`
+and then written up as "look, a wide interface transfers". **That would just be us amplifying the historical signal three- or tenfold.**
 
-三种结局都有信息量：
+✅ The correct approach: **hold the total history→task coupling strength fixed and vary only how many
+mutually distinct historical dimensions the task can read.**
 
-| 结局 | 含义 |
+```
+narrow interface   reads only curiosity / caution        (= 027)
+wide interface     reads curiosity / caution / industry  ← but the total coupling budget equals the narrow one
+```
+
+Not "one pipe at 0.05 → three pipes at 0.05 each (three times the signal)",
+but **the same budget K spread over more historical dimensions**.
+
+## The primary question (not "is the wide interface significant")
+
+> **With the total coupling strength held equal,
+> does a broad-history interface produce a larger cross-history novel-task effect
+> than a narrow one?**
+
+All three outcomes are informative:
+
+| Outcome | Meaning |
 |---|---|
-| 宽接口明显更强 | 027 的 0.08 主要是因为**只给过去开了一根很窄的管子** |
-| 宽接口仍接近 0 | agent 内部虽保存了明显的过去差异，但这些差异**总体上缺乏功能迁移能力** |
-| 只有某一个维度有效 | **persistence 的不同组成部分具有不同的 transferability** |
+| The wide interface is clearly stronger | 027's 0.08 was mainly because **only a very narrow pipe had been opened for the past** |
+| The wide interface is still near 0 | the agent does hold marked differences from its past internally, but those differences **broadly lack functional transferability** |
+| Only one dimension works | **different components of persistence have different transferability** |
 
-## ⚠ 两个必须在开工前解决的设计问题（我提，待拍板）
+## ⚠ Two design questions that must be settled before work starts (raised by me, awaiting a decision)
 
-### ① "总 coupling budget 相同"要定义在什么单位上
+### ① In what unit is "equal total coupling budget" defined
 
-"相同"必须可操作。我认为唯一自洽的定义是
-**由接口产生的 `beta_i` 在群体中的标准差 SD(beta_i) 相同** ——
-因为**能造成组间差异的正是这个离散度**，不是维度个数、也不是权重之和。
+"Equal" has to be operational. The only self-consistent definition I can see is
+**that the population standard deviation SD(beta_i) of the `beta_i` produced by the interface is the same** —
+because **it is that dispersion which can create between-group differences**, not the number of dimensions nor the sum of the weights.
 
-### ② 等预算下加入一个"历史无关"的维度**必然稀释**
+### ② Under an equal budget, adding a "history-irrelevant" dimension **necessarily dilutes**
 
-若 `industry` 携带的历史信息很少，把预算分给它就是把信号换成噪声，
-于是 **"宽接口 ≤ 窄接口"可能是构造上注定的**，
-而不是"接口宽度不管用"的证据。
+If `industry` carries little historical information, giving it part of the budget trades signal for noise,
+so **"wide ≤ narrow" may be preordained by construction**
+rather than being evidence that "interface width does not matter".
 
-**这不是设计缺陷，但必须提前声明**：
-"宽接口更弱"是一个**可解释的结局（稀释）**，
-它恰好对应上表第三行 —— **不同历史成分的 transferability 不同**。
+**This is not a design flaw, but it has to be declared in advance**:
+"the wide interface is weaker" is an **interpretable outcome (dilution)**,
+and it corresponds exactly to the third row of the table above — **different historical components differ in transferability**.
 
-### ③ 因此建议 028 不止两个臂，而是**按维度分解**
+### ③ So the proposal is that 028 have more than two arms and instead **decompose by dimension**
 
 ```
-臂 A   只读 curiosity−caution        （= 027 的接口）
-臂 B   只读 industry
-臂 C   三维联合，总预算与 A/B 相同
+arm A   reads only curiosity−caution   (= the 027 interface)
+arm B   reads only industry
+arm C   all three combined, same total budget as A/B
 ```
 
-**每个臂的 SD(beta_i) 都对齐到同一个 K。**
-这样才能直接回答"哪一个历史成分可迁移"，而不只是"宽的好还是窄的好" ——
-也正好覆盖用户列的第三种结局。
+**Every arm's SD(beta_i) is aligned to the same K.**
+Only that answers "which historical component transfers" directly, rather than merely "is wide better than narrow" —
+and it covers precisely the third outcome the user listed.
 
 
 ---
 
-# ★★ 实验 028 —— Interface Breadth and Component Transfer · FINAL ★★
+# ★★ Experiment 028 — Interface Breadth and Component Transfer · FINAL ★★
 
-**seeds 70000–71499，只跑一次，已执行完毕（2026-08-17）。**
-`interface_sha=f82497fb5b1ff535…`　`task_fp=26778f672e9e7009`
-记录：`final_028_result.txt` + `final_028_console.txt` + `final_028_STARTED.lock`
+**seeds 70000–71499, run exactly once, already completed (2026-08-17).**
+`interface_sha=f82497fb5b1ff535…`  `task_fp=26778f672e9e7009`
+Records: `final_028_result.txt` + `final_028_console.txt` + `final_028_STARTED.lock`
 
-## 1. Validity gates（先于 outcome 判读）—— 全部通过
+## 1. Validity gates (read before the outcome) — all passed
 
 ```
 contemporaneous A: μ=0.036750  SD=0.012280
-臂      越界     边界质量   |Δμ|/SD_A  |ΔSD|/SD_A  support  budget
+arm      oob bnd.mass  |Δμ|/SD_A |ΔSD|/SD_A  support   budget
 Bp     0.14%    0.14%       2.3%       0.4%        ✓        ✓
 Bm     0.14%    0.14%       0.5%       0.2%        ✓        ✓
 Cp     0.07%    0.14%       2.6%       1.0%        ✓        ✓
@@ -4582,11 +4582,11 @@ Cm     0.10%    0.10%       0.1%       0.9%        ✓        ✓
 primary (C±) ✓ valid      secondary (B±) ✓ valid
 ```
 
-门槛 support 2% / budget 10%，实测最坏 0.14% / 2.6% —— **余量 4–14 倍**。
-frozen transform 在 confirmatory population 上 transport 干净。
+Thresholds: support 2% / budget 10%; the worst measured values are 0.14% / 2.6% — **a margin of 4–14×**.
+The frozen transform transports cleanly onto the confirmatory population.
 
-pre-task attrition diagnostic（非 binding gate）：
-rich 0.00% · poor 4.60% · 有效双胞胎 **1431/1500 = 95.40%**。
+pre-task attrition diagnostic (not a binding gate):
+rich 0.00% · poor 4.60% · valid twins **1431/1500 = 95.40%**.
 
 ## 2. 结果（逐项从文件抄）
 
