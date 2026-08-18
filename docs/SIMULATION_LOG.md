@@ -1788,256 +1788,256 @@ The reviewer's challenge anticipated at the head of `persistence_ablation.py`:
 > "You did not discover irreversibility, you wrote irreversibility in."
 
 **The current data cannot answer it.** Once the floors are off, the effect falls into the noise. Two routes:
-- **诚实降级**：承认 `trait_identity` 是持久性的【必要机制】，不是放大器。
-  规则 33 那句"地板不是来源，是约六成的放大器"要撤回。
-- **修机制再测**：把记忆接进 `score()`（规则 30/31 的待办），
-  给持久性第二条不依赖 `max()` 的通路，再看无地板档能不能站住。
+- **Honest downgrade**: admit that `trait_identity` is a **necessary mechanism** of persistence, not an amplifier.
+  The sentence in rule 33, "the floors are not the source but an amplifier of about sixty percent", must be withdrawn.
+- **Fix the mechanism and measure again**: wire memory into `score()` (the to-do of rules 30/31),
+  give persistence a second channel that does not rely on `max()`, and see whether the no-floor variant can stand.
 
-（`− 三个全关` 那行 1.04 更不能用：死亡率 28%，幸存者污染。）
+(The `− all three off` row at 1.04 is even less usable: mortality 28%, survivor contamination.)
 
-## 4. ★ 参数随机化集合（`param_sweep.py`）★
+## 4. ★ The parameter-randomisation set (`param_sweep.py`) ★
 
-回答"这是不是一组手调参数刷出来的"。不是网格扫描：从先验里独立抽 N 组
-参数（15 个旋钮同时随机），每组重跑移植实验，报**效应的分布**。
+Answering "is this just a hand-tuned parameter set". Not a grid scan: N parameter sets are drawn independently
+from a prior (15 knobs randomised simultaneously), the transplant experiment is re-run for each, and **the distribution of the effect** is reported.
 
-顺手把 `sim.py` 里硬编码的 slack 暴露成 `GOAL_SLACK_FOOD` / `GOAL_SLACK_COND`
-（默认值不变，行为逐位一致），规则 27 那个机制现在可以扫了。
+Along the way the hardcoded slack in `sim.py` was exposed as `GOAL_SLACK_FOOD` / `GOAL_SLACK_COND`
+(defaults unchanged, behaviour bit-identical), so the mechanism of rule 27 can now be swept.
 
-### ★ 正式结果（500 组 × 300 种子，30.7 分钟，12 进程）★
-
-```
-抽样 500 组 → 有效 374 → 剔除团灭（死亡率 > 40%）后 324 组   总损耗 35.2%
-
-移植比值（作息）  中位数 1.058 [1.045, 1.079]   IQR [1.010, 1.128]
-                  > 1 的比例 80.2% [75.9%, 84.6%]
-移植比值（目标）  中位数 1.061                  > 1 的比例 72.2%
-对数比值（作息）  中位数 0.048                  > 0 的比例 78.4%
-```
-
-**结论：效应不是手调参数刷出来的。** 中位数的 CI 明确排除 1.0，四分位下界
-也在 1 以上（1.010）。论文里可以直接写：
-
-> 在 500 组随机采样的参数配置中（15 个参数联合随机，剔除团灭后 324 组），
-> 移植后比值中位数 1.058（95% CI [1.045, 1.079]），
-> 80.2%（[75.9%, 84.6%]）的配置比值 > 1。
-
-**手调的默认配置（1.132）落在这个分布的第 75.6 百分位** —— 偏有利，但远不是
-极端值。这句话要主动写进论文，不要等审稿人问。
-（顺带：地板消融那档 1.044 落在第 44.1 百分位，就是随机配置的中间水平。）
-
-### 参数敏感度（Spearman ρ vs 移植比值）
+### ★ Official results (500 sets × 300 seeds, 30.7 minutes, 12 processes) ★
 
 ```
-TRAIT_DRIFT          +0.432   ← 唯一越过 0.4 的
+500 sets sampled → 374 valid → 324 after dropping wipeouts (mortality > 40%)   total attrition 35.2%
+
+transplant ratio (routine)  median 1.058 [1.045, 1.079]   IQR [1.010, 1.128]
+                            share > 1  80.2% [75.9%, 84.6%]
+transplant ratio (goal)     median 1.061                  share > 1  72.2%
+log ratio (routine)         median 0.048                  share > 0  78.4%
+```
+
+**Conclusion: the effect is not something a hand-tuned parameter set produced.** The CI of the median clearly excludes 1.0, and the lower quartile
+is also above 1 (1.010). The paper can state directly:
+
+> Across 500 randomly sampled parameter configurations (15 parameters jointly randomised, 324 sets after dropping wipeouts),
+> the median post-transplant ratio is 1.058 (95% CI [1.045, 1.079]),
+> and 80.2% ([75.9%, 84.6%]) of configurations have a ratio > 1.
+
+**The hand-tuned default configuration (1.132) sits at the 75.6th percentile of this distribution** — favourable, but far from
+extreme. That sentence should be written into the paper proactively, not left for a reviewer to ask about.
+(Incidentally: the floor-ablation variant at 1.044 sits at the 44.1st percentile, exactly mid-range among random configurations.)
+
+### Parameter sensitivity (Spearman ρ against the transplant ratio)
+
+```
+TRAIT_DRIFT          +0.432   ← the only one above 0.4
 PERSONALITY_WEIGHT   +0.289
 LANDMARK_BONUS       -0.153
 LANDMARK_PERMANENT   +0.136
 GOAL_SWITCH_MARGIN   +0.112
-其余 10 个            |ρ| < 0.09
+the other 10          |ρ| < 0.09
 ```
 
-> ### ★ 规则 36：效应随正反馈增益单调增强，goal 层参数几乎不影响它 ★
-> `TRAIT_DRIFT`（ρ=+0.43）是唯一的主要驱动，`PERSONALITY_WEIGHT` 次之
-> （+0.29）。goal 的五个参数（BONUS / OFF_TASK / REFRACTORY / STALL_DAYS /
-> SLACK）**全部 |ρ| < 0.09** —— 019 挂了两轮的"goal 参数鲁棒性"待办，
-> 到此关闭：结论对它们完全不敏感。
+> ### ★ Rule 36: the effect increases monotonically with the positive-feedback gain, and the goal-layer parameters barely affect it ★
+> `TRAIT_DRIFT` (ρ=+0.43) is the only major driver, with `PERSONALITY_WEIGHT` second
+> (+0.29). All five goal parameters (BONUS / OFF_TASK / REFRACTORY / STALL_DAYS /
+> SLACK) have **|ρ| < 0.09** — the "goal parameter robustness" to-do carried over two rounds since 019
+> is closed here: the conclusion is entirely insensitive to them.
 >
-> ⚠ 但 `TRAIT_DRIFT` 那条要主动讲。**注意它不是威胁而是证据**：
-> 如果持久性真的来自那个自我放大的回路，效应就**应该**随回路增益上升。
-> 这跟第 3 节（关掉地板效应就落进噪声）是同一件事的两面。
-> 论文该把它写成机制证据，不是当成脆弱性藏起来。
+> ⚠ But `TRAIT_DRIFT` must be discussed proactively. **Note that it is evidence, not a threat**:
+> if persistence really comes from that self-amplifying loop, then the effect **should** rise with the loop's gain.
+> This is the same thing as §3 (switching the floors off drops the effect into the noise), seen from the other side.
+> The paper should present it as mechanistic evidence, not hide it as a fragility.
 
-⚠ **35.2% 的损耗是选择效应，必须披露**：被剔掉的是"参数抽得太狠、球活不
-下来"的配置，不是随机剔的。`dead_move` / `dead_stay` 已全部落盘在
-`sweep_results.csv` 里，写论文时报清楚剔了多少、按什么规则剔。
+⚠ **The 35.2% attrition is a selection effect and must be disclosed**: what was dropped are configurations where "the parameters
+were drawn too harshly and the balls cannot survive", not a random subset. `dead_move` / `dead_stay` are all persisted in
+`sweep_results.csv`; the paper must state clearly how many were dropped and under what rule.
 
-⚠ pilot（31 组）当时报 67.7% 和 ρ=0.588，都是小样本噪声。**这本身是规则 34
-的又一个例子** —— 31 组的结论和 324 组的结论差了 12 个百分点。
+⚠ The pilot (31 sets) reported 67.7% and ρ=0.588 at the time, both small-sample noise. **This is itself another instance of rule 34** —
+the conclusion from 31 sets differs from the conclusion from 324 by 12 percentage points.
 
-### ★ 留出集确认（seeds 10000–10299，完全没碰过）★
+### ★ Holdout confirmation (seeds 10000–10299, never touched) ★
 
-011→021 全部在 seeds 0–299 上迭代了 21 轮，典型的 garden of forking paths。
-把同一套分析原封不动搬到没碰过的种子上重跑 500 组：
+011→021 iterated 21 rounds on seeds 0–299, a textbook garden of forking paths.
+Moving the same analysis unchanged onto untouched seeds and re-running 500 sets:
 
 ```
-                 开发集 (0–299)          留出集 (10000–10299)      差
-作息 中位数   1.058 [1.045, 1.079]    1.041 [1.031, 1.050]    +0.016 [+0.001, +0.042]
-作息 > 1          80.2%                    72.9%                  −7.3 pp
-目标 中位数   1.061 [1.050, 1.073]    1.031 [1.015, 1.039]    +0.031 [+0.015, +0.050]
-目标 > 1          72.2%                    62.2%                 −10.0 pp
+                 development (0–299)      holdout (10000–10299)      diff
+routine median  1.058 [1.045, 1.079]    1.041 [1.031, 1.050]    +0.016 [+0.001, +0.042]
+routine > 1          80.2%                    72.9%                  −7.3 pp
+goal median     1.061 [1.050, 1.073]    1.031 [1.015, 1.039]    +0.031 [+0.015, +0.050]
+goal > 1             72.2%                    62.2%                 −10.0 pp
 
 TRAIT_DRIFT          ρ=+0.432                 ρ=+0.426
 PERSONALITY_WEIGHT   ρ=+0.289                 ρ=+0.288
 ```
 
-**三个结论：**
+**Three conclusions:**
 
-1. ✅ **主张站得住。** 留出集中位数 **1.041，95% CI [1.031, 1.050]，排除 1.0**，
-   72.9% 的随机配置 > 1。换一批没见过的种子，结论不变。
-2. ⚠ **但开发集确实虚高了。** 两个载体的差值 CI **都排除 0**
-   （作息 +0.016 [+0.001, +0.042]；目标 +0.031 [+0.015, +0.050]）。
-   21 轮迭代真的在种子上留下了痕迹 —— 幅度不大，但**可测量**。
-3. ★ **敏感度结构近乎完美复现**（0.432→0.426，0.289→0.288）。
-   幅度被 forking paths 抬高了一点，**机制结论完全不受影响**。
+1. ✅ **The claim stands.** The holdout median is **1.041, 95% CI [1.031, 1.050], excluding 1.0**,
+   with 72.9% of random configurations > 1. On a fresh batch of unseen seeds the conclusion is unchanged.
+2. ⚠ **But the development set really was inflated.** The difference CIs of both carriers **exclude 0**
+   (routine +0.016 [+0.001, +0.042]; goal +0.031 [+0.015, +0.050]).
+   21 rounds of iteration really did leave a mark on the seeds — small in magnitude, but **measurable**.
+3. ★ **The sensitivity structure reproduces almost perfectly** (0.432→0.426, 0.289→0.288).
+   The magnitude was lifted slightly by forking paths, and **the mechanistic conclusion is entirely unaffected**.
 
-> ### ★ 规则 37：论文报留出集的数字，不报开发集的 ★
-> 开发集 1.058 / 80.2%，留出集 1.041 / 72.9%。**报后者。**
-> 并且把这张对照表本身写进 Methods —— 主动展示"我们量化了自己的
-> forking paths 并报了更保守的那一版"，这是加分项，不是自曝其短。
+> ### ★ Rule 37: the paper reports the holdout numbers, not the development ones ★
+> Development gives 1.058 / 80.2% and holdout gives 1.041 / 72.9%. **Report the latter.**
+> And put this comparison table itself into the Methods — proactively showing "we quantified our own
+> forking paths and reported the more conservative version" is a plus, not an admission of weakness.
 
-## 5. 还缺的统计动作（论文必需）
+## 5. The statistical work still missing (required for the paper)
 
-1. ✅ ~~**留出种子集**~~ **已完成**（见第 4 节末）：seeds 10000–10299 跑 500 组，
-   中位数 1.041 [1.031, 1.050] 仍排除 1.0，但开发集有可测量的虚高。
-   → 规则 37：论文报留出集的数字。
-2. ✅ ~~**换估计量补 p 值**~~ **已完成**（`significance_main.py`）。
-   把统计量下放到每颗种子：`δ_i = TV(同种子跨世界) − TV(同世界跨种子)`，
-   δ 可正可负 → **符号置换合法**，绕开了笔记 804 行卡住的"TV 恒为正"。
+1. ✅ ~~**A holdout seed set**~~ **done** (see the end of §4): 500 sets on seeds 10000–10299,
+   median 1.041 [1.031, 1.050] still excluding 1.0, but with a measurable inflation on the development set.
+   → Rule 37: the paper reports the holdout numbers.
+2. ✅ ~~**Change the estimator to obtain a p value**~~ **done** (`significance_main.py`).
+   Push the statistic down to each seed: `δ_i = TV(same seed across worlds) − TV(same world across seeds)`;
+   δ can be either sign → **sign permutation is legitimate**, sidestepping the "TV is always positive" blockage of notes line 804.
 
 ```
-                      n     分子TV   基线TV   比值    δ均值    dz    δ>0      p
-── 开发集 seeds 0+，N=1500 ──
-完整架构            1429   0.3103  0.2742  1.132  +0.0362  0.20  40.7%  0.0001 ***
-−全部地板①②         1411   0.2960  0.2869  1.032  +0.0092  0.05  35.6%  0.0778 n.s.
-── 留出集 seeds 10000+，N=1500 ──
-完整架构            1411   0.3094  0.2746  1.127  +0.0348  0.20  41.0%  0.0001 ***
-−全部地板①②         1399   0.2983  0.2885  1.034  +0.0098  0.05  36.4%  0.0638 n.s.
+                      n     numerator TV  baseline TV  ratio   mean δ    dz    δ>0      p
+── development set seeds 0+, N=1500 ──
+full architecture   1429   0.3103  0.2742  1.132  +0.0362  0.20  40.7%  0.0001 ***
+−all floors ①②      1411   0.2960  0.2869  1.032  +0.0092  0.05  35.6%  0.0778 n.s.
+── holdout set seeds 10000+, N=1500 ──
+full architecture   1411   0.3094  0.2746  1.127  +0.0348  0.20  41.0%  0.0001 ***
+−all floors ①②      1399   0.2983  0.2885  1.034  +0.0098  0.05  36.4%  0.0638 n.s.
 ```
 
-   **完整架构 p=0.0001，留出集完全复现**（1.132 vs 1.127）。
-   **地板消融 p≈0.07，不显著** —— 和 021 第 3 节的 CI 结论一致，两种方法互证。
+   **The full architecture gives p=0.0001 and the holdout reproduces it exactly** (1.132 vs 1.127).
+   **The floor ablation gives p≈0.07, not significant** — consistent with the CI conclusion of 021 §3, with the two methods corroborating each other.
 
-> ### ★ 规则 38：效应住在右尾，不是均匀分布 ★
-> **`δ>0` 只有 41%。** 也就是说**中位数那颗种子上，基线反而大于跨世界差异**；
-> 均值为正是被少数高分化的双胞胎拉上去的。Cohen's dz 只有 **0.20**（小效应）。
+> ### ★ Rule 38: the effect lives in the right tail, it is not uniformly distributed ★
+> **`δ>0` is only 41%.** In other words, **for the median seed the baseline actually exceeds the cross-world difference**;
+> the mean is positive because a few highly differentiated twins pull it up. Cohen's dz is only **0.20** (a small effect).
 >
-> 论文不能写成"环境让 agent 变得不同"，要写成
-> **"环境让一部分 agent 变得非常不同"** —— 重尾分化。
-> 这其实更有意思（阈值效应 / 路径依赖），但必须如实报，
-> 而且应该去查那 40% 是什么样的种子（新实验）。
-3. **多重比较校正**。6 因素 × 3 还原方向 × 2 载体 = 36 个检验，一个都没校。
-   至少上 Benjamini–Hochberg FDR，否则"天气 0.88 vs 书 0.87"的排序没有意义。
-4. **重测信度（ICC）** 和**泛化测试**（新情境探针）仍然是零。
+> The paper must not write "the environment makes agents different" but
+> **"the environment makes some agents very different"** — heavy-tailed differentiation.
+> That is actually more interesting (a threshold effect / path dependence), but it must be reported faithfully,
+> and someone should go and find out what kind of seeds that 40% are (a new experiment).
+3. **Multiple-comparison correction.** 6 factors × 3 restoration directions × 2 carriers = 36 tests, not one of them corrected.
+   At minimum apply Benjamini–Hochberg FDR, or the ranking "weather 0.88 vs books 0.87" means nothing.
+4. **Test-retest reliability (ICC)** and a **generalization test** (the novel-situation probe) are both still at zero.
 
 ---
 
-## ★ 实验 021 得到的规则
+## ★ The rules from experiment 021
 
-34. **比值必须报样本量，且样本量要拉满。** 比值是有偏估计量，
-    小 N 系统性虚高。1500 颗种子 44 秒，没有理由停在 150。
+34. **A ratio must be reported with its sample size, and the sample size must be maxed out.** A ratio is a biased estimator,
+    systematically inflated at small N. 1500 seeds take 44 seconds; there is no reason to stop at 150.
 
-35. **基线配对要随机且重复 K=5 次。** 相邻配对把基线做小 2.2%，
-    随机 K=5 免费换 19% 精度。
+35. **Baseline pairing must be random and repeated K=5 times.** Adjacent pairing makes the baseline 2.2% too small,
+    and random K=5 buys 19% more precision for free.
 
-36. **效应随正反馈增益（`TRAIT_DRIFT`）单调增强，goal 层五个参数几乎不影响它。**
-    500 组随机参数下 72.9%（留出集）的配置比值 > 1 —— 效应不是手调出来的。
+36. **The effect increases monotonically with the positive-feedback gain (`TRAIT_DRIFT`), and the five goal-layer parameters barely affect it.**
+    Across 500 random parameter sets, 72.9% (holdout) of configurations have a ratio > 1 — the effect is not hand-tuned.
 
-37. **论文报留出集的数字。** 21 轮迭代在开发种子上留下了可测量的虚高
-    （作息 +0.016、目标 +0.031，两个 CI 都排除 0），但机制结论完全复现。
-
----
-
-## 还没做的（021 之后）
-
-- ✅ ~~正式跑 500 组参数扫描~~ **已完成**：80.2% [75.9%, 84.6%] 的配置 > 1，
-  中位数 1.058 [1.045, 1.079]。goal 参数鲁棒性待办同时关闭。
-- ⚠ **地板消融那条要么修机制要么改论述**（第 3 节），这是论文最大的风险点。
-  → 已写预注册：[[实验022 预注册 —— 记忆接入决策]]（2026-08-13 冻结，代码未改）。
-  ★ 写预注册时查代码发现 **规则 31 说错了一半**：`flags` 和 `hardship`
-  **早就接进 `score()` 和 `propose_goals()` 了**（sim.py:682/683/685/527/529/534），
-  没接线的只有 `knowledge`（语义）和 `memories`（情节）。
-  这压低了 022 的先验 —— flags 已经是"离散标记→打分加成"的设计，
-  而地板一关比值仍只有 1.044。详见预注册第 2 节。
-- ⚠ 查 `scenarios.make` 的种子派生：相邻 seed 是否产生相关的初始性格。
-- 上面第 5 节的四项统计动作，一项都没做。
-- 019/020 遗留：记忆接进 `score()`、120 天死亡率、新情境探针。
+37. **The paper reports the holdout numbers.** 21 rounds of iteration left a measurable inflation on the development seeds
+    (routine +0.016, goal +0.031, both CIs excluding 0), but the mechanistic conclusion reproduces exactly.
 
 ---
 
----
+## Still to do (after 021)
+
+- ✅ ~~run the 500-set parameter sweep formally~~ **done**: 80.2% [75.9%, 84.6%] of configurations > 1,
+  median 1.058 [1.045, 1.079]. The goal-parameter robustness to-do is closed at the same time.
+- ⚠ **The floor-ablation line either needs a mechanism fix or a change of argument** (§3); this is the paper's biggest risk.
+  → A preregistration has been written: [[Experiment 022 preregistration — wiring memory into decisions]] (frozen 2026-08-13, code unchanged).
+  ★ While writing the preregistration, checking the code revealed that **rule 31 was half wrong**: `flags` and `hardship`
+  **have long been wired into `score()` and `propose_goals()`** (sim.py:682/683/685/527/529/534),
+  and the only unwired ones are `knowledge` (semantic) and `memories` (episodic).
+  That lowers the prior for 022 — flags is already a "discrete marker → score bonus" design,
+  and with the floors off the ratio is still only 1.044. See §2 of the preregistration.
+- ⚠ Check the seed derivation in `scenarios.make`: whether adjacent seeds produce correlated initial personalities.
+- Not one of the four statistical items in §5 above has been done.
+- Carried over from 019/020: wiring memory into `score()`, the 120-day mortality, the novel-situation probe.
 
 ---
 
 ---
 
-# 实验 022 —— 把语义记忆接进决策：P1 过，P2 不过
+---
 
-> 日期：2026-08-13 / 14
-> **预注册（改代码前冻结）：[[实验022 预注册 —— 记忆接入决策]]**
-> 全部结果、判定、以及中途的实现修正都记在那份文档里，这里只记结论和规则。
+---
 
-## 1. 做了什么
+# Experiment 022 — wiring semantic memory into decisions: P1 passes, P2 does not
 
-`knowledge` 此前只写不读（规则 30）。这次把它接进 `score()` 和
-`propose_goals()`，并给它**遗忘率**（用进废退），
-新增 `KNOWLEDGE_WEIGHT / KNOWLEDGE_GOAL_WEIGHT / KNOWLEDGE_FORGET`。
-回归检查：三个参数归零时**精确复现** 021 的 1.27/1.18/1.26/1.07。
+> Date: 2026-08-13 / 14
+> **Preregistration (frozen before any code change): [[Experiment 022 preregistration — wiring memory into decisions]]**
+> Every result, verdict and mid-course implementation correction is recorded in that document; only conclusions and rules are recorded here.
 
-★ 事前发现：**规则 31 说错了一半**。`flags` 和 `hardship` 早就接进
-`score()` 和 `propose_goals()` 了（`sim.py:682/683/685/527/529/534`），
-没接线的只有 `knowledge` 和 `memories`。这个发现写在预注册第 2 节，
-并据此**事先调低了本实验的预期**。
+## 1. What was done
 
-## 2. 结果
+`knowledge` had been write-only (rule 30). This time it is wired into `score()` and
+`propose_goals()`, and given a **forgetting rate** (use it or lose it),
+adding `KNOWLEDGE_WEIGHT / KNOWLEDGE_GOAL_WEIGHT / KNOWLEDGE_FORGET`.
+Regression check: with the three parameters zeroed it **reproduces exactly** 021's 1.27/1.18/1.26/1.07.
 
-在预注册保留的 seeds 20000–21499 上，N=1500：
+★ A prior discovery: **rule 31 was half wrong**. `flags` and `hardship` have long been wired into
+`score()` and `propose_goals()` (`sim.py:682/683/685/527/529/534`),
+and the only unwired ones are `knowledge` and `memories`. This finding is written into §2 of the preregistration,
+and **the expectation for this experiment was lowered in advance** on that basis.
+
+## 2. Results
+
+On the preregistration-reserved seeds 20000–21499, N=1500:
 
 ```
-P1（地板全关后比值 > 1）        ✅ 过
-  022 关闭  1.007 [0.969, 1.043]  p=0.824 n.s.   ← 保留段上是完全的零
-  022 打开  1.058 [1.029, 1.102]  p=0.0001 ***
+P1 (ratio > 1 with all floors off)        ✅ pass
+  022 off  1.007 [0.969, 1.043]  p=0.824 n.s.   ← a complete zero on the reserved block
+  022 on   1.058 [1.029, 1.102]  p=0.0001 ***
 
-P2（移植那刻删 knowledge 应塌 ≥0.05）   ❌ 不过
-  ① 不删            1.058 [1.029, 1.102]
-  ② 只删 knowledge  1.047 [1.011, 1.083]   落差仅 0.011，CI 重叠
-  ④ 只删 flags      1.047 [1.001, 1.074]   ← 掉得一模一样
-  ⑤ 三样全删         1.040 [0.997, 1.068]  p=0.0707 n.s.
+P2 (deleting knowledge at transplant should collapse it by ≥0.05)   ❌ fail
+  ① delete nothing        1.058 [1.029, 1.102]
+  ② delete knowledge only 1.047 [1.011, 1.083]   a drop of only 0.011, CIs overlapping
+  ④ delete flags only     1.047 [1.001, 1.074]   ← drops by exactly the same amount
+  ⑤ delete all three      1.040 [0.997, 1.068]  p=0.0707 n.s.
 ```
 
-**按预注册的判定规则：P1 中而 P2 不中 → 不声称 knowledge 通路。**
+**By the preregistered decision rule: P1 hits and P2 does not → the knowledge channel is not claimed.**
 
-## 3. ★ 实验 022 得到的规则 ★
+## 3. ★ The rules from experiment 022 ★
 
-39. **接线改变的是分化速度，不是保持机制。** 语义记忆进 `score()` 之后，
-    两个世界的球在**发育期**就分得更开；移植后剩下的东西住在性状向量里，
-    跟 knowledge 还在不在几乎无关（删光只掉 0.011）。
-    **"持久性"和"分化幅度"是两件事。**
+39. **Wiring changes the speed of differentiation, not the retention mechanism.** Once semantic memory enters `score()`,
+    the balls of the two worlds separate further **during development**; what remains after the transplant lives in the trait vector
+    and is almost independent of whether knowledge is still there (deleting all of it costs only 0.011).
+    **"Persistence" and "magnitude of differentiation" are two different things.**
 
-40. **删 knowledge 和删 flags 掉得一样多。** 语义记忆不是特殊载体，
-    只是又一个等价的离散标记 —— 与预注册第 2 节的事前预期一致。
+40. **Deleting knowledge and deleting flags cost the same.** Semantic memory is not a special carrier,
+    merely one more equivalent discrete marker — consistent with the prior expectation in §2 of the preregistration.
 
-41. **情节记忆仍然是完全的 no-op。** 只删 memories 那一档与不删**逐位相同**。
-    规则 31 关于 episodic 的那一半依然成立。
+41. **Episodic memory is still a complete no-op.** The variant deleting only memories is **bit-identical** to deleting nothing.
+    The episodic half of rule 31 still holds.
 
-## 3b. 弛豫检验 —— ⚠ **没答上来，被死亡率毁了**（`relaxation_test.py`）
+## 3b. The relaxation test — ⚠ **unanswered, destroyed by mortality** (`relaxation_test.py`)
 
-P2 留下的问题：全删之后剩的 1.040，是持久还是"30 天没漂完"？
-跑到 120 天，分三个独立 30 天窗口测（地板全关，022 打开）：
+The question P2 left open: is the 1.040 remaining after deleting everything persistence, or "30 days is not enough to drift back"?
+Run to 120 days and measured in three independent 30-day windows (all floors off, 022 on):
 
 ```
-                    n      损失    比值   95% CI
-① 什么都不删
-  第 30– 60天     1388    7.5%   1.058  [1.030, 1.103]  ≠1
-  第 60– 90天     1163   22.5%   1.100  [1.056, 1.135]  ⚠
-  第 90–120天      832   44.5%   1.109  [1.067, 1.160]  ⚠
-⑤ 删光语义+情节+flags
-  第 30– 60天     1394    7.1%   1.040  [0.995, 1.069]  含1.0
-  第 60– 90天     1138   24.1%   1.100  [1.057, 1.145]  ⚠
-  第 90–120天      787   47.5%   1.150  [1.104, 1.218]  ⚠
+                    n      loss    ratio   95% CI
+① delete nothing
+  days  30– 60    1388    7.5%   1.058  [1.030, 1.103]  ≠1
+  days  60– 90    1163   22.5%   1.100  [1.056, 1.135]  ⚠
+  days  90–120     832   44.5%   1.109  [1.067, 1.160]  ⚠
+⑤ delete semantic+episodic+flags
+  days  30– 60    1394    7.1%   1.040  [0.995, 1.069]  contains 1.0
+  days  60– 90    1138   24.1%   1.100  [1.057, 1.145]  ⚠
+  days  90–120     787   47.5%   1.150  [1.104, 1.218]  ⚠
 ```
 
-**两个假说都没被证实：比值不降反升。但这个"升"几乎肯定是幸存者效应。**
+**Neither hypothesis is confirmed: the ratio rises rather than falls. But that rise is almost certainly a survivor effect.**
 
-- 损失 7.5% → 22.5% → **44.5%**。后两窗远超 15% 阈值，**不可用**。
-- 规则 32 的情形完全对上：*幸存者恰好是"没跑掉的球"，而那正是被测的性质*。
-  死掉的多半是往远处跑、不囤粮的那一类 —— 而那正是分化的方向。
-  **筛掉他们之后剩下的组间差异变大，是选择造出来的，不是时间造出来的。**
-- 唯一可用的是第一窗：①=1.058 显著 ≠1，**⑤=1.040 的 CI 含 1.0**。
-  也就是说，在唯一干净的窗口里，全删之后**站不住**。
+- The loss goes 7.5% → 22.5% → **44.5%**. The last two windows are far past the 15% threshold and are **unusable**.
+- The situation of rule 32 fits exactly: *the survivors are precisely "the balls that did not run off", which is the very property being measured*.
+  Those that died are mostly the kind that run into the distance and do not hoard — which is exactly the direction of differentiation.
+  **The larger between-group difference left after filtering them out was created by selection, not by time.**
+- The only usable window is the first: ① = 1.058, significantly ≠1, and **⑤ = 1.040 with a CI containing 1.0**.
+  That is, in the one clean window, deleting everything leaves it **unable to stand**.
 
-> ### ★ 规则 42：跑更久答不了弛豫问题，先修死亡率 ★
-> 地板全关 + 基准世界，120 天配对损失 44.5%（020 记录的完整架构是 24.5%）。
-> 在这个损失率下，任何长时程结论都是选择效应的函数。
+> ### ★ Rule 42: running longer cannot answer the relaxation question; fix the mortality first ★
+> All floors off in the baseline world gives a 120-day paired loss of 44.5% (020 recorded 24.5% for the full architecture).
+> At that loss rate, any long-horizon conclusion is a function of selection effects.
 > **要回答"差异会不会漂回去"，必须先把 120 天损失压到 <15%，
 > 而不是把窗口拉更长。**
 
