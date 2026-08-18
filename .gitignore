@@ -3,5 +3,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# 本机工具配置（含本机绝对路径，不应公开）
+# Local tool configuration (contains machine-local absolute paths; must not be published)
 .claude/settings.local.json

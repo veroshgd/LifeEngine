@@ -25,7 +25,7 @@ CAPACITY (dp measured against the no-memory counterfactual, same frozen state)
    8.00    0.3050     0.2952    0.6694        46.3%                35.5%
 
 ACTIVE-MEMORY EXPOSURE (still event-triggered?)
-  potential (lambda=0) = 6.77 / 80 trials
+  potential (lambda=0) = 6.77 / 80 trialss
   realized at m=-0.556 / 0.000 / +0.611:
    0.25   6.93 / 6.77 / 6.70      2.00   7.12 / 6.77 / 6.69
    0.50   6.91 / 6.77 / 6.46      4.00   7.54 / 6.77 / 7.75

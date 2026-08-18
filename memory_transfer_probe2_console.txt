@@ -1,34 +1,34 @@
 ==============================================================================
-029 memory transfer probe v2 —— stateful retrieval（★仍是探针，不是实验★）
+029 memory transfer probe v2 — stateful retrieval (★still a probe, not an experiment★)
 ==============================================================================
-任务底座：027 novel_task 指纹 26778f672e9e7009（未改）  种子 0–399  n=400
-阈值未动：GOOD_THRESH=0.6 PE_THRESH=0.3 SURPRISE_RUN_MIN=3   单次 reversal   ★80000–81499 未碰★
-唯一改变：one-shot retrieval → stateful retrieval（RETRIEVE→ACTIVE→RESOLVED）
+task substrate: 027 novel_task fingerprint 26778f672e9e7009 (unchanged)  seeds 0–399  n=400
+thresholds untouched: GOOD_THRESH=0.6 PE_THRESH=0.3 SURPRISE_RUN_MIN=3   single reversal   ★80000–81499 untouched★
+Only change: one-shot retrieval → stateful retrieval (RETRIEVE→ACTIVE→RESOLVED)
 
-[ 工程自检 ]
-  ✓ v1 仍逐位复现原结果（λ=1：71/400 改变，Δlatency -0.125） —— 失败记录没有被覆盖
-  ✓ memory-blind（λ=0）：两套机制各 400/400 种子逐 trial 相同
-  ✓ 所有汇总都用全部 400 个种子，不按是否触发检索筛选
+[ engineering self-check ]
+  ✓ v1 still reproduces the original result bit for bit (λ=1: 71/400 changed, Δlatency -0.125) — the record of the failure has not been overwritten
+  ✓ memory-blind (λ=0): each mechanism identical trial by trial on 400/400 seeds
+  ✓ every summary uses all 400 seeds, with no filtering by whether retrieval fired
 
 ==============================================================================
-① ② EXPOSURE —— potential（λ=0 定义）vs realized（λ>0 实际）
+① ② EXPOSURE — potential (defined at λ=0) vs realized (actual at λ>0)
 ==============================================================================
-机制            body         eligible 种子 potential trial  realized trial (λ=1)
+mechanism       body       eligible seeds potential trial  realized trial (λ=1)
 ------------------------------------------------------------------------------
-v1 one-shot   Body C（c          45.0%            0.75                  0.69
-v1 one-shot   Body K（c          45.8%            0.75                  0.69
-v2 stateful   Body C（c          45.0%            7.18                  6.96
-v2 stateful   Body K（c          45.8%            7.23                  7.00
+v1 one-shot   Body C (c          45.0%            0.75                  0.69
+v1 one-shot   Body K (c          45.8%            0.75                  0.69
+v2 stateful   Body C (c          45.0%            7.18                  6.96
+v2 stateful   Body K (c          45.8%            7.23                  7.00
 
-⚠ potential 用 memory-blind 轨迹定义 —— 它是【机制 exposure】；
-  realized 受 choice sequence 反馈影响 —— 它是【结果的一部分】。
+⚠ potential is defined on the memory-blind trajectory — it is **mechanism exposure**;
+  realized is affected by choice-sequence feedback — it is **part of the outcome**.
 
 ==============================================================================
-③ POTENCY —— 同一 decision state 下只换记忆，p(switch) 差多少
+③ POTENCY — with the decision state held fixed, how far does swapping the memory move p(switch)
 ==============================================================================
 
-v1 one-shot   eligible opportunities = 300   （每种子 0.75 个）
-  base p(switch)：中位数 0.208   饱和比例（≤0.1 或 ≥0.9）0.0%
+v1 one-shot   eligible opportunities = 300   (0.75 per seed)
+  base p(switch): median 0.208   saturated share (≤0.1 or ≥0.9) 0.0%
        λ    mean|Δp|    median|Δp|     p90|Δp|
     0.25      0.0552        0.0550      0.0665
     0.50      0.1104        0.1100      0.1327
@@ -36,8 +36,8 @@ v1 one-shot   eligible opportunities = 300   （每种子 0.75 个）
     2.00      0.4343        0.4348      0.4997
     4.00      0.7704        0.7732      0.8199
 
-v2 stateful   eligible opportunities = 2873   （每种子 7.18 个）
-  base p(switch)：中位数 0.400   饱和比例（≤0.1 或 ≥0.9）0.0%
+v2 stateful   eligible opportunities = 2873   (7.18 per seed)
+  base p(switch): median 0.400   saturated share (≤0.1 or ≥0.9) 0.0%
        λ    mean|Δp|    median|Δp|     p90|Δp|
     0.25      0.0718        0.0753      0.0830
     0.50      0.1429        0.1499      0.1648
@@ -46,28 +46,28 @@ v2 stateful   eligible opportunities = 2873   （每种子 7.18 个）
     4.00      0.8330        0.8486      0.8696
 
 ==============================================================================
-④ NEW SWAP —— M = (M_C + M_K)/2   ⛔ dominance 判据已撤回 ⛔
+④ NEW SWAP — M = (M_C + M_K)/2   ⛔ the dominance criterion is withdrawn ⛔
 ==============================================================================
-机制                 λ      M_C      M_K   pooled M             95% CI（描述性）      方向一致  interaction
+mechanism            λ      M_C      M_K   pooled M          95% CI (descriptive)  same direction  interaction
 ------------------------------------------------------------------------------
-v1 one-shot     0.25   -0.095   -0.087     -0.091   [-0.199, -0.002]         是       -0.008
-v1 one-shot     0.50   -0.138   -0.142     -0.140   [-0.315, +0.018]         是       +0.005
-v1 one-shot     1.00   -0.125   -0.083     -0.104   [-0.410, +0.215]         是       -0.042
-v1 one-shot     2.00   -0.180   -0.087     -0.134   [-0.527, +0.280]         是       -0.092
-v1 one-shot     4.00   -0.168   -0.048     -0.108   [-0.554, +0.340]         是       -0.120
-v2 stateful     0.25   -0.875   -0.900     -0.887   [-1.343, -0.471]         是       +0.025
-v2 stateful     0.50   -2.143   -2.138     -2.140   [-2.759, -1.560]         是       -0.005
-v2 stateful     1.00   -4.058   -3.920     -3.989   [-4.785, -3.231]         是       -0.138
-v2 stateful     2.00   -7.045   -7.098     -7.071   [-8.044, -6.145]         是       +0.053
-v2 stateful     4.00   -9.607   -9.710     -9.659   [-10.815, -8.549]         是       +0.103
+v1 one-shot     0.25   -0.095   -0.087     -0.091   [-0.199, -0.002]             yes       -0.008
+v1 one-shot     0.50   -0.138   -0.142     -0.140   [-0.315, +0.018]             yes       +0.005
+v1 one-shot     1.00   -0.125   -0.083     -0.104   [-0.410, +0.215]             yes       -0.042
+v1 one-shot     2.00   -0.180   -0.087     -0.134   [-0.527, +0.280]             yes       -0.092
+v1 one-shot     4.00   -0.168   -0.048     -0.108   [-0.554, +0.340]             yes       -0.120
+v2 stateful     0.25   -0.875   -0.900     -0.887   [-1.343, -0.471]             yes       +0.025
+v2 stateful     0.50   -2.143   -2.138     -2.140   [-2.759, -1.560]             yes       -0.005
+v2 stateful     1.00   -4.058   -3.920     -3.989   [-4.785, -3.231]             yes       -0.138
+v2 stateful     2.00   -7.045   -7.098     -7.071   [-8.044, -6.145]             yes       +0.053
+v2 stateful     4.00   -9.607   -9.710     -9.659   [-10.815, -8.549]             yes       +0.103
 
-⚠ CI 是**描述性**的（seed cluster bootstrap，n_boot=10000，分析种子 8181）。
-  今天**不定 SESOI**，所以不做功能意义判读。
+⚠ The CI is **descriptive** (seed cluster bootstrap, n_boot=10000, analysis seed 8181).
+  No SESOI is fixed today, so no functional-significance reading is made.
 
 ==============================================================================
-⑤ DOWNSTREAM —— 轨迹改变 + latency / 反转后正确率
+⑤ DOWNSTREAM — trajectory change + latency / post-reversal accuracy
 ==============================================================================
-机制                 λ        轨迹改变   Δlatency(V−S)         Δ反转后正确率
+mechanism            λ        trajectory changed   Δlatency(V−S)   Δpost-reversal accuracy
 ------------------------------------------------------------------------------
 v1 one-shot     0.00       0.0%          +0.000         +0.0000
 v1 one-shot     0.25       4.5%          -0.095         +0.0015
@@ -83,13 +83,13 @@ v2 stateful     2.00      44.8%          -7.045         +0.1012
 v2 stateful     4.00      45.0%          -9.607         +0.1688
 
 ==============================================================================
-★ 判读 ★
+★ Reading ★
 ==============================================================================
-  λ=1  v1 one-shot  pooled M = -0.104  方向一致 是
-  λ=1  v2 stateful  pooled M = -3.989  方向一致 是
+  λ=1  v1 one-shot  pooled M = -0.104  same direction yes
+  λ=1  v2 stateful  pooled M = -3.989  same direction yes
 
-  Directional SWAP check —— 看上表 M_C / M_K 是否同号
-  Dominance criterion（|memory|>|body|）—— ★ RETIRED，不再计算判读 ★
+  Directional SWAP check — see whether M_C / M_K above share a sign
+  Dominance criterion (|memory|>|body|) — ★ RETIRED, neither computed nor read ★
 
-⚠ 这仍然不是 029 scientific success：
-   记忆是手工造的、λ 没冻结、Stable/Volatile 根本还没跑。
+⚠ This is still not 029 scientific success:
+   the memories are hand-built, λ is not frozen, and Stable/Volatile have not been run at all.
