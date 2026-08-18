@@ -3318,266 +3318,266 @@ If one ball dies on day 8 and another survives the whole window:
   and death itself may be caused by the rich/poor history
   → G1 would mix **"who lives longer"** with **"how decisions are made"**
 
-所以拆成两个窗口：
+So it is split into two windows:
 
 ```
-进入 Novel world
+enter the novel world
       ↓
-【decision window】W_dec 天 ——— B_novel → G1（行为）  窗内存活率须 ≥ 95%
+[decision window] W_dec days ——— B_novel → G1 (behaviour)  in-window survival must be ≥ 95%
       ↓
-继续运行
+keep running
       ↓
-【consequence window】跑满 ——— survival / food / shelter / condition → G2（后果）
+[consequence window] run to the end ——— survival / food / shelter / condition → G2 (consequences)
 ```
 
-> **G1 测「面对陌生情境时怎么选择」，G2 测「这些选择后来造成什么后果」。
-> 这两个不许混。禁止用"只分析幸存者"来定义 G1。**
+> **G1 measures "how it chooses when facing an unfamiliar situation" and G2 measures "what consequences those choices later produce".
+> These two must not be mixed. Defining G1 by "analysing survivors only" is forbidden.**
 
-`B_familiar` 同样只取 decision window（两支等长，规则 61）；
-两支都继续跑到 consequence window —— 熟悉支的后果就是 G2 的轭式对照基线。
+`B_familiar` likewise takes only the decision window (both branches equal in length, rule 61);
+both branches then run on into the consequence window — the familiar branch's consequences are the yoked control baseline for G2.
 
-`W_dec` 与 `S`/`λ` 同等待遇，**不凭感觉选**：候选集 `{5,7,10,14}` 天先写死，
-在 `20000+` 上 group-blind 选。二维用**字典序**取唯一解
-（先最短 `W_dec`，再最小 `S`/`λ`），避免重蹈 `c_f/c_s` 那种"最小无唯一含义"。
+`W_dec` gets the same treatment as `S`/`λ` and is **not chosen by intuition**: the candidate set `{5,7,10,14}` days is fixed in writing first,
+then chosen group-blind on `20000+`. In two dimensions a unique solution is taken by **lexicographic order**
+(shortest `W_dec` first, then smallest `S`/`λ`), avoiding a repeat of the `c_f/c_s` "minimum has no unique meaning" problem.
 
-## 两条实现层提醒（已写进设计 §9）
+## Two implementation-layer reminders (already written into §9 of the design)
 
-- **C2 的中位数只能用 training fold 算**，再应用到 held-out fold ——
-  用全数据中位数会造成 test information leakage。
-  （C1 = `explore × build` 是纯乘积，无此问题。）任何标准化/分箱同理。
-- **sibling 隔离要主动证明**：分叉后不只检查"没有共享引用"，
-  还要做**突变测试** —— 改 clone F 的 `inventory`/`traits`/`world.food`，
-  **断言 clone N 逐位不变**，反向再做一次。很便宜，但能直接证明分支真隔离。
-  **不过不往下走。**
+- **The median for C2 may only be computed on the training fold** and then applied to the held-out fold —
+  using the whole-data median would cause test information leakage.
+  (C1 = `explore × build` is a pure product and has no such problem.) The same goes for any standardisation/binning.
+- **Sibling isolation must be proven actively**: after forking, do not merely check that no references are shared —
+  also run a **mutation test**: change clone F's `inventory`/`traits`/`world.food` and
+  **assert that clone N is bit-unchanged**, then do it in the reverse direction. Cheap, but it proves the branches really are isolated.
+  **If it does not pass, do not proceed.**
 
-## 替代解释的封堵清单（设计阶段到此完成）
+## The checklist of alternative explanations closed off (the design stage ends here)
 
-| 替代解释 | 封堵手段 |
+| Alternative explanation | How it is closed off |
 |---|---|
-| 顺序测量污染 | **规则 61** counterfactual sibling branches |
-| 熟悉行为被压缩过度 | **182 维** `B_familiar` |
-| M0 被故意做弱 | **容量对照** C1 / C2（护栏，非证明） |
-| 挑参数挑出效果 | **规则 58** group-blind 校准 |
-| 分析随机性 | **规则 56 强化**：确定性 fold + 固定 random_state + 固定 bootstrap 种子 |
-| 冻土错误烧掉库存 | **规则 60** `GatedWorld` non-destructive |
-| 死亡造成的选择偏差 | **规则 62** decision / consequence 窗口分离 |
+| sequential-measurement contamination | **rule 61** counterfactual sibling branches |
+| familiar behaviour over-compressed | a **182-dimensional** `B_familiar` |
+| M0 deliberately weakened | the **capacity controls** C1 / C2 (a guardrail, not a proof) |
+| picking parameters to produce the effect | **rule 58** group-blind calibration |
+| analysis randomness | **rule 56 strengthened**: deterministic folds + a fixed random_state + a fixed bootstrap seed |
+| frozen ground burning the stock by mistake | **rule 60** a non-destructive `GatedWorld` |
+| selection bias from death | **rule 62** decision / consequence window separation |
 
-**设计到此为止，不再发散。** 下一步：mechanism implementation →
-`20000+` group-blind calibration → `NOVEL_PREREGISTRATION.md` → 才碰 `60000–61499`。
+**The design ends here and will not be expanded further.** Next: mechanism implementation →
+group-blind calibration on `20000+` → `NOVEL_PREREGISTRATION.md` → and only then touch `60000–61499`.
 
-## ★ 规则 63：「完整可执行状态」必须逐项审计，不能凭印象列 ★
+## ★ Rule 63: "complete executable state" must be audited field by field, never listed from memory ★
 
-机制层第一版把状态 hash 写成 `"memories": len(ag.memories)` ——
-**"有 5 条 memory" ≠ "5 条 memory 内容相同"**，而 `memories` 会被
-`recall()` 回读（`sim.py:517/554/563`）。于是两个 agent 可以 hash 相同
-但记忆内容不同 → **全拉平阴性对照会漏掉隐藏差异**，这个对照就是假的。
+The first version of the mechanism layer wrote the state hash as `"memories": len(ag.memories)` —
+**"has 5 memories" ≠ "the 5 memories have the same content"**, and `memories` is read back by
+`recall()` (`sim.py:517/554/563`). So two agents could share a hash while their memory contents differ →
+**the full-levelling negative control would miss a hidden difference**, making that control fake.
 
-审计方法：对 v3 的 Agent / World / Life **逐字段** grep 读取点 ——
-**有回读 → EXEC（进 hash，全拉平时必须一起拉平）；只写不读 → LOG。**
+The audit method: grep the read points of v3's Agent / World / Life **field by field** —
+**read back → EXEC (enters the hash, and must be levelled along with everything else); write-only → LOG.**
 
 ```
 Agent EXEC  traits / trait_floor / trait_identity / hunger / energy / shelter /
             condition / inventory / hardship / _hardship_anchor / flags /
             knowledge / knowledge_strength / alive / rng
-            memories        ★ recall() 回读（517/554/563）★ 必须全量，不能只存长度
-            goal_satiation  ★ sim.py:694 回读 —— 目标不应期 ★
-            action_log      ★ sim.py:619/626 回读 —— 目标进度 ★
-Agent LOG   action_by_hour / goal_by_day / goal_history      （sim.py 内无回读）
+            memories        ★ read back by recall() (517/554/563) ★ must be complete, not just its length
+            goal_satiation  ★ read back at sim.py:694 — the goal refractory period ★
+            action_log      ★ read back at sim.py:619/626 — goal progress ★
+Agent LOG   action_by_hour / goal_by_day / goal_history      (never read back inside sim.py)
 World EXEC  food / objects / p / weather / rng
-            storm_damage    ★ 动态属性，仅暴雨后存在；sim.py:942 回读 ★
-World LOG   events                                            （仅 influence 写入）
+            storm_damage    ★ a dynamic attribute, present only after a storm; read back at sim.py:942 ★
+World LOG   events                                            (written only by influences)
 Life  EXEC  inf_rng
 ```
 
-⚠ 审计比预想的多抓到两个：**`action_log`**（以为是纯日志，其实喂目标进度）
-和 **`storm_damage`**（**动态属性**，只在暴雨后才存在于 `__dict__` 里，
-靠"列一遍字段"根本发现不了）。
+⚠ The audit caught two more than expected: **`action_log`** (thought to be a pure log, in fact feeding goal progress)
+and **`storm_damage`** (a **dynamic attribute**, existing in `__dict__` only after a storm,
+and impossible to find by "listing the fields").
 
-### 落地方式：结构性断言，而不是手写清单
+### How it is implemented: a structural assertion rather than a hand-written list
 
-`audit_fields()` 对 `vars(agent/world/life)` 求差集，
-**任何未被分类的字段都会让它抛错**。
-这防的不是"以后 v3 变了"（v3 已冻结），而是**"我漏看了一个字段"** ——
-第一版正是这么错的。
+`audit_fields()` takes the set difference over `vars(agent/world/life)`,
+**and any unclassified field makes it raise**.
+What that guards against is not "v3 changing later" (v3 is frozen) but **"I overlooked a field"** —
+which is exactly how the first version went wrong.
 
-另外分成两个作用域：
-- `exec_state()` = EXEC only → **全拉平阴性对照**用（拉平后 LOG 本来就该不同）
-- `full_state()` = EXEC + LOG → **分叉隔离 / 确定性测试**用（更严格）
+It is also split into two scopes:
+- `exec_state()` = EXEC only → used by the **full-levelling negative control** (after levelling, LOG should differ anyway)
+- `full_state()` = EXEC + LOG → used by **fork isolation / determinism tests** (stricter)
 
-### 机制层自检（`novel_situation.py`，全部通过）
-
-```
-✓ 规则 60：门关闭不烧库存、regen 正常、开门可取
-✓ 规则 61：sibling 突变测试双向通过（含 memories 内容 / goal_satiation /
-           action_log / world.p）
-✓ 阴性对照：完整状态相同 → 逐位相同
-✓ 地板全关下分叉不触发 FrozenZero 的 deepcopy 陷阱
-✓ 规则 63：字段审计断言有效，memories 内容 / goal_satiation 都进 hash
-✓ Probe B：λ=0 等价于无耦合，λ>0 确实改变轨迹
-```
-
-> **⚠ 全拉平阴性对照的一个后果**：既然 `action_log` / `memories` /
-> `goal_satiation` 都是 EXEC，**全拉平时必须连它们一起拉平**，
-> 否则"两组在任何维度上都不可区分"这句话不成立。写对照脚本时不能只拉
-> traits/floor/knowledge。
-
-
-## ★ group-blind 校准结果：两个 probe 都不合格 ★（`novel_calibrate.py`，N=300）
-
-阴性对照先过：**规则关闭（S=0 / λ=0）时决策窗与后果窗存活率都是 100.0%**，
-两条策略各自也都 100% —— 实现正确，下面的失败是真的设计问题。
-
-### Probe A「冻土」：24 格全不合格
+### Mechanism-layer self-checks (`novel_situation.py`, all passing)
 
 ```
- W_dec   S    决策窗存活  后果窗存活  盖房派  探索派  盖房存活  探索存活   差
-   5   0.00   100.0%   100.0%  24.2%  75.8%  100.0%  100.0%   0.0%   ←基线
+✓ rule 60: a shut gate burns no stock, regen is normal, an open gate yields food
+✓ rule 61: the sibling mutation test passes in both directions (including memories content / goal_satiation /
+           action_log / world.p)
+✓ negative control: identical complete state → bit-identical
+✓ forking with all floors off does not hit the FrozenZero deepcopy trap
+✓ rule 63: the field audit assertion works, and both memories content and goal_satiation enter the hash
+✓ Probe B: λ=0 equals no coupling, λ>0 really changes the trajectory
+```
+
+> **⚠ One consequence for the full-levelling negative control**: since `action_log` / `memories` /
+> `goal_satiation` are all EXEC, **full levelling must level them too**,
+> or the statement "the two groups are indistinguishable on every dimension" does not hold. A control script cannot level
+> only traits/floor/knowledge.
+
+
+## ★ Group-blind calibration results: both probes fail ★ (`novel_calibrate.py`, N=300)
+
+The negative control passes first: **with the rule off (S=0 / λ=0), survival in both the decision and consequence windows is 100.0%**,
+and each strategy is at 100% too — the implementation is correct, so the failures below are genuine design problems.
+
+### Probe A "frozen ground": all 24 cells fail
+
+```
+ W_dec   S    dec-win alive  con-win alive  builder  explorer  build alive  expl alive   gap
+   5   0.00     100.0%        100.0%        24.2%     75.8%     100.0%      100.0%     0.0%   ←baseline
    5  55.00   100.0%    54.7%  17.4%  75.5%   98.1%   49.8%  48.3%
    5  80.00   100.0%    41.3%  17.3%  75.5%   85.3%   35.2%  50.1%
 ```
 
-失败频次：③后果窗存活 24/24、⑥策略存活 24/24、①两策略占比 22/24。
+Failure counts: ③ consequence-window survival 24/24, ⑥ strategy survival 24/24, ① strategy shares 22/24.
 
-> ### ⚠ 我在设计里的论证是错的，此处更正 ⚠
-> 设计 §2 写：「`explore` 的产出走 `EXPLORE_FOOD_YIELD`，不经过 `world.food`
-> → 两条都能活的策略」。**"绕开门" ≠ "能活"。** 算速率就清楚：
+> ### ⚠ My argument in the design was wrong, and is corrected here ⚠
+> Design §2 said: "the yield of `explore` goes through `EXPLORE_FOOD_YIELD` and does not pass through `world.food`
+> → both routes are survivable". **"Bypasses the gate" ≠ "can survive".** Computing the rates makes it clear:
 >
 > ```
-> explore 期望产出 = 0.28 × 0.5      = 0.14 食物/tick
-> 维持饥饿所需     = 2.2 / 20        = 0.11 食物/tick
+> expected explore yield = 0.28 × 0.5      = 0.14 food/tick
+> needed to hold hunger steady = 2.2 / 20  = 0.11 food/tick
 > ```
 >
-> 余量只有 27%，而 explore 每次扣 9 点精力（基础消耗才 1.2），
-> 球必须分出大量 tick 睡觉 → **实际探索占比下净收支为负**。
-> 实测探索派存活 35–51%。
+> A margin of only 27%, while each explore costs 9 energy (the base cost is only 1.2), so the
+> ball must spend a great many ticks asleep → **at the actual explore share the net balance is negative**.
+> Measured explorer survival: 35–51%.
 >
-> **我从代码结构读出"可能性"，没有验证"量级"** ——
-> 与 3g「悬崖」那次同型的错误（规则 49 之前）。
+> **I read "possibility" off the code structure without verifying "magnitude"** —
+> the same class of error as the "cliff" in §3g (before rule 49).
 
-### Probe B「盐碱地」：28 格全不合格
+### Probe B "saline soil": all 28 cells fail
 
 ```
- W_dec    λ    后果窗存活  盖房派  探索派  盖房存活  探索存活   差    耦合改变
-   5   0.00    100.0%   24.2%  75.8%  100.0%  100.0%   0.0%    ←基线
+ W_dec    λ    con-win alive  builder  explorer  build alive  expl alive   gap    coupling change
+   5   0.00     100.0%       24.2%     75.8%     100.0%      100.0%     0.0%      ←baseline
    5   0.10     96.4%   24.2%  75.8%   85.3%  100.0%  14.7%    0.059
    5   0.20     79.0%   24.2%  75.8%   13.3%  100.0%  86.7%    0.063
    5   0.30     75.6%   24.2%  75.5%    0.0%   99.8%  99.8%    0.068
 ```
 
-λ=0.1 时七条只差 ⑥ 一条。N=60 时差 12.0pp，**N=300 时差 14.7pp** ——
-样本加大后**离合格更远**，不是噪声。λ≥0.2 是断崖：盖房派存活 13% → 0%。
+At λ=0.1 seven conditions hold and only ⑥ fails. At N=60 the gap was 12.0pp; **at N=300 it is 14.7pp** —
+raising the sample moves it **further** from passing, so it is not noise. λ≥0.2 is a cliff: builder survival goes 13% → 0%.
 
-### ★ 规则 64：v3 只有一套食物经济，任何动它的 probe 都产生生存分裂而非策略分裂 ★
+### ★ Rule 64: v3 has only one food economy, so any probe that touches it produces a survival split rather than a strategy split ★
 
-两个 probe 失败的形状**完全相同：总有一条策略变成致命的**。
+The two probes fail in **exactly the same shape: one strategy always becomes lethal**.
 
-- Probe A 门控 `world.food` → **探索派**断了食物来源 → 死
-- Probe B 采材料毁 `world.food` → **盖房派**挖空自己的食物来源 → 死
+- Probe A gates `world.food` → the **explorers** lose their food source → they die
+- Probe B has material gathering destroy `world.food` → the **builders** hollow out their own food source → they die
 
-根因是同一个：**`world.food` 是 v3 唯一真正的食物来源**，
-`explore` 的产出率不足以独立维生（见上）。所以**任何对食物可得性的
-结构性操作，都会把"策略差异"变成"生存差异"**。
+The root cause is the same: **`world.food` is v3's only real food source**,
+and the yield rate of `explore` is not enough to live on independently (see above). So **any structural manipulation
+of food availability turns a "strategy difference" into a "survival difference"**.
 
-还有一层我也弄错了：**策略归类（b vs e）并不对应食物来源依赖**。
-被归为"探索派"的球**照样在采集**；它们只是探索占比更高。
-所以 Probe A 的前提「有两条独立的食物路线」**双重不成立**。
+There is one more thing I got wrong: **the strategy classification (b vs e) does not correspond to dependence on a food source**.
+The balls classified as "explorers" **still gather**; they merely have a higher explore share.
+So Probe A's premise "there are two independent food routes" **fails twice over**.
 
-> **结论：v3 的动作经济太窄，不足以支撑"在新结构上产生策略分岔"这类 probe。**
-> 这不是参数没调好，是模型的经济结构决定的。
+> **Conclusion: v3's action economy is too narrow to support probes of the type "produce a strategy fork on a new structure".**
+> This is not badly tuned parameters; it is determined by the economic structure of the model.
 
-### 为什么现在可以放心迭代 probe 设计
+### Why probe designs can be iterated safely now
 
-**校准是 group-blind 的** —— 脚本结构上拿不到发育世界标签，
-输出里也只有 pooled 量。**所以关于 rich/poor 差异的信息一个比特都没泄漏。**
-基于校准结果重新设计 probe，**不损害 `60000–61499` 的 final 地位**。
+**The calibration is group-blind** — the script structurally cannot obtain the developmental-world label,
+and its output contains only pooled quantities. **So not one bit of information about the rich/poor difference has leaked.**
+Redesigning the probe on the basis of the calibration results **does not harm the final standing of `60000–61499`.**
 
-这正是先做 group-blind 校准的价值：**它在烧掉 final 之前就抓到了
-"这个实验根本测不了它想测的东西"。**
+This is exactly the value of doing the group-blind calibration first: **it caught "this experiment simply cannot measure
+what it wants to measure" before the final was burned.**
 
-### 三条路（待拍板，我不自行选择）
+### Three routes (awaiting a decision; I will not choose on my own)
 
-1. **换赛道**：设计不触碰食物经济的 probe（材料/住所经济、信息经济
-   `read`/`book`、时间结构），保住生存率，才可能出现真正的策略选择。
-2. **承认射程**：v3 的动作经济不足以测 novel-situation generalization，
-   如实写进论文 —— 这本身是个诚实的架构性结论。
-3. ⚠ 灰色地带：λ 网格是 `{0.1, 0.2, …}`，没有 0.05。看到 0.1 接近之后再往下加
-   **不是放宽判据，但确实是事后扩大搜索空间**（grid fishing）；
-   且更小的 λ 会让 ⑧「耦合咬得住」变弱，不是免费的。**需要明确授权才做。**
+1. **Change track**: design a probe that does not touch the food economy (the material/shelter economy, the information economy
+   `read`/`book`, temporal structure), preserving survival so that a genuine strategy choice can appear.
+2. **Admit the scope**: v3's action economy is not sufficient to measure novel-situation generalization; write that
+   into the paper honestly — which is itself an honest architectural conclusion.
+3. ⚠ A grey area: the λ grid is `{0.1, 0.2, …}` with no 0.05. Adding smaller values after seeing 0.1 come close
+   **is not relaxing the criteria, but it is expanding the search space after the fact** (grid fishing);
+   and a smaller λ weakens ⑧ "the coupling bites", so it is not free. **Explicit authorisation is required.**
 
 
-## ★ 规则 65：novel probe 不许动粮食 ★
+## ★ Rule 65: a novel probe must not touch food ★
 
-> **Novel probe 的主要操纵不得直接改变 hunger、condition 或长期可持续的
-> food supply；生存只能作为安全性检查，不能成为 probe 的策略回报函数。**
+> **A novel probe's main manipulation must not directly change hunger, condition or the long-term sustainable
+> food supply; survival may serve only as a safety check and must not become the probe's strategic reward function.**
 
-要测的是「过去让两个 agent 面对新问题采取不同办法没有」，
-**不是**「谁比较会在一个人为制造的饥荒机制里活下来」。
+What is to be measured is "whether the past made two agents take different approaches to a new problem",
+**not** "who is better at surviving an artificially manufactured famine mechanism".
 
-所以新 probe 的目标形状是：
+So the target shape of a new probe is:
 
 ```
-两条路都能继续正常活
+both routes can continue to live normally
         ↓
-但得到不同的【非生存】后果
+but obtain different **non-survival** consequences
 ```
 
-**Probe A「冻土」与 Probe B「盐碱地」正式退役**（记录保留，见上一节）。
+**Probe A "frozen ground" and Probe B "saline soil" are formally retired** (the record is kept, see the previous section).
 
-### 为什么不选另外两条路
+### Why the other two routes are not chosen
 
-- **不给 v3 补探索觅食机制**（提高 `EXPLORE_FOOD_YIELD` 或新增食物经济）：
-  那实际上已经分叉成 **v4**，011–025 关于 v3 persistence 的证据就接不上，
-  还得重新确认"v4 还有没有原来的 persistence architecture"，
-  把项目拖回模型验证阶段。更要命的是它会制造一个完全合理的质疑：
-  **"是不是为了让 generalized individuality 出现，特意改了 agent？"**
-  即使做得完全诚实，也没必要给自己背这个解释负担。
-- **不急着宣布"v3 做不到"**：目前只证明了**不能拿食物经济做这类 probe**，
-  没有证明 v3 在任何结构新颖情境下都不行。
-  正确的结论是**"我们选错了战场"**，不是"架构做不到"。
+- **Not adding a foraging mechanism to v3** (raising `EXPLORE_FOOD_YIELD` or adding a food economy):
+  that would already be a fork to **v4**, the 011–025 evidence about v3 persistence would no longer connect,
+  and "does v4 still have the original persistence architecture" would have to be confirmed again,
+  dragging the project back to the model-validation stage. Worse, it would create an entirely reasonable suspicion:
+  **"did you change the agent specially so that generalized individuality would appear?"**
+  Even done with complete honesty, there is no need to take on that explanatory burden.
+- **Not rushing to declare "v3 cannot do it"**: all that has been shown is that **the food economy cannot be used for this class of probe**,
+  not that v3 fails in every structurally novel situation.
+  The correct conclusion is **"we picked the wrong battlefield"**, not "the architecture cannot do it".
 
-## ★ 行为经济审计（group-blind）★（`novel_econ_audit.py`，n=591）
+## ★ Behavioural-economy audit (group-blind) ★ (`novel_econ_audit.py`, n=591)
 
-选新赛道之前先量速率 —— 这正是 Probe A 栽跟头的地方。
-common garden 30 天，存活 100.0%：
+Measure the rates before choosing a new track — precisely where Probe A came unstuck.
+30 days of common garden, survival 100.0%:
 
 ```
-动作                均值占比   跨个体SD   变异系数    p90−p10   >0 的球
-eat               0.108    0.0007    0.01     0.001   100.0%   ← 代谢刚性，几乎无个体差异
+action              mean share  between-indiv SD    CV      p90−p10   balls >0
+eat                  0.108        0.0007          0.01      0.001    100.0%   ← metabolically rigid, almost no individual difference
 sleep             0.315    0.0524    0.17     0.146   100.0%
 gather_food       0.041    0.0412    1.02     0.113    78.7%
 gather_material   0.120    0.1676    1.40     0.426    58.4%   ★
 build             0.022    0.0295    1.34     0.054    58.2%
 explore           0.395    0.2453    0.62     0.640    76.0%   ★
-read              0.000    0.0000     —       0.000     0.0%   ← 基准世界没有书
+read                 0.000        0.0000            —       0.000      0.0%   ← the baseline world has no books
 ```
 
-> ### ★ 规则 66：`explore ↔ gather_material` 是 v3 里唯一有足够个体方差的策略轴 ★
-> 这两个动作的 `p90−p10` 分别是 **0.640 / 0.426**，远超其余动作；
-> 而 `eat` 的跨个体 SD 只有 **0.0007** —— **进食是代谢刚性的，
-> 几乎不携带个体差异**。这从另一个角度解释了规则 64：
-> **动食物 = 动一个本来就没有个体差异的维度，只能压出生存差异。**
+> ### ★ Rule 66: `explore ↔ gather_material` is the only strategy axis in v3 with enough individual variance ★
+> The `p90−p10` of those two actions is **0.640 / 0.426**, far above every other action;
+> while the between-individual SD of `eat` is only **0.0007** — **eating is metabolically rigid
+> and carries almost no individual difference**. That explains rule 64 from another angle:
+> **touching food = touching a dimension that had no individual difference in the first place, which can only squeeze out a survival difference.**
 >
-> 新 probe 应当建在 `explore ↔ gather_material` 这条轴上：
-> 方差最大、两条路在**两个发育世界里都合法**（只是 `material_yield` 2.0 vs 0.5
-> 速率不同）、且不碰食物供给。
+> A new probe should be built on the `explore ↔ gather_material` axis:
+> the largest variance, both routes **legal in both developmental worlds** (only the `material_yield` rate differs, 2.0 vs 0.5),
+> and it does not touch food supply.
 
-### ⚠ read / book 这条赛道有一个致命的不对称，建议放弃
+### ⚠ The read / book track has a fatal asymmetry and should be abandoned
 
-实测 **`read` 在 common garden 的占比是 0.0000，0% 的球做过** ——
-因为 `ACTION_REQUIRES_OBJECT = {"read": "book"}` 而 `基准` 世界没有书。
+Measured, **`read` has a share of 0.0000 in the common garden and 0% of balls ever did it** —
+because `ACTION_REQUIRES_OBJECT = {"read": "book"}` and the `baseline` world has no books.
 
-而两个发育世界是：**丰富世界 `objects = ("book","music")`、贫瘠世界 `objects = ()`。**
+And the two developmental worlds are: **the rich world with `objects = ("book","music")` and the barren world with `objects = ()`.**
 
-所以往 novel 世界里放一本书：
+So putting a book into the novel world means:
 
 ```
-对丰富世界出身的球 = 【旧经验】（它发育期读过书、有 knowledge）
-对贫瘠世界出身的球 = 【全新事物】（从未见过书）
+for a ball raised in the rich world = **old experience** (it read books during development and has knowledge)
+for a ball raised in the barren world = **something entirely new** (it has never seen a book)
 ```
 
-**这不是"对双方都 novel"，而是把一个发育期差异重新暴露一次。**
+**That is not "novel to both"; it re-exposes a developmental difference.**
 
-更糟的是：`B_familiar` 里 `read` 恒为 0（common garden 没书），
+Worse: `read` is identically 0 in `B_familiar` (the common garden has no books),
 所以这份"先前经验优势"**根本不会出现在 `B_familiar` 里** ——
 它会直接灌进 `ΔOOS`，让 G1 因为一个**平凡理由**而通过。
 **这正是 G1 最需要挡住的那种假阳性。**
