@@ -599,465 +599,465 @@ industry dz             +0.600           +0.524     ← it went down instead
 pairs with no change      30.2%            29.9%
 ```
 
-**什么都没动。**
+**Nothing moved.**
 
-> 如果把传递函数改平滑没有效果，那说明**输入本身就是二值的**。
+> If smoothing the transfer function has no effect, that means **the input itself is binary**.
 
-### 诊断：输入确实是二值的
-
-```
-放养型:  hardship ≈ 0（从没挨过饿）:  49.1%
-        condition == 100 精确值:     53.2%
-        hardship 分位: p50=0.04 → p60=1.38    ← 中间什么都没有
-```
-
-### ★ 根因：explore 是一个无限的食物龙头
+### Diagnosis: the input really is binary
 
 ```
-              explore 占比   gather_food 占比   hardship
-陷入危机           0.0%           12.0%          4.66
-从未危机          36.5%            3.4%          0.00
+hands-off:  hardship ≈ 0 (never went hungry):  49.1%
+        condition == 100 exactly:              53.2%
+        hardship quantiles: p50=0.04 → p60=1.38    ← nothing in between
 ```
 
-**会探索的球永远不挨饿，不探索的球必然挨饿。零重叠。**
-
-`explore` 的代码是 `if rng.random() < 0.28: food += 2`，**不受任何资源上限约束**。
-一个探索型的球 30 天累积约 147 份，而它只需要 79 份。
-
-实验 004 辛苦造出来的稀缺**有一个漏洞，一半的球从这个洞里跑掉了**。
-
-> **这件事被规则一预言过：**
-> "用户的影响力 = 球自己解决不了的那部分。"
-> 探索恰恰就是球自己解决问题的一条路。
-> 规则是对的，只是没人回头去审计代码里有没有违反它的地方。
-
-### 附带发现：正反馈放大的是种子，而且发生在用户介入之前
-
-把"陷入危机"和"从未危机"两组的**初始**性格（从种子重建）和**最终**性格对比：
+### ★ Root cause: explore is an infinite food tap
 
 ```
-                初始                    最终
-           危机   从未危机          危机   从未危机
+                 explore share   gather_food share   hardship
+hit a crisis         0.0%             12.0%           4.66
+never in crisis     36.5%              3.4%           0.00
+```
+
+**A ball that explores never goes hungry, and a ball that does not explore inevitably does. Zero overlap.**
+
+The code for `explore` is `if rng.random() < 0.28: food += 2`, which is **bounded by no resource cap at all**.
+An exploring ball accumulates about 147 portions over 30 days while needing only 79.
+
+The scarcity so carefully manufactured in experiment 004 **had a leak, and half the balls escaped through it**.
+
+> **This was predicted by rule one:**
+> "the user's influence = the part the ball cannot solve by itself."
+> Exploring is exactly a way the ball solves the problem by itself.
+> The rule was right; nobody went back to audit whether the code violated it.
+
+### Incidental finding: what the positive feedback amplifies is the seed, and it happens before the user intervenes
+
+Comparing the **initial** personality (reconstructed from the seed) and the **final** personality of the "hit a crisis" and "never in crisis" groups:
+
+```
+                initial                    final
+           crisis   no crisis        crisis   no crisis
 curiosity  47.1     54.3            47.1     86.7
 caution    52.8     46.6            91.6     45.0
 ```
 
-**7 分的初始差异被放大成 40 分。** 放大倍数约 6 倍。
+**A 7-point initial difference is amplified into 40 points.** An amplification factor of about 6.
 
-这就是差异来源 #4（正反馈）在按设计工作——但它放大的是**种子的噪声**，
-而且在用户的投喂能起作用之前就把球锁进了两个吸引子之一。
+That is difference source #4 (positive feedback) working as designed — but what it amplifies is **the noise of the seed**,
+and it locks the ball into one of two attractors before the user's feeding can have any effect.
 
-### 修复
+### The fix
 
 ```python
-EXPLORE_FOOD_YIELD  = 0.5   # 原来是写死的 2.0。探索现在是补贴，不是替代品
-LOCAL_FOOD_REGEN    = 2.4   # 2.2 → 2.4。堵上漏洞后球没了退路，本地要放宽
+EXPLORE_FOOD_YIELD  = 0.5   # was hardcoded at 2.0. Exploring is now a subsidy, not a substitute
+LOCAL_FOOD_REGEN    = 2.4   # 2.2 → 2.4. With the leak plugged the balls have no fallback, so local supply is loosened
 ```
 
-（顺手把 `0.28` 和 `2` 两个魔数提成了具名参数。魔数藏了这个 bug 一整轮。）
+(The two magic numbers `0.28` and `2` were promoted to named parameters along the way. The magic numbers hid this bug for an entire round.)
 
-### 结果
+### Results
 
 ```
-                        实验011   只改成连续     最终     目标
-industry 中位数           +1.34      +0.96     +14.38    ≠ 0
+                        exp 011   continuous only    final     target
+industry median          +1.34        +0.96         +14.38      ≠ 0
 industry dz              +0.600     +0.524     +0.884    > 0.8   ✓
-完全没变化的配对            30.2%      29.9%       6.5%    < 20%   ✓
-condition 中位数            0.00       0.00      -6.72    ≠ 0     ✓
-放养型死亡率                 6.5%       6.5%       7.8%    < 10%   ✓
+pairs with no change      30.2%        29.9%           6.5%    < 20%   ✓
+condition median           0.00         0.00          -6.72      ≠ 0     ✓
+hands-off mortality        6.5%         6.5%           7.8%    < 10%   ✓
 ```
 
-**剂量反应从台阶变成了斜坡：**
+**The dose response went from a step to a slope:**
 
 ```
                      industry   condition
-溺爱型→平衡型   之前    +3.15      -1.84       现在   +6.60   -12.45
-平衡型→放养型   之前    +6.37     -19.58       现在   +5.92   -13.76
+doting→balanced      before   +3.15      -1.84       now   +6.60   -12.45
+balanced→hands-off   before   +6.37     -19.58       now   +5.92   -13.76
 ```
 
-两段现在几乎相等——**每 3 天投喂和每天投喂，终于养出不一样的球了**。
+The two segments are now nearly equal — **feeding every 3 days and feeding every day finally raise different balls**.
 
-种群层面（`diagnose.py`），三个载体都出现梯度，对照组仍然平坦：
+At the population level (`diagnose.py`) all three carriers show a gradient while the control arm stays flat:
 
 ```
-          饿怕了    怕暴雨    勤劳    体质
-溺爱型      0.0%    37.8%    66.3   100.0
-平衡型     23.4%    37.2%    71.1    87.3
-放养型     49.5%    42.4%    79.7    76.4
+          hunger-scarred  storm-fearing  industry  condition
+doting          0.0%          37.8%        66.3      100.0
+balanced       23.4%          37.2%        71.1       87.3
+hands-off      49.5%          42.4%        79.7       76.4
 ```
 
-spread 8.96 → 13.43；industry 信噪比 7.2 → 12.7；
-caution 从 2.1 → 5.4，不再是只有一个载体有信号。
+spread 8.96 → 13.43; the industry signal-to-noise ratio 7.2 → 12.7;
+caution goes from 2.1 → 5.4, so it is no longer a single carrier carrying the signal.
 
 ---
 
-## ★ 本轮新增的设计规则
+## ★ New design rules from this round
 
-10. **传导链上只要有一环是二值的，整条链就是二值的。**
-    改末端没用。要沿着链往上游找，直到找到第一个二值的地方。
-    判断方法：把传递函数改平滑，如果输出没变，问题在输入。
+10. **If one link in the transmission chain is binary, the whole chain is binary.**
+    Changing the far end achieves nothing. Walk up the chain until you find the first binary point.
+    How to tell: smooth the transfer function, and if the output does not change, the problem is in the input.
 
-11. **定期审计"球能自己解决问题"的旁路。**
-    规则一说对了方向，但代码里可以偷偷长出违反它的东西
-    （这次是探索的食物产出，藏在两个魔数里）。
-    **每加一个能产出资源的行为，都要问一句：这会不会让用户变成可选项？**
+11. **Audit the bypasses through which "the ball solves the problem itself" regularly.**
+    Rule one had the direction right, but the code can quietly grow something that violates it
+    (this time it was the food yield of exploring, hidden inside two magic numbers).
+    **Every time an action that produces a resource is added, ask: does this make the user optional?**
 
-12. **正反馈放大的是最早进入循环的那个差异。**
-    种子的噪声在第 0 天就进去了，用户的投喂要几天才见效
-    → 循环先把球锁进吸引子，用户永远追不上。
-    **用户的输入必须在正反馈锁定之前进入系统。**
+12. **Positive feedback amplifies whichever difference entered the loop first.**
+    The seed's noise enters on day 0, while the user's feeding takes days to show
+    → the loop locks the ball into an attractor and the user can never catch up.
+    **The user's input must enter the system before the positive feedback locks in.**
 
-外加一条方法论：
+Plus one methodological rule:
 
-13. **假设被自己的工具当场证伪，是工具有用的证据。**
-    `paired.py` 上线后第一件事就是否掉了当初做它的那个假设。
-    如果当时只看 spread，"连续化"会被记成一次小幅改进而不是一次证伪。
-
----
-
-## 还没解决的（实验 013 之后）
-
-- **`shelter` 方向仍然是反的**（+9.09）。放养的球还是把房子修得更好。
-  根因没变：棘轮灌 `industry`，`industry` 给 `build` 打分。
-- **`caution` / `curiosity` 的配对中位数仍然 ≈ 0。** 用户的通道只汇入 `industry` 一个维度。
-- **性格标签改变率 17.1%**（目标 50%），且其中相当部分是 `dominant_style()` 的 bug。
-- **平衡型现在会死 2.5%**（原来 0%）。
-- ⚠ **新配置还没重测 60 天durability 和 ±7% 参数鲁棒性**（盘点里的问题 2 和 3）。
+13. **A hypothesis being falsified on the spot by your own tool is evidence the tool works.**
+    The first thing `paired.py` did once it existed was refute the very hypothesis it was built for.
+    Looking only at spread, "going continuous" would have been recorded as a small improvement rather than a falsification.
 
 ---
 
-## 实验 014 —— 消融：每个机制到底贡献了多少（`ablation.py`）
+## Still unsolved (after experiment 013)
 
-方法抄自 [[Generative Agents 笔记]] 第 6 节：把架构里的部件依次关掉，看指标掉多少。
-他们证明"每个部件都必要"，我们要证明的是**分化不是某一个旋钮的功劳，也不是随机的**。
-
-300 颗种子 × 30 天，配对 溺爱型 → 放养型：
-
-```
-条件                       ind dz   ind中位数   cond dz   完全没变化   放养死亡   相对完整
-完整架构                    0.861     12.08     -0.826       6.5%      8.0%      基准
-− 性格权重                  0.823     13.31     -1.290       5.3%      0.0%       -4%
-− 正反馈循环                1.439     14.75     -0.767      16.7%      0.0%      +67%
-− 棘轮（经历不留痕）         1.484      6.55     -0.633       5.8%     13.3%      +72%
-− 季节波动                  0.732      9.70     -0.713       7.4%      9.3%      -15%
-− 食物缺口                  0.401      0.94     -0.413      32.3%      0.0%      -53%
-− 用户差异（零假设）         0.000      0.00      0.000     100.0%      3.0%     -100%
-```
-
-**零假设那一行精确为 0** —— 把三种用户的投喂间隔调成一样时，
-同一颗种子的两次模拟完全确定性地相同。测量管道没有漏。
-
-### 结果不太舒服，但很有信息量
-
-**1. 食物缺口是压倒性的第一贡献（−53%）。**
-关掉它（= 恢复探索的食物漏洞）中位数直接掉到 0.94，三分之一的配对毫无变化。
-实验 013 的判断被独立确认了。
-
-**2. 正反馈和棘轮，对「用户归因」这个指标是负贡献。**
-
-这看起来像坏消息，其实是把 [[设计要点与风险]] §5.2 里那个张力量化了：
-
-> 正反馈（差异来源 #4）放大的是**种子**，
-> 而种子是用户信号的**噪声**。
-> 它让球彼此不同（σ 大），但让"是不是用户造成的"更难看出来。
-
-**差异来源 #1/#4 和 #3 在争同一个方差预算。** 这是真实的取舍，不是 bug。
-
-棘轮同理：关掉它 dz 反而升到 1.484，**但中位数腰斩（12.08 → 6.55），死亡率从 8.0% 升到 13.3%。**
-棘轮的真实贡献是**抬高中位数 + 保命**，不是抬高 dz。
-
-**3. ⚠ 性格权重关掉，dz 几乎不变（−4%），而死亡率归零。**
-
-这条最值得警惕，因为它暴露的是**我们指标的问题**：
-
-> `PERSONALITY_WEIGHT = 0` 时，性格数值**完全不影响行为**。
-> 可是 industry dz 还有 0.823。
-> 说明 dz 量的是**一个数字的差异**，不是**行为的差异**。
-
-这正是 [[设计要点与风险]] §5.5 警告过的："差异必须看得见"。
-**目前所有的指标都在量数值，没有一个在量行为。**
-
-顺带：性格权重是杀球的元凶（关掉后死亡率 8.0% → 0%），这和实验 002 的观察一致。
+- **The direction of `shelter` is still inverted** (+9.09). Hands-off balls still fix their houses up better.
+  The root cause is unchanged: the ratchet pours into `industry`, and `industry` scores `build`.
+- **The paired medians of `caution` / `curiosity` are still ≈ 0.** The user's channel converges on the single dimension `industry`.
+- **The personality-label flip rate is 17.1%** (target 50%), and a substantial part of it is the `dominant_style()` bug.
+- **Balanced now dies at 2.5%** (previously 0%).
+- ⚠ **The new configuration has not been re-tested for 60-day durability or ±7% parameter robustness** (problems 2 and 3 in the stocktake).
 
 ---
 
-## ★ 实验 014 得到的规则
+## Experiment 014 — ablation: how much does each mechanism actually contribute (`ablation.py`)
 
-14. **正反馈放大的是最先进入循环的差异——它服务"个体多样性"，不服务"用户归因"。**
-    这两个目标在争同一份方差。要哪个，得先想清楚产品卖的是哪个。
+The method is taken from §6 of [[Generative Agents notes]]: switch off each component of the architecture in turn and see how far the metric drops.
+They proved "every component is necessary"; what we want to prove is **that differentiation is not the doing of one knob, and is not random**.
 
-15. **消融表会暴露指标的盲区，不只是机制的贡献。**
-    关掉性格权重而 dz 不变，说明指标量错了东西。
-    **下一个该做的是行为层指标**（配对的两只球，日常动作分布差多少），
-    而不是继续优化数值层的 dz。
+300 seeds × 30 days, paired doting → hands-off:
+
+```
+condition                       ind dz   ind median   cond dz   no change   hands-off dead   vs full
+full architecture                0.861     12.08      -0.826       6.5%          8.0%       baseline
+− personality weight             0.823     13.31      -1.290       5.3%          0.0%          -4%
+− positive feedback loop         1.439     14.75      -0.767      16.7%          0.0%         +67%
+− ratchet (no mark left)         1.484      6.55      -0.633       5.8%         13.3%         +72%
+− seasonal fluctuation           0.732      9.70      -0.713       7.4%          9.3%         -15%
+− food deficit                   0.401      0.94      -0.413      32.3%          0.0%         -53%
+− user difference (null)         0.000      0.00       0.000     100.0%          3.0%        -100%
+```
+
+**The null row is exactly 0** — when the feeding intervals of the three users are made equal,
+two runs of the same seed are deterministically identical. The measurement pipeline does not leak.
+
+### The results are uncomfortable but informative
+
+**1. The food deficit is the overwhelming top contributor (−53%).**
+Switching it off (= restoring the exploration food leak) takes the median straight down to 0.94, with a third of pairs unchanged.
+The judgement of experiment 013 is independently confirmed.
+
+**2. Positive feedback and the ratchet contribute negatively to the "user attribution" metric.**
+
+That looks like bad news, but it actually quantifies the tension of [[Design points and risks]] §5.2:
+
+> Positive feedback (difference source #4) amplifies **the seed**,
+> and the seed is **noise** for the user's signal.
+> It makes the balls differ from one another (large σ) while making "was this caused by the user" harder to see.
+
+**Difference sources #1/#4 and #3 are competing for the same variance budget.** That is a genuine trade-off, not a bug.
+
+The ratchet is the same: switching it off raises dz to 1.484, **but halves the median (12.08 → 6.55) and takes mortality from 8.0% to 13.3%.**
+The ratchet's real contribution is **raising the median and keeping them alive**, not raising dz.
+
+**3. ⚠ Switching off the personality weight barely changes dz (−4%) and takes mortality to zero.**
+
+This one deserves the most caution, because what it exposes is **a problem with our metric**:
+
+> At `PERSONALITY_WEIGHT = 0` the personality numbers **have no effect on behaviour at all**.
+> And yet industry dz is still 0.823.
+> So dz measures **a difference in a number**, not **a difference in behaviour**.
+
+This is exactly what [[Design points and risks]] §5.5 warned about: "the difference must be visible".
+**Every current metric measures numbers, and not one measures behaviour.**
+
+Incidentally: the personality weight is what kills the balls (mortality 8.0% → 0% once it is off), consistent with the observation of experiment 002.
 
 ---
 
-## 实验 015 —— 补上行为层：卖点在哪一层成立（`behavior.py`）
+## ★ The rules from experiment 014
 
-实验 014 的规则 15 说得很直白：所有指标量的都是数字，没有一个量行为。
-这一轮补上。顺手给 `Agent` 加了 `action_by_hour`（每个时辰分别记），
-并修掉了 `dominant_style()` 的判据顺序 bug。
+14. **Positive feedback amplifies whichever difference entered the loop first — it serves "individual diversity", not "user attribution".**
+    Those two goals compete for the same variance. Which one you want depends on what the product is selling.
 
-### 三个指标 + 它们的噪声地板
+15. **An ablation table exposes the blind spots of the metric, not only the contributions of the mechanisms.**
+    dz staying put when the personality weight is switched off means the metric is measuring the wrong thing.
+    **What should come next is a behaviour-layer metric** (how far apart the daily action distributions of two paired balls are),
+    rather than further optimisation of a numeric-layer dz.
 
-TV（总变差距离）恒为正，不能用符号置换。**正确的对照是换一个比较对象：**
+---
 
-```
-TV_user  = 同一颗种子，不同用户    ← 用户造成的行为差异
-TV_base  = 同一种用户，不同种子    ← 两只球本来就有的差异
-```
+## Experiment 015 — filling in the behaviour layer: at which layer does the selling point hold (`behavior.py`)
 
-**TV_user 必须明显高过 TV_base**，否则"我的球和别人不一样"
-和"球本来就各不相同"无法区分，用户还是不会觉得是自己养的。
+Rule 15 of experiment 014 put it bluntly: every metric measures numbers and none measures behaviour.
+This round fills that in. `action_by_hour` was added to `Agent` along the way (recorded per hour),
+and the criterion-ordering bug in `dominant_style()` was fixed.
 
-### ✗ 结论一：行为层不成立
+### Three metrics and their noise floors
 
-```
-用户造成（同种子，换用户）    TV 0.160
-基线（同用户，换种子）        TV 0.286 / 0.223
-
-用户 / 基线 = 0.63×      p = 0.000   ← 显著，但方向是反的
-```
-
-作息说得更狠：
+TV (total variation distance) is always positive, so sign permutation cannot be used. **The correct control is to change the comparison object:**
 
 ```
-作息不同的时辰:   用户造成 5.05/24（中位数 0）   基线 9.35/24（中位数 13）
+TV_user  = same seed, different user     ← the behavioural difference caused by the user
+TV_base  = same user, different seed     ← the difference two balls have anyway
 ```
 
-**中位数是 0——一半以上的配对，两只球的一天作息完全相同。**
-而且全部位移集中在一个动作上：`gather_food +7.5%`，
-恰恰是用户最看不见的那个行为。
+**TV_user must clearly exceed TV_base**, or "my ball is different from yours"
+cannot be told apart from "balls differ anyway", and the user still will not feel they raised it.
 
-### ✓ 结论二：状态层成立
-
-```
-特征              只有放养型   只有溺爱型   不一致率
-看着还健康              0         169       56.3%   ← 方向完美
-有存粮                 81          79       53.3%
-有像样的家             39           0       13.0%   ← 方向是反的
-常出门                  0          15        5.0%
-
-★ 至少一个特征不同: 78.7%     目标 > 60%   ✓
-```
-
-**不看任何数字、只瞄一眼就能看出差别的配对占 78.7%。**
-
-### 规则 8 需要修订
-
-原来是「状态 > 事件 > 性格」。现在要加一位，而且排在最后：
-
-> ### ★ 状态 > 事件 > 性格 > **行为**
-> 行为不但最弱，而且**低于基线**——用户对"球每天干什么"的影响
-> 小于种子对它的影响。
-
-### 实验 015b —— 规则 12 的直接检验，以及一次空欢喜
-
-规则 12 说种子是用户信号的竞争对手。那就把初始噪声调小试试
-（`INITIAL_TRAIT_SPREAD`，原来写死 ±15）：
+### ✗ Conclusion one: the behaviour layer does not hold
 
 ```
-spread   TV用户   TV基线   ratio   ind dz   一眼可辨   放养死亡
+caused by the user (same seed, different user)    TV 0.160
+baseline (same user, different seed)              TV 0.286 / 0.223
+
+user / baseline = 0.63×      p = 0.000   ← significant, but in the wrong direction
+```
+
+The routine metric puts it even more harshly:
+
+```
+hours whose routine differs:   caused by the user 5.05/24 (median 0)   baseline 9.35/24 (median 13)
+```
+
+**The median is 0 — in more than half the pairs the two balls have exactly the same daily routine.**
+And the entire displacement is concentrated on one action: `gather_food +7.5%`,
+which is precisely the behaviour the user cannot see.
+
+### ✓ Conclusion two: the state layer does hold
+
+```
+feature                only hands-off   only doting   discordance rate
+still looks healthy            0             169          56.3%   ← direction perfect
+has a food store              81              79          53.3%
+has a decent home             39               0          13.0%   ← direction inverted
+often goes out                 0              15           5.0%
+
+★ at least one feature differs: 78.7%     target > 60%   ✓
+```
+
+**78.7% of pairs can be told apart at a glance, without looking at any number.**
+
+### Rule 8 needs revising
+
+It used to be "state > events > personality". A fourth must be added, and it comes last:
+
+> ### ★ state > events > personality > **behaviour**
+> Behaviour is not only the weakest but **below baseline** — the user's influence on "what the ball does each day"
+> is smaller than the seed's influence on it.
+
+### Experiment 015b — a direct test of rule 12, and a false dawn
+
+Rule 12 says the seed competes with the user's signal. So try turning the initial noise down
+(`INITIAL_TRAIT_SPREAD`, previously hardcoded at ±15):
+
+```
+spread   TV user   TV baseline   ratio   ind dz   visibly distinct   hands-off dead
   15.0   0.146    0.277    0.53     0.86     72.5%      8.0%
    6.0   0.160    0.255    0.63     0.91     78.7%      0.0%
    0.0   0.167    0.138    1.20     0.68     67.0%      0.0%
 ```
 
-ratio 从 0.53 涨到 1.20，看着像解决了。**但看 `TV用户` 那一列：它几乎不动。**
+The ratio goes from 0.53 to 1.20, which looks like a solution. **But look at the `TV user` column: it barely moves.**
 
-> ### ★ 规则 16：比值改善不等于效应增强
-> 分子没变，是分母被砍掉了。
-> spread=0 的世界里所有球都一样，那等于用"消灭个体多样性"
-> 换"用户占比变高"——把另一半产品价值扔了。
+> ### ★ Rule 16: a better ratio is not a stronger effect
+> The numerator did not change; the denominator was cut away.
+> In a world with spread=0 every ball is the same, so this trades "abolishing individual diversity"
+> for "a larger user share" — throwing away the other half of the product's value.
 >
-> **用户的行为影响力有一个天花板，卡在 TV≈0.16，怎么调种子都动不了。**
+> **The user's behavioural influence has a ceiling, stuck at TV≈0.16, and no amount of seed tuning moves it.**
 
-不过 `spread 15 → 6` 在每一个指标上都更好，是白捡的，已采用。
+That said, `spread 15 → 6` is better on every metric and comes free, so it has been adopted.
 
 ---
 
-## 实验 016 —— 修好"照顾它反而害它"
+## Experiment 016 — fixing "caring for it actually harms it"
 
-> ### ⚠⚠ 本节结论已被实验 017 推翻，权重 1.2 已退回 0.6
-> 下面的 30 天数字都是真的，但**这套参数活不过 40 天**：
-> 60 天时连溺爱型都死 45%。原因就是这里加的 caution 权重。
-> **保留原文，因为这次翻车本身是最有价值的记录。**
+> ### ⚠⚠ The conclusion of this section was overturned by experiment 017, and the weight 1.2 was reverted to 0.6
+> Every 30-day number below is real, but **this parameter set does not survive 40 days**:
+> at 60 days even the doted-on balls die at 45%. The cause is the caution weight added here.
+> **The original text is kept, because this crash is itself the most valuable record.**
 
-### 诊断（demo 素材直接看出来的）
+### Diagnosis (visible directly in the demo material)
 
 ```
-时辰      0 1 2 3 4 5 6 7 8 91011121314151617181920212223
-溺爱型   睡探探睡探探睡探睡探探睡探睡探探睡探探睡探睡探探    住所  0
-放养型   拾拾睡睡拾拾拾睡拾拾拾睡拾睡睡拾拾睡睡睡拾睡睡睡    住所 99
+hour      0 1 2 3 4 5 6 7 8 91011121314151617181920212223
+doting    sl ex ex sl ex ex sl ex sl ex ex sl ex sl ex ex sl ex ex sl ex sl ex ex    shelter  0
+hands-off ga ga sl sl ga ga ga sl ga ga ga sl ga sl sl ga ga sl sl sl ga sl sl sl    shelter 99
 ```
 
-被溺爱的球**整天在探索，什么都不建**。
+The doted-on ball **explores all day and builds nothing**.
 
-查 `ACTION_TRAIT_MATCH` 就明白了：`build` 确实响应 `caution`，
-但 **`gather_material` 只响应 `industry`**，而 `industry` 只靠饥饿棘轮上涨。
-没有材料就没法建房。
+Checking `ACTION_TRAIT_MATCH` makes it clear: `build` does respond to `caution`,
+but **`gather_material` responds only to `industry`**, and `industry` only rises through the hunger ratchet.
+Without material there is no way to build a house.
 
-> **照顾好你的球，恰好抽掉了它唯一的建房动力。**
-> 这是一行代码的设计缺陷，不是参数问题。
+> **Taking good care of your ball removes the only motivation it had to build a house.**
+> That is a one-line design flaw, not a parameter problem.
 
-### 修复
+### The fix
 
 ```python
-"gather_material": {"industry": 1.0, "caution": 1.2}   # 原来只有 industry
+"gather_material": {"industry": 1.0, "caution": 1.2}   # previously industry only
 ```
 
-**想要安全**也应该驱动收集材料，不是只有勤劳。
-（试过同时加 `caution` 的正反馈，一眼可辨反而掉到 52–60%——
-正反馈又一次放大了种子。规则 14 再次生效，所以不加。）
+**Wanting safety** should also drive gathering material, not industry alone.
+(Adding positive feedback on `caution` at the same time was tried, and "visibly distinct" fell to 52–60% instead —
+the positive feedback amplified the seed again. Rule 14 applies once more, so it is not added.)
 
-权重扫描（700 颗种子复验，1.2 是个尖峰，1.1 和 1.3 都更差 ⚠ 待做鲁棒性检验）：
+A weight sweep (re-verified on 700 seeds; 1.2 is a sharp peak and both 1.1 and 1.3 are worse ⚠ robustness test pending):
 
 ```
-c_match   shelter均值   有家 放/溺    TV ratio   ind dz   一眼可辨
+c_match   mean shelter   has a home hands-off/doting    TV ratio   ind dz   visibly distinct
    0.0        +14.07      89/0          0.64     0.91      76.0%
    1.1         -0.08      63/56         0.53     0.69      76.1%
-   1.2         -0.78      75/171        0.53     0.64      82.5%   ← 采用
+   1.2         -0.78           75/171                     0.53      0.64        82.5%   ← adopted
    1.3         -0.28      52/116        0.52     0.60      73.7%
 ```
 
-### 结果：比扫描时预期的好得多
+### Results: much better than the sweep suggested
 
-只盯 `ind dz` 会以为这是笔亏本买卖（0.91 → 0.67）。全指标看下来不是：
+Watching `ind dz` alone would suggest a bad trade (0.91 → 0.67). Across all metrics it is not:
 
 ```
-                      实验 015    实验 016
+                        exp 015     exp 016
 condition dz            -0.83      -1.04
-condition 中位数        -6.72     -26.40   ← 中位数终于大幅移动
+condition median          -6.72      -26.40   ← the median finally moves substantially
 condition |d|≥5         50.4%      79.7%
-caution dz              +0.37      +0.48   （方向一致性 81.7%）
-industry dz             +0.88      +0.67   ← 代价
-shelter                 +9.09      -0.74   （p=0.383，倒挂消失）
-一眼可辨                 78.7%      82.9%
-有像样的家 方向          39/0 反    30/76 正
-作息不同的时辰      5.05(中位0)  10.58(中位11)
-完全没变化的配对          6.5%       3.8%
-放养型死亡率              7.8%       0.2%
+caution dz                +0.37       +0.48   (directional consistency 81.7%)
+industry dz               +0.88       +0.67   ← the price
+shelter                   +9.09       -0.74   (p=0.383, the inversion is gone)
+visibly distinct           78.7%       82.9%
+"has a decent home" direction   39/0 inverted    30/76 correct
+hours whose routine differs   5.05(median 0)  10.58(median 11)
+pairs with no change            6.5%        3.8%
+hands-off mortality             7.8%        0.2%
 ```
 
-**用 industry 的 0.24 换来了：condition 中位数从 6.7 涨到 26.4、
-caution 从没信号变成有信号、倒挂消失、死亡率归零、一眼可辨 82.9%。**
+**0.24 of industry bought: the condition median rising from 6.7 to 26.4,
+caution going from no signal to a signal, the inversion disappearing, mortality falling to zero, and 82.9% visibly distinct.**
 
-⚠ 但 `TV ratio` 仍然是 0.53 —— **行为层的结论没有改变。**
-（作息指标涨到 10.58/24 中位数 11，和 TV 打架；两个行为指标不一致，
-说明 TV 量的是"动作总量配比"，作息量的是"此刻在干嘛"，
-后者更接近用户的感知。这一点还没吃透。）
-
----
-
-## ★ 实验 015–016 得到的规则
-
-16. **比值改善不等于效应增强。** 先看分子有没有动，再看比值。
-
-17. **只盯一个指标做取舍会看错方向。**
-    实验 016 从 `ind dz` 看是亏的，从全指标看是大赚。
-    **有了多层指标之后，取舍必须整张表一起看。**
-
-18. **每加一个新行为，都要问"哪些性格会驱动它"。**
-    `gather_material` 只挂 industry，就意外造出了"照顾它反而害它"。
-    每个行为至少要有两条性格通路，否则它会变成某个机制的独占出口。
+⚠ But `TV ratio` is still 0.53 — **the behaviour-layer conclusion has not changed.**
+(The routine metric rose to 10.58/24 with a median of 11, which fights the TV; two behaviour metrics disagreeing
+means TV measures "the overall mix of actions" while routine measures "what it is doing right now",
+and the latter is closer to what the user perceives. This is not yet fully understood.)
 
 ---
 
-## 当前状态：卖点在哪一层成立
+## ★ The rules from experiments 015–016
 
-| 层 | 结论 | 证据 |
+16. **A better ratio is not a stronger effect.** Check whether the numerator moved before reading the ratio.
+
+17. **Making a trade-off while watching one metric leads you the wrong way.**
+    Experiment 016 is a loss viewed through `ind dz` and a large gain viewed across all metrics.
+    **Once there are layered metrics, a trade-off must be read off the whole table at once.**
+
+18. **Every time a new behaviour is added, ask which traits drive it.**
+    `gather_material` hanging on industry alone accidentally produced "caring for it harms it".
+    Every behaviour needs at least two personality pathways, or it becomes the exclusive outlet of one mechanism.
+
+---
+
+## Current state: at which layer does the selling point hold
+
+| Layer | Conclusion | Evidence |
 |---|---|---|
-| **状态**（体质、存粮、有没有家） | ✓ **成立** | 一眼可辨 66%（30 天）～86%（90 天），对 ±7% 扰动稳健 |
-| **事件**（差点饿死的故事） | ✓ **成立** | 不一致对 187/0，有故事可讲 |
-| **性格**（数值） | ✓ 统计成立，感知弱 | condition dz ≈ 1.0 |
-| **行为**（每天在干嘛） | ✗ **不成立** | 逐时辰 TV 用户/基线 = 0.68–0.80，**三个指标一致，对参数和时间尺度都不敏感** |
+| **state** (condition, food store, whether it has a home) | ✓ **holds** | visibly distinct 66% (30 days) to 86% (90 days), robust to ±7% perturbation |
+| **events** (the story of nearly starving) | ✓ **holds** | 187/0 discordant pairs, there is a story to tell |
+| **personality** (the numbers) | ✓ holds statistically, weak perceptually | condition dz ≈ 1.0 |
+| **behaviour** (what it does each day) | ✗ **does not hold** | per-hour TV user/baseline = 0.68–0.80, **three metrics agree, and it is insensitive to both parameters and time scale** |
 
-> **原始卖点「两个用户养出不同性格的球」，
-> 在状态和故事这两层成立，在性格和行为两层不成立。**
+> **The original selling point, "two users raise balls with different personalities",
+> holds at the state and story layers and fails at the personality and behaviour layers.**
 >
-> 这仍然是个产品，但 pitch 不一样：
-> 主打「你的球看起来瘦瘦的」和「它记得自己差点饿死」，
-> 不要主打「它的性格/行为和别人不同」。
+> This is still a product, but the pitch is different:
+> lead with "your ball looks thin" and "it remembers nearly starving",
+> and do not lead with "its personality/behaviour differs from everyone else's".
 
 ---
 
 ---
 
-# 实验 017 —— 把欠的两笔账都还了（两笔都出了事）
+# Experiment 017 — settling both outstanding debts (both went wrong)
 
-## 17a 两个行为指标打架：是我读错了
+## 17a The two behaviour metrics disagree: I read them wrong
 
-TV 从 0.160 掉到 0.113，作息差异却从 5.05 涨到 10.58。当时我猜"作息更接近
-用户感知，所以结论可能没那么糟"。**猜错了。**
+TV fell from 0.160 to 0.113 while the routine difference rose from 5.05 to 10.58. At the time I guessed "routine is closer
+to what the user perceives, so the conclusion may not be so bad". **The guess was wrong.**
 
-关键是**主导动作的领先优势（mode margin）**：
-
-```
-实验 015:  margin = 0.40
-实验 016:  margin = 0.16    ← 塌了
-```
-
-加了 caution 之后球开始在采集材料和睡觉之间来回穿插，
-头号动作只领先第二名 16 个百分点 —— **极小的扰动就能把"主导动作"翻面。**
-
-`rhythm_diff` 涨的是模态的脆弱性，不是行为的差异。铁证：**基线同步从 7.73
-涨到 13.88**，比值几乎没动。我看的是分子，没看分母（又一次犯规则 16）。
-
-### 正确的作息指标：逐时辰比分布
-
-`hourly_tv()` —— 逐时辰比较动作分布再平均。由凸性，它严格比聚合 TV 更敏感
-（聚合只会缩小距离），又没有模态翻面的问题。
+The key is the **mode margin of the dominant action**:
 
 ```
-                     用户     基线    比值
-实验 015  TV 聚合    0.160   0.255   0.63
-          TV 逐时辰  0.244   0.324   0.75
-          作息(模态) 5.053   7.733   0.65
-实验 016  TV 聚合    0.113   0.216   0.53
-          TV 逐时辰  0.212   0.307   0.69
-          作息(模态)10.582  13.880   0.76
+experiment 015:  margin = 0.40
+experiment 016:  margin = 0.16    ← collapsed
 ```
 
-**三个指标全部一致：比值 0.53–0.76，没有一个到 1。**
-`behavior.py` 已换成 `hourly_tv`，模态版只留作对照并加了警告。
+After adding caution the ball starts alternating between gathering material and sleeping,
+and the top action leads the second by only 16 percentage points — **the tiniest perturbation flips the "dominant action"**.
 
-> ### ★ 规则 19：指标打架的时候，先去查那个更容易被噪声推动的
-> 不要挑对自己结论有利的那个。
+What `rhythm_diff` measures the rise of is the fragility of the mode, not a difference in behaviour. The proof: **the baseline
+rose in step from 7.73 to 13.88**, leaving the ratio almost unchanged. I looked at the numerator and not the denominator (breaking rule 16 again).
 
-## 17b 耐久性：实验 016 的参数会团灭
+### The correct routine metric: compare distributions per hour
+
+`hourly_tv()` — compare the action distributions hour by hour and average. By convexity it is strictly more sensitive
+than an aggregate TV (aggregation only shrinks the distance), and it has no mode-flipping problem.
 
 ```
-天数    一眼可辨   cond dz   作息比   溺爱死亡   放养死亡   caution饱和
+                        user    baseline   ratio
+experiment 015  TV aggregate   0.160   0.255   0.63
+                TV per-hour    0.244   0.324   0.75
+                routine (mode) 5.053   7.733   0.65
+experiment 016  TV aggregate   0.113   0.216   0.53
+                TV per-hour    0.212   0.307   0.69
+                routine (mode)10.582  13.880   0.76
+```
+
+**All three metrics agree: the ratio is 0.53–0.76 and not one of them reaches 1.**
+`behavior.py` has been switched to `hourly_tv`, and the mode version is kept only as a control with a warning attached.
+
+> ### ★ Rule 19: when metrics disagree, go and check the one more easily pushed by noise first
+> Do not pick whichever favours your own conclusion.
+
+## 17b Durability: the experiment 016 parameters wipe the population out
+
+```
+days    visibly distinct   cond dz   routine ratio   doting dead   hands-off dead   caution saturated
  15      50.7%    -0.70     0.73      0.0%      0.0%       0.0%
  30      82.9%    -1.02     0.69      0.0%      0.3%       0.0%
  60      91.4%    -1.35     0.52     43.7%     59.3%       7.5%
  90      87.9%    -1.99     0.57     56.3%     75.3%      18.1%
 ```
 
-**60 天时连被溺爱的球都死 43.7%。** 一个把照顾得最好的球杀掉一半的模拟器，
-不管产品怎么讲都不是有效的instrument。
+**At 60 days even the doted-on balls die at 43.7%.** A simulator that kills half of the best-cared-for balls
+is not a valid instrument, whatever the product pitch says.
 
-归因很干净：
+The attribution is clean:
 
 ```
-caution权重   60天 溺爱死亡   60天 放养死亡   材料占行动预算
+caution weight   60-day doting dead   60-day hands-off dead   material share of the action budget
     0.0          0.0%          16.0%           14.6%
     0.6          0.0%          15.6%           21.7%
-    1.2         45.2%          60.4%           25.3%（30天时高达 29.7%）
+    1.2               45.2%                 60.4%              25.3% (as high as 29.7% at 30 days)
 ```
 
-**是实验 016 加的那个权重。** 球把三成的行动预算花在收集材料上，
-食物投入长期不足；30 天靠初始存量和季节撑住了，60 天崩掉。
+**It is the weight added in experiment 016.** The balls spend three tenths of their action budget gathering material,
+leaving food chronically underinvested; at 30 days the initial stock and the seasons hold it up, and at 60 days it collapses.
 
-### 一个被证伪的结构性猜想（记下来免得以后重走）
+### A structural conjecture that was falsified (recorded so it is not walked again)
 
-我以为是"需求已满足但性格项还在推"：`gather_material` 的需求项是
-`(100-shelter)*0.30`，shelter=100 时归零；但性格项 `caution` 在
-caution=100 时恒定贡献约 36 分，**不受需求满足程度约束**。
+I thought it was "the need is satisfied but the personality term keeps pushing": the need term of `gather_material` is
+`(100-shelter)*0.30`, which is zero at shelter=100; but the personality term `caution` contributes a constant ~36 points
+at caution=100, **bounded by no measure of how far the need is satisfied**.
 
-于是加了个门：`shelter > 90 且材料 ≥ 6 → 这个行动非法`。
-结果：60 天死亡率 60.4% → 57.6%，**几乎没用**。
+So a gate was added: `shelter > 90 and material ≥ 6 → this action is illegal`.
+Result: 60-day mortality 60.4% → 57.6%, **almost no effect**.
 
 原因：房子每天衰减 8.4，shelter 很少能待在 90 以上 —— 球不是在囤积，
 **是在一条跑步机上不停修房子**。猜想被证伪。
