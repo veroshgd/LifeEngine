@@ -4739,110 +4739,110 @@ So what 029 must change is the **type of pathway**, not its bandwidth:
 029         history → addressable entries → the agent retrieves by similarity itself → decision
 ```
 
-**如果 029 最后退化成"experimenter 挑一个更好的 readout"，它就是 028 的第三个臂，
-不该单独立项。**
+**If 029 ends up degenerating into "the experimenter picks a better readout", it is simply a third arm of 028
+and should not be a project of its own.**
 
-## 第 1 版只回答五个问题（②–⑤ 全是草案，待拍板）
+## Version 1 answers only five questions (②–⑤ are all drafts, awaiting a decision)
 
-① 029 到底测什么 —— **已写死**
-② 「记忆」在模型里是什么对象、「检索」是哪个动作 —— 待定
-③ 什么叫"表面新颖、结构相关"、怎么保证不是自欺 —— 待定
-④ 「检索并因果使用」怎么落成 primary —— 待定
-⑤ 什么结果算失败、怎么在跑之前知道设计干净 —— 待定
+① What exactly 029 measures — **frozen**
+② What object "memory" is in the model, and which action counts as "retrieval" — open
+③ What "surface-novel, structurally related" means, and how to guarantee it is not self-deception — open
+④ How "retrieved and causally used" is cast as the primary endpoint — open
+⑤ What counts as failure, and how to know before the run that the design is clean — open
 
-## 已经挂在草案里的几条纪律（承前）
+## Disciplines already pinned into the draft (carried over)
 
-- **铁律（承 028）**：检索通道更强 ≠ 给历史更大权重。029 同样要等预算对照。
-- **最大风险**：相似度函数若由我们手写、且我们知道哪条经验"应该"有用，
-  那测的是**我们的相似度函数**，不是 agent 的检索。→ 必须 designer-blind。
-- **必须成对**：match 臂之外必须有 **structure-mismatch 臂**（surface 同等新颖），
-  否则任何增益都可能只是"有记忆的 agent 更爱探索"。
-- **规则 84 提前挂账**：若 primary 用了 `min(|·|)` 这类非负统计量，
-  必须**同时**写判读门槛，否则跑完只能当描述性报告。
-- **承规则 67 / 026**：两个发育世界要同等新颖，结构相关性不能只对 rich 一支存在。
+- **Iron rule (from 028)**: a stronger retrieval channel ≠ giving history a larger weight. 029 needs the same equal-budget control.
+- **The biggest risk**: if the similarity function is hand-written by us and we already know which experience "ought" to be useful,
+  then what is measured is **our similarity function**, not the agent's retrieval. → it must be designer-blind.
+- **Must come in pairs**: besides the match arm there must be a **structure-mismatch arm** (equally surface-novel),
+  or any gain could just be "agents that have a memory explore more".
+- **Rule 84 booked in advance**: if the primary uses a non-negative statistic such as `min(|·|)`,
+  a reading threshold must be written **at the same time**, or the finished run can only be reported descriptively.
+- **From rule 67 / 026**: the two developmental worlds must be equally novel; structural relatedness cannot exist for the rich branch alone.
 
-## ★ 跑之前就写死：029 阴性也有信息量 ★
+## ★ Frozen before the run: a negative 029 is informative too ★
 
-核心命题现在是 **Persistent individuality ≠ automatically functional generalization**。
-029 若也 ≈ 0，命题不变，只会加强为"即使给它一条**真正的 episodic 检索通道**，
-持久个体差异仍然几乎不携带可复制的功能迁移"。
+The core proposition is now **Persistent individuality ≠ automatically functional generalization**.
+If 029 also comes out ≈ 0 the proposition does not change; it only strengthens to "even given a **genuine episodic retrieval channel**,
+persistent individual differences still carry almost no replicable functional transfer".
 
-**这一段现在就写死，是为了防止跑完之后为了拿阳性而回头改设计。**
+**This paragraph is frozen now precisely to stop the design being revised after the run in pursuit of a positive result.**
 
-## 种子
+## Seeds
 
 ```
-80000–81499     ★ 029 FINAL 预留 ★   已核实：全库从未作为种子出现
+80000–81499     ★ reserved for 029 FINAL ★   verified: never used as a seed anywhere in the repository
 ```
-calibration / rehearsal 用哪一段待定，**不得**动 80000 段。
+Which block calibration / rehearsal will use is still open; the 80000 block **must not** be touched.
 
-## 复现方式（新增）
+## How to reproduce (new)
 
-- `AI SANDBOX/MEMORY_TRANSFER_DESIGN.md` —— 029 设计草案（活文档，带版本记录）
+- `AI SANDBOX/MEMORY_TRANSFER_DESIGN.md` — the 029 design draft (a living document with a version log)
 
 ---
 
-## ★ 029 识别性探针 —— `memory_transfer_probe.py`（2026-08-18）★
+## ★ The 029 identifiability probe — `memory_transfer_probe.py` (2026-08-18) ★
 
-**程序故意不叫 `experiment029.py`。** 今天只问一件事：
-**这条 memory → retrieval → evidence → choice 的通路，有没有能力影响 outcome。**
-（以前吃过太多次亏：机制根本没能力，却直接跑 group comparison。）
+**The program is deliberately not called `experiment029.py`.** Today it asks one thing only:
+**whether the memory → retrieval → evidence → choice pathway is even capable of affecting the outcome.**
+(We have been burned too often: running a group comparison when the mechanism has no capability at all.)
 
-底座 = 027 的任务，**一个数都没改**（80 trial，第 41 trial 反转，α/β/τ 同，指纹
-`26778f672e9e7009`）。种子 = development 段 `0–399`。**80000–81499 没碰。**
+The base = 027's task, **with not a single number changed** (80 trials, reversal at trial 41, same α/β/τ, fingerprint
+`26778f672e9e7009`). Seeds = the development block `0–399`. **80000–81499 untouched.**
 
-### 今天定下来的三件事
+### Three things settled today
 
-**① development history 不用 rich/poor**，改成干净的小型 learning history：
+**① The development history does not use rich/poor**; it is replaced by a clean, small learning history:
 
 ```
-Stable    Problem 1/2/3 规则从不反转
-Volatile  问题数、reward magnitude、trial 数完全相同，但每个都有 change point
+Stable    the rules of problems 1/2/3 never reverse
+Volatile  identical problem count, reward magnitude and trial count, but each has a change point
 ```
 
-stable/volatile **不是性格**，只是让 agent 拥有不同的**经验库**；
-所有具体符号 counterbalance，学到的必须是
-**"过去有效的 relation 有时会失效"**，而不是"B 后来总会变好"。
+stable/volatile is **not a personality**; it only gives the agent a different **store of experience**;
+all concrete symbols are counterbalanced, so what is learned has to be
+**"a relation that worked in the past sometimes stops working"**, not "B always turns good later".
 
-**② 029 自建 Episode 结构**（不复用 `{event, day, importance, text}` ——
-那适合自传体记忆，不足以做 causal transfer）：
+**② 029 defines its own Episode structure** (it does not reuse `{event, day, importance, text}` —
+that suits autobiographical memory but is not enough for causal transfer):
 
 ```
 Episode: context / previous_expectation / observation / prediction_error
          / action_relation / outcome
 ```
 
-> ### ★ 规则 85：可迁移的记忆存 relation，不存 identity ★
-> `action_relation` 只能是 **stay / switch**，**绝不能是 A / B**。
-> 存了选项身份，换一个新任务之后就没有任何可迁移性 —— 新任务里根本没有 A 和 B。
-> 已实现为**硬约束**（`Episode.__post_init__` + `_assert_relational_only()`），
-> 字段里出现选项身份直接报错。
+> ### ★ Rule 85: transferable memory stores relations, not identities ★
+> `action_relation` may only be **stay / switch**, and **never A / B**.
+> Storing option identity leaves nothing transferable once the task changes — a new task has no A and B at all.
+> Implemented as a **hard constraint** (`Episode.__post_init__` + `_assert_relational_only()`);
+> any option identity appearing in a field raises immediately.
 
-**③ 极简 relational retrieval**（第一版故意不上"真正智能"的检索）：
+**③ A minimal relational retrieval** (version 1 deliberately avoids "genuinely intelligent" retrieval):
 
 ```
-当前：旧策略过去很好 + 最近连续 prediction error
-  → 检索 "previously-good strategy + persistent surprise"
+current: the old strategy used to be good + recent consecutive prediction errors
+  → retrieve "previously-good strategy + persistent surprise"
   → m = E[R|switch, similar past] − E[R|stay, similar past]
   → logit(switch) = base_learning + λ·m
 ```
 
-与 027 的本质差异：`027: trait→β` 是我们替它读一个标量；
-`029: current situation → retrieval → past outcomes → evidence → choice`。
+The essential difference from 027: `027: trait→β` has us reading out a scalar on its behalf;
+`029: current situation → retrieval → past outcomes → evidence → choice`.
 
-### 工程自检 —— 全过
-
-```
-关系性约束     Episode 只存 stay/switch   m(S)=−0.667  m(V)=+0.667  m(空库)=0
-确定性         同 body+memory+种子 → 逐 trial 相同
-memory-blind   λ=0 时两个记忆库 400/400 种子逐 trial 完全相同
-```
-
-### ★ POSITIVE CONTROL：通过 ★（同 body/Q/奖励表/u，只换 memory）
+### Engineering self-checks — all passed
 
 ```
-λ       轨迹改变      Δlatency(V−S)    Δ反转后正确率
-0.00      0.0%           +0.000          +0.0000   ← memory-blind，必须为 0
+relational constraint   Episode stores only stay/switch   m(S)=−0.667  m(V)=+0.667  m(empty)=0
+determinism             same body+memory+seed → identical trial by trial
+memory-blind            at λ=0 the two memory stores match trial by trial on 400/400 seeds
+```
+
+### ★ POSITIVE CONTROL: passed ★ (same body/Q/reward table/u, only the memory swapped)
+
+```
+λ       traj changed   Δlatency(V−S)    Δpost-reversal accuracy
+0.00      0.0%           +0.000          +0.0000   ← memory-blind, must be 0
 0.25      4.5%           −0.095          +0.0015
 0.50      9.2%           −0.138          +0.0021
 1.00     17.8%           −0.125          +0.0029
@@ -4850,12 +4850,12 @@ memory-blind   λ=0 时两个记忆库 400/400 种子逐 trial 完全相同
 4.00     41.5%           −0.168          +0.0099
 ```
 
-方向正确：Memory V（过去 switch 划算）→ 切换更快 + 反转后正确率更高。
+The direction is right: Memory V (where switching used to pay off) → faster switching + higher post-reversal accuracy.
 
-### ★ SWAP TEST：未通过（所有 λ）★
+### ★ SWAP TEST: failed (at every λ) ★
 
 ```
-λ       |memory 效应|   |body 效应|    比值
+λ       |memory eff|    |body eff|     ratio
 0.25        0.091          0.351      0.26×
 0.50        0.140          0.370      0.38×
 1.00        0.104          0.384      0.27×
@@ -4863,31 +4863,31 @@ memory-blind   λ=0 时两个记忆库 400/400 种子逐 trial 完全相同
 4.00        0.107          0.447      0.24×
 ```
 
-memory 效应在**两个 body 上方向一致**，但幅度只有 body 的 1/4–1/3。
-**换了 memory，结果仍然主要跟 body/traits 走** —— 这正是 SWAP 要拦的情况。
+The memory effect is **consistent in direction across both bodies**, but only 1/4–1/3 the magnitude of the body effect.
+**Swap the memory and the outcome still mainly follows body/traits** — exactly the case the SWAP test exists to catch.
 
-### ★ 诊断：不是 λ 的问题 ★
+### ★ Diagnosis: λ is not the problem ★
 
 ```
-检索触发   180/400 种子曾触发（45.0%）；平均每个种子只触发 0.69 / 80 个 trial
-           首次触发 trial 中位数 43（反转在 40）；反转前几乎不触发（0.04）
-触发时刻的 base p(switch)   中位数 0.208   IQR [0.179,0.245]   ≥0.9 占 0.0%
+retrieval fired  180/400 seeds fired at least once (45.0%); on average only 0.69 of 80 trials per seed
+                 median first-firing trial 43 (reversal at 40); almost no firing before the reversal (0.04)
+base p(switch) at firing   median 0.208   IQR [0.179,0.245]   ≥0.9 in 0.0%
 ```
 
-> ### ★ 规则 86：正控制通过 ≠ 机制够格，还要看 exposure ★
-> 触发时 base p(switch) 只有 0.21 → **决策没饱和，记忆有发挥空间**。
-> 但记忆平均只在 **0.69 个 trial** 上进入决策，而 body 的 β 在**全部 80 个**
-> trial 上进入决策 —— **约 116× 的 exposure 不对称**。
+> ### ★ Rule 86: passing the positive control ≠ the mechanism is eligible; exposure matters too ★
+> At firing time base p(switch) is only 0.21 → **the decision is not saturated; memory has room to act**.
+> But memory enters the decision on only **0.69 trials** on average, whereas the body's β enters on **all 80**
+> trials — **an exposure asymmetry of roughly 116×**.
 >
-> 所以调大 λ 只让**更多轨迹**被改（4.5%→41.5%），却不改变**终点**
-> （Δlatency 一直在 −0.1 附近）：单 trial 的推力只挪动"哪一 trial 切换"，
-> 随后被冲掉。
+> So raising λ only changes **more trajectories** (4.5%→41.5%) without moving the **endpoint**
+> (Δlatency stays around −0.1): a single-trial push only shifts "which trial the switch happens on",
+> and is washed out afterwards.
 >
-> **该修的是检索的暴露/持续性，不是耦合强度。**
-> 而且按 028 的等预算铁律，**现在这个 SWAP 比较本身就不是等 exposure 的**，
-> 且不对称方向对 memory 不利。
+> **What needs fixing is the exposure/persistence of retrieval, not the coupling strength.**
+> And under 028's equal-budget iron rule, **this SWAP comparison is not itself an equal-exposure comparison**,
+> with the asymmetry running against memory.
 
-### 下一步候选（★ 今天不选，等拍板 ★）
+### Candidates for the next step (★ not chosen today, awaiting a decision ★)
 
 ```
 (a) evidence 在情境持续期间保持在决策里，而不是触发一次就清零
