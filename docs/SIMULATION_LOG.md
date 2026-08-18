@@ -5188,64 +5188,64 @@ separation = +0.9040   hand-built = +1.3333   →  real experience reaches 67.8%
 ```
 
 **Stable is negative (staying pays) and Volatile positive (switching pays), consistent with the design.**
-真实经历确实能自己长出我们手工 memory 所代表的那种 relational evidence。
+Real experience really can grow the kind of relational evidence our hand-built memories stood for.
 
-### ⚠⚠ 但卡在 yield：只有 24% 的 agent 长出可定义的 m ⚠⚠
-
-```
-episode completeness（同时有 stay 与 switch 条目）  Stable 23.5%  Volatile 24.0%
-→ 大约 3/4 的 agent 发育结束时【根本没有可用记忆】
-```
-
-yield 诊断（每个 problem，入场要两半同时满足）：
+### ⚠⚠ But it stalls on yield: only 24% of agents grow a definable m ⚠⚠
 
 ```
-            异常起点 Q≥0.60   曾达成 stay-run≥3   两者同时   最长 run
+episode completeness (both stay and switch entries present)  Stable 23.5%  Volatile 24.0%
+→ roughly 3/4 of agents finish development with NO usable memory at all
+```
+
+Yield diagnostics (per problem; entry requires both halves at once):
+
+```
+                Q≥.60         stay-run≥3           both   longest
 Stable          57.8%              56.9%          17.2%      2.98
 Volatile        57.8%              77.0%          17.2%      3.62
 ```
 
-> ### ★ 规则 90：入场条件的两半可能在构造上互相拆台 ★
-> 进入情境窗口要求「策略仍被信任（Q ≥ .60）」**且**「连续三次失望」——
-> 但**每一次失望都在把 Q 压下去**。α=.05 时三个 0 把 Q 从 .76 压到 .65，
-> 所以 Q 没爬够高的 agent 会被这条筛掉。
-> **卡的是前一半**（异常起点 Q≥.60 只有 57.8%）→ 该动的是
-> **异常前的经验量**，不是 surprise 那一半。
+> ### ★ Rule 90: the two halves of an entry condition can undermine each other by construction ★
+> Entering the situation window requires "the strategy is still trusted (Q ≥ .60)" **and** "three disappointments in a row" —
+> but **every disappointment pushes Q down**. At α=.05, three zeros take Q from .76 down to .65,
+> so agents whose Q never climbed high enough are filtered out by this very clause.
+> **The bottleneck is the first half** (only 57.8% have Q≥.60 at the anomaly onset) → what should change is
+> **the amount of experience before the anomaly**, not the surprise half.
 >
-> ⛔ 绝不许用"只分析长出了记忆的 agent"来绕过（规则 88：survivor conditioning）。
+> ⛔ It is never permitted to work around this by "analysing only the agents that grew a memory" (rule 88: survivor conditioning).
 
-### caveat：realized reward 无法匹配
+### Caveat: realized reward cannot be matched
 
-Volatile 的 agent 总收益更低（73.19 vs 82.99），因为 change point 之后要重新学。
-**opportunity 已逐位匹配**；realized reward 要匹配就等于取消这个 manipulation 本身。
-**记录、不修**。
+Volatile agents collect less in total (73.19 vs 82.99) because they have to relearn after the change point.
+**Opportunity is already matched bit for bit**; matching realized reward would amount to cancelling the manipulation itself.
+**Recorded, not fixed.**
 
-### 本阶段故意没算
+### Deliberately not computed at this stage
 
 ```
 ⛔ novel-task latency   ⛔ post-change errors   ⛔ Stable vs Volatile transfer effect
 ```
-**代码里也没有这些量** —— 这样才保留调 acquisition 机制的自由，
-而不会开始围着 final outcome 调设计。
+**These quantities are not even present in the code** — that is what keeps the freedom to tune the acquisition mechanism
+without starting to tune the design around a final outcome.
 
-### 复现方式（新增）
+### How to reproduce (new)
 
 - `memory_transfer_probe3.py` → `memory_transfer_probe3_result.txt` / `_console.txt`
 - `memory_acquisition_probe.py` → `memory_acquisition_probe_result.txt` / `_console.txt`
-- v1 `memory_transfer_probe.py`、v2 `memory_transfer_probe2.py` **保留不动**，
-  v3 里有断言保证两者仍逐位复现
+- v1 `memory_transfer_probe.py` and v2 `memory_transfer_probe2.py` are **left untouched**;
+  v3 carries assertions guaranteeing that both still reproduce bit for bit
 
 ---
 
-## ★ acquisition 参数冻结 + λ 接口容量校准（2026-08-18）★
+## ★ Acquisition parameters frozen + λ interface-capacity calibration (2026-08-18) ★
 
-### 冻结：只加 anomaly 前的学习长度
+### Frozen: only the learning length before the anomaly is increased
 
-拍板：**只增加 pre-anomaly experience**，不动 GOOD_THRESH / PE_THRESH /
-SURPRISE_RUN_MIN，也不增加 problem 数量。纯上游 sweep（0–399，未接 novel task）：
+Decision: **increase pre-anomaly experience only**, leaving GOOD_THRESH / PE_THRESH /
+SURPRISE_RUN_MIN untouched and adding no further problems. A purely upstream sweep (0–399, not yet connected to the novel task):
 
 ```
-pre-anomaly   Stable completeness   Volatile completeness   complete-only m 分离度
+pre-anomaly   Stable completeness   Volatile completeness   complete-only m separation
    20              23.5%                  24.0%                  +0.904
    28              49.2%                  52.0%                  +0.872
    34              61.0%                  69.3%                  +0.902
@@ -5253,82 +5253,82 @@ pre-anomaly   Stable completeness   Volatile completeness   complete-only m 分�
    40              69.5%                  76.8%                  +0.884
 ```
 
-> ### ★ 增加 pre-anomaly experience 主要修 yield，几乎不改 memory contrast ★
-> 这是一个**干净的 engineering correction**：把被入场条件筛掉的 agent 救回来，
-> 而不是把 Stable/Volatile 的对比越调越强（separation 在 34/35/36/38 都差不多）。
+> ### ★ Increasing pre-anomaly experience mainly fixes yield and barely changes memory contrast ★
+> This is a **clean engineering correction**: it recovers the agents the entry condition filtered out
+> rather than tuning the Stable/Volatile contrast ever stronger (separation is much the same at 34/35/36/38).
 
-**冻结为 029 acquisition candidate：**
+**Frozen as the 029 acquisition candidate:**
 
 ```
-ANOMALY_AT  = 36      （原 20）
-ANOMALY_LEN =  8      （不变）
-T_PROBLEM   = 66      使 anomaly 后仍为 66−36−8 = 22（与原来相同）
+ANOMALY_AT  = 36      (was 20)
+ANOMALY_LEN =  8      (unchanged)
+T_PROBLEM   = 66      keeps the post-anomaly stretch at 66−36−8 = 22 (as before)
 ```
 
-选 36 而不是 40 的理由是 **elbow**，不是 separation 最大：
-20→36 换来 +42pp / +49pp，36→40 只再换 3–4pp。
-（`memory_acquisition_probe.py` 里写了断言：anomaly 后必须仍是 22 个 trial。）
+The reason for picking 36 rather than 40 is the **elbow**, not maximal separation:
+20→36 buys +42pp / +49pp, while 36→40 buys only another 3–4pp.
+(`memory_acquisition_probe.py` carries an assertion that there must still be 22 trials after the anomaly.)
 
-### ★ 规则 91：memory availability 本身就是发育结果 ★
+### ★ Rule 91: memory availability is itself a developmental outcome ★
 
 > **Memory availability is itself a developmental outcome. Do not condition
 > transfer or calibration on successful memory formation. Report the extensive
 > margin (P[m usable]) and intensive margin (m | usable) separately, but all
 > primary analyses use the full predefined population.**
 
-ANOMALY_AT=36 下的实测（缺 stay 或 switch 任一侧 → m=0，表示"没有可用证据"）：
+Measured at ANOMALY_AT=36 (missing either the stay or the switch side → m=0, meaning "no usable evidence"):
 
 ```
-              extensive: P[m 可用]   intensive: mean(m|可用)   全体 mean m   全体 median
+              extensive P[m usable]   intensive mean(m|usable)   all mean m   all median
 Stable              65.8%                  −0.4099             −0.2695        −0.2440
 Volatile            73.2%                  +0.4842             +0.3546        +0.4099
 
-population-level 分离度（全部 agent，含 m=0） = +0.6241   ★这是真值★
-complete-only 分离度（只看长出记忆的）        = +0.8940   ⚠ 夸大
-手工版 = +1.3333 → 真实 population 达到 46.8%，complete-only 会显得有 67.1%
+population-level separation (all agents, incl. m=0) = +0.6241   ★ this is the true value ★
+complete-only separation (only those that grew one)  = +0.8940   ⚠ inflated
+hand-built = +1.3333 → the real population reaches 46.8%, complete-only would look like 67.1%
 ```
 
-⛔ 先筛掉"没有成功形成可用 memory"的 agent、再用剩下最有信息的一批做 calibration，
-会**系统性夸大 memory channel 的真实输入强度** —— 与 survivor conditioning
-（规则 88）在结构上是同一个错误。
+⛔ Filtering out the agents that "failed to form a usable memory" and then calibrating on the most informative remainder
+**systematically inflates the true input strength of the memory channel** — structurally the same error as
+survivor conditioning (rule 88).
 
-### Stable/Volatile 的 yield 不相等（65.8% vs 73.2%）**不修**
+### The Stable/Volatile yields are unequal (65.8% vs 73.2%) and are **not fixed**
 
-Volatile 本来就更容易同时积累 stay 与 switch 两类经验，这属于
-`history → memory availability → future behavior` 的一部分。
-**强行把 completeness 配平 = 修改 post-treatment mediator。**
-未来把 memory effect 拆成 extensive margin（有没有形成可用 relational memory）
-与 intensive margin（形成了的话方向多大），由 SWAP / DELETE / SHUFFLE 检验因果。
+Volatile naturally accumulates both stay and switch experience more easily, and that is part of
+`history → memory availability → future behavior`.
+**Forcing completeness into balance = editing a post-treatment mediator.**
+In future the memory effect will be split into an extensive margin (whether a usable relational memory formed)
+and an intensive margin (how strong the direction is if one did), with SWAP / DELETE / SHUFFLE testing causality.
 
-### realized reward 同样**不修**
+### Realized reward is likewise **not fixed**
 
-Stable 117.24 vs Volatile 103.42（新参数下）。Volatile 低是因为 change point
-后必须重新学习。**为 matching 把 realized reward 做到一样 ≈ 给 Volatile 额外补偿、
-取消 volatility 本身的成本。** 真正需要匹配的是 trial opportunity、
-reward schedule 的机会量、first-good identity、pre-anomaly observations、
-task length structure —— 这些已经逐位相等（198.00 / 144.00 / 0.4783）。
+Stable 117.24 vs Volatile 103.42 (under the new parameters). Volatile is lower because it has to relearn after
+the change point. **Equalising realized reward for the sake of matching ≈ compensating Volatile and
+cancelling the cost of volatility itself.** What genuinely needs matching is trial opportunity,
+the opportunity count of the reward schedule, first-good identity, pre-anomaly observations and
+task-length structure — all of which are already bit-for-bit equal (198.00 / 144.00 / 0.4783).
 
 ---
 
-## ★ λ 接口容量校准（`memory_lambda_calibration.py`）★
+## ★ λ interface-capacity calibration (`memory_lambda_calibration.py`) ★
 
-问的是：**真实 memory 输入经过这个接口后，单次决策能不能产生一个不饱和、
-但也不是微不足道的影响？** ⛔**不是**"哪个 λ 最容易让 029 成功"。
+The question asked: **once real memory input has passed through this interface, can a single decision produce an effect that is neither saturated
+nor negligible?** ⛔ It is **not** "which λ makes 029 most likely to succeed".
 
-### group-blind 是结构性的
-
-```
-pooled_empirical_m()  两个 condition 汇入同一池 → ★包含 m=0★ → 排序
-                      排序摧毁 m ↔ condition 的对应，本模块【无法】恢复分组
-```
-输入：n=800，mean +0.0426，|m| 中位数 0.3571，**m=0 占 31.2%**
-（≈1/3 的 agent 在任何 λ 下接口都是惰性的 —— 这正是规则 91 的 extensive margin）。
-
-`Δp` 口径 = 相对**没有记忆**的反事实，decision states 取自 λ=0 memory-blind 轨迹
-（probe3 的 frozen-state pipeline，2708 个 state，base p 中位数 0.382，本身饱和 0.0%）。
+### Group-blindness is structural here
 
 ```
-   λ    mean|Δp|  median|Δp|  p90|Δp|   推后饱和   P(翻转偏好)
+pooled_empirical_m()  both conditions flow into one pool → ★including m=0★ → sorted
+                      sorting destroys the m ↔ condition correspondence; this module CANNOT recover the grouping
+```
+Input: n=800, mean +0.0426, median |m| 0.3571, **m=0 for 31.2%**
+(≈1/3 of agents have an inert interface at any λ — precisely rule 91's extensive margin).
+
+The `Δp` convention = relative to a **no-memory** counterfactual, with decision states taken from the λ=0 memory-blind trajectory
+(probe3's frozen-state pipeline, 2708 states, median base p 0.382, 0.0% saturated in themselves).
+
+```
+   λ    mean|Δp|  median|Δp|  p90|Δp|   post-sat   P(flip)
  0.25    0.0176     0.0182    0.0382      0.0%       3.2%
  0.50    0.0352     0.0363    0.0764      0.0%       6.6%
  1.00    0.0699     0.0717    0.1520      0.0%      13.4%
@@ -5336,7 +5336,7 @@ pooled_empirical_m()  两个 condition 汇入同一池 → ★包含 m=0★ → 
  4.00    0.2272     0.2250    0.5046     12.7%      33.5%
  8.00    0.3050     0.2952    0.6694     46.3%      35.5%
 
-active-memory exposure 全网格稳定在 ~7/80 → memory 仍是 event-triggered ✓
+active-memory exposure holds at ~7/80 across the whole grid → memory is still event-triggered ✓
 ```
 
 ### 三条判据（读数口径为本文件所定，**非预注册值**）
