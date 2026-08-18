@@ -2038,256 +2038,256 @@ Run to 120 days and measured in three independent 30-day windows (all floors off
 > ### ★ Rule 42: running longer cannot answer the relaxation question; fix the mortality first ★
 > All floors off in the baseline world gives a 120-day paired loss of 44.5% (020 recorded 24.5% for the full architecture).
 > At that loss rate, any long-horizon conclusion is a function of selection effects.
-> **要回答"差异会不会漂回去"，必须先把 120 天损失压到 <15%，
-> 而不是把窗口拉更长。**
+> **To answer "does the difference drift back", the 120-day loss must first be pushed below 15%,
+> not the window made longer.**
 
-⚠ 因此 P2 剩下的那个 1.040 **仍然悬着**：既没被证明是残留假象，
-也没被证明是真持久。论文里只能报第一窗、并注明长时程不可测。
+⚠ So the 1.040 left by P2 **is still hanging**: it has been shown neither to be a residual artefact
+nor to be real persistence. The paper can only report the first window and note that the long horizon is unmeasurable.
 
-## 3c. ★ 死亡率诊断：两个大发现 ★（`mortality_diagnose.py`）
+## 3c. ★ Mortality diagnosis: two major findings ★ (`mortality_diagnose.py`)
 
-400 种子 × 2 世界 × 120 天，移植到基准：
+400 seeds × 2 worlds × 120 days, transplanted to baseline:
 
 ```
-条件                          死亡率    死时在追求
-完整架构 + 022 打开             7.6%    recover 72% / stock_food 28%
-地板全关 + 022 打开            22.1%    stock_food 79% / recover 21%
-地板全关 + 022 关闭            53.9%    stock_food 62% / recover 38%   ← 最惨
-完整架构 + 022 关闭            13.0%    recover 53% / stock_food 47%
+condition                        mortality   pursuing at death
+full architecture + 022 on           7.6%    recover 72% / stock_food 28%
+all floors off + 022 on             22.1%    stock_food 79% / recover 21%
+all floors off + 022 off            53.9%    stock_food 62% / recover 38%   ← the worst
+full architecture + 022 off         13.0%    recover 53% / stock_food 47%
 ```
 
-### 发现一：死因是【睡眠死亡螺旋】，不是"立错了志向"
+### Finding one: the cause of death is a **sleep death spiral**, not "raising the wrong ambition"
 
-四档的死亡剖面完全一致：**死时体质 0、饥饿 74–87、存粮 0.5**，
-而死前 10 天**睡眠占 53–56%**（幸存者 41–49%），
-`gather_material` 只有 0.2–2.8%（幸存者 9–18%）。
+The death profile of all four variants is identical: **condition 0, hunger 74–87 and food store 0.5 at death**,
+with **sleep accounting for 53–56%** of the last 10 days (survivors 41–49%),
+and `gather_material` only 0.2–2.8% (survivors 9–18%).
 
-**它们不是没想着找吃的**（62–79% 死时正在追求 `stock_food`），
-**是没时间醒着。** 机制在 `act()`：
+**It is not that they were not thinking about food** (62–79% were pursuing `stock_food` when they died),
+**it is that they had no waking time.** The mechanism is in `act()`:
 
 ```python
-eff = 0.35 + 0.65 * self.condition / 100     # 体质差 → 睡再久也恢复不过来
+eff = 0.35 + 0.65 * self.condition / 100     # poor condition → no amount of sleep restores it
 ```
 
-体质掉下去 → 睡眠效率降到 0.35 → 需要睡 3 倍的时间 → 白天没了 →
-采不到东西 → 更饿 → 体质更差。**这是个没有出口的正反馈陷阱。**
-`sleep` 打分是 `(100−energy)×0.9`，饥饿 80 时 `gather_food` 只有约 38 分，
-**睡眠永远赢。** 死亡集中在第 75–105 天，是慢性螺旋不是急性事件。
+condition falls → sleep efficiency drops to 0.35 → it needs 3× as long asleep → the day disappears →
+it gathers nothing → hungrier → worse condition. **A positive-feedback trap with no exit.**
+The `sleep` score is `(100−energy)×0.9`, and at hunger 80 `gather_food` scores only about 38,
+so **sleep always wins.** Deaths cluster on days 75–105: a chronic spiral, not an acute event.
 
-> ### ~~★ 规则 43：饿到极限时，生存行动必须压过睡眠 ★~~
-> ### ❌ **规则 43 已撤回（2026-08-14）—— 见 3d 节，因果推反了**
-> ~~这是规则 27 的同类问题、另一个位置。~~
-> **睡眠不是死因，是症状。** 三种改法实测全部让死亡率变高，见下。
+> ### ~~★ Rule 43: at the limit of hunger, survival actions must outweigh sleep ★~~
+> ### ❌ **Rule 43 withdrawn (2026-08-14) — see §3d, the causality was backwards**
+> ~~The same class of problem as rule 27, in a different place.~~
+> **Sleep is not the cause of death, it is a symptom.** All three fixes raised mortality when measured; see below.
 
-### ⚠ 发现二：地板消融是**被污染的**，这直接动摇 021 第 3 节
+### ⚠ Finding two: the floor ablation is **contaminated**, which directly undermines 021 §3
 
 ```
-完整架构 13.0%  →  地板全关 53.9%     （022 关闭）
-完整架构  7.6%  →  地板全关 22.1%     （022 打开）
+full architecture 13.0%  →  all floors off 53.9%     (022 off)
+full architecture  7.6%  →  all floors off 22.1%     (022 on)
 ```
 
-**关掉 `trait_identity` / `trait_floor` 把死亡率翻了 2–4 倍。**
-原因：地板把 industry / caution 撑在高位，撑住的是**觅食和筑巢的倾向**。
-地板一关，性状漂回中间 → 不再勤劳 → 掉进上面那个螺旋。
+**Switching off `trait_identity` / `trait_floor` multiplies mortality by 2–4.**
+The reason: the floors hold industry / caution high, and what they hold up is **the propensity to forage and build**.
+Once the floors are off, the traits drift back to the middle → no longer industrious → straight into the spiral above.
 
-> ### ★ 规则 44：地板不只是"持久性机制"，它同时是【生存机制】 ★
-> `persistence_ablation.py` 关掉地板时，**同时关掉了两样东西**，
-> 于是测到的 1.007 / 1.044 里混着**差异化死亡造成的幸存者偏差** ——
-> 它不是"去掉硬编码之后的纯持久性"。
+> ### ★ Rule 44: the floor is not only a "persistence mechanism", it is simultaneously a **survival mechanism** ★
+> When `persistence_ablation.py` switches the floors off it **switches off two things at once**,
+> so the 1.007 / 1.044 measured there are mixed with **survivor bias from differential mortality** —
+> they are not "pure persistence with the hardcoding removed".
 >
-> **021 第 3 节、022 的 P1/P2 全部受此影响。**
-> 结论方向大概率不变（那些档的 60 天损失只有 4–8%），
-> 但"地板全关"这个对照**本身不干净**，必须在修完死亡率后重跑。
+> **021 §3 and the P1/P2 of 022 are all affected.**
+> The direction of the conclusion probably does not change (the 60-day loss of those variants is only 4–8%),
+> but the "all floors off" control **is itself unclean** and must be re-run once mortality is fixed.
 
-### 顺带：022 把死亡率砍了一半以上（53.9% → 22.1%）
+### Incidentally: 022 cut mortality by more than half (53.9% → 22.1%)
 
-语义记忆接进决策之后，球更会照顾自己（知道要囤粮、要修房子）。
-这是 022 独立于 P1/P2 的一个正面结果，**而且它是行为层的真实改善**，
-不是指标游戏。
+Once semantic memory enters decisions, the ball takes better care of itself (it knows to hoard food and repair its house).
+This is a positive result of 022 independent of P1/P2, **and it is a genuine improvement at the behaviour layer**,
+not a metric game.
 
-## 3d. ★ 三种改法全部失败，规则 43 撤回 ★（`fix_compare.py`）
+## 3d. ★ All three fixes failed and rule 43 is withdrawn ★ (`fix_compare.py`)
 
-按规则 43 做了三种候选改法，参数化进 `sim.py`（默认全关）：
-A `SLEEP_SUPPRESS` 压制睡眠意图 · B `HUNGER_URGENCY` 抬高觅食急迫度 ·
-C `SLEEP_EFF_FLOOR` 抬高睡眠效率下限。
+Three candidate fixes were built per rule 43 and parameterised into `sim.py` (all off by default):
+A `SLEEP_SUPPRESS` suppresses the intent to sleep · B `HUNGER_URGENCY` raises foraging urgency ·
+C `SLEEP_EFF_FLOOR` raises the floor on sleep efficiency.
 
 ```
-改法              死亡%完整   死亡%无地板   比值 完整              比值 无地板
-现状               18.7%      40.7%    1.086 [1.043,1.162]  1.097 [1.031,1.160]
-A 压睡眠 0.5        19.7%      54.7%    1.084 [1.036,1.160]  1.108 [1.046,1.178]
-A 压睡眠 1.0        21.7%      56.7%    1.086 [1.041,1.166]  1.110 [1.048,1.182]
-B 抬急迫 25         23.0%      62.3%    1.098 [1.036,1.153]  1.114 [1.057,1.199]
-B 抬急迫 50         26.0%      65.3%    1.090 [1.034,1.175]  1.123 [1.060,1.192]
-C 睡眠下限 0.60      23.7%      76.7%    1.117 [1.054,1.184]  1.115 [1.053,1.193]
-C 睡眠下限 0.80      31.0%      81.0%    1.133 [1.067,1.208]  1.126 [1.061,1.205]
+fix                   dead% full   dead% no floor   ratio full           ratio no floor
+status quo              18.7%          40.7%     1.086 [1.043,1.162]  1.097 [1.031,1.160]
+A suppress sleep 0.5    19.7%          54.7%     1.084 [1.036,1.160]  1.108 [1.046,1.178]
+A suppress sleep 1.0    21.7%          56.7%     1.086 [1.041,1.166]  1.110 [1.048,1.182]
+B raise urgency 25      23.0%          62.3%     1.098 [1.036,1.153]  1.114 [1.057,1.199]
+B raise urgency 50      26.0%          65.3%     1.090 [1.034,1.175]  1.123 [1.060,1.192]
+C sleep floor 0.60      23.7%          76.7%     1.117 [1.054,1.184]  1.115 [1.053,1.193]
+C sleep floor 0.80      31.0%          81.0%     1.133 [1.067,1.208]  1.126 [1.061,1.205]
 A0.5+C0.6          27.0%      79.7%    1.099 [1.044,1.181]  1.122 [1.061,1.206]
 ```
 
-**八档没有一档降低死亡率，全部升高。C 尤其惨（40.7% → 81.0%）。**
+**Not one of the eight variants lowers mortality; every one raises it. C is especially bad (40.7% → 81.0%).**
 
-C 是决定性的反证：抬高睡眠效率 = 睡得更值 = 需要睡得更少 = 白天更多，
-按规则 43 的逻辑死亡率应该**降**，实测**翻倍**。
+C is the decisive counter-evidence: raising sleep efficiency = sleep is worth more = less sleep needed = more daytime,
+so by rule 43's logic mortality should **fall**, and measured it **doubles**.
 
-> ### ★ 规则 45：诊断表里"死者做得多的事"不是死因，可能是症状 ★
-> `mortality_diagnose.py` 显示死者睡眠占 53–56%、幸存者 41–49%，
-> 我据此推出规则 43。**推反了**：体质↓ 同时导致 睡眠↑ 和 死亡，
-> 是经典的共同原因混淆。**睡眠是保命的，不是致命的** ——
-> 压制它、或者让它变得"不必要"，球就把时间花在探索上，死得更快。
+> ### ★ Rule 45: what the dead did more of in a diagnostic table is not the cause of death, it may be a symptom ★
+> `mortality_diagnose.py` showed the dead sleeping 53–56% against survivors' 41–49%, and I inferred rule 43 from that.
+> **The inference was backwards**: falling condition causes both more sleep and death,
+> a textbook common-cause confound. **Sleep is what keeps them alive, not what kills them** —
+> suppress it, or make it "unnecessary", and the ball spends the time exploring and dies faster.
 >
-> 教训：诊断出相关之后，**必须用一个方向相反的干预去证伪**才能称因果。
-> 这次是 C 那一档救了我们。
+> The lesson: once a correlation is diagnosed, **it must be falsified by an intervention in the opposite direction** before it can be called causal.
+> This time variant C is what saved us.
 
-## 3e. 真因：体质是单调漏斗，这个世界没有稳态
+## 3e. The real cause: condition is a monotone funnel, and this world has no steady state
 
-60 颗种子跑到 120 天（地板全关，022 打开），逐段取均值：
+60 seeds run to 120 days (all floors off, 022 on), averaged by segment:
 
 ```
-        世界食物   体质    精力    勤劳
-幸存 第 35天   3.20   70.8   39.7   72.2
-     第 60天   3.63   53.0   38.7   78.1
-     第 90天   4.09   43.3   41.0   82.5
-     第115天   2.91   34.9   40.8   85.4
-死亡 第 35天   3.84   53.6   37.0   67.4
-     第 60天   3.77   31.3   30.4   71.0
-     第 90天   3.07   15.5   33.0   79.0
-     第115天   0.64    2.8   53.0  100.0
+        world food   condition   energy   industry
+alive  day  35   3.20    70.8      39.7      72.2
+       day  60   3.63    53.0      38.7      78.1
+       day  90   4.09    43.3      41.0      82.5
+       day 115   2.91    34.9      40.8      85.4
+dead   day  35   3.84    53.6      37.0      67.4
+       day  60   3.77    31.3      30.4      71.0
+       day  90   3.07    15.5      33.0      79.0
+       day 115   0.64     2.8      53.0     100.0
 ```
 
-三件事一目了然：
+Three things are obvious:
 
-1. **世界食物没有枯竭**（一直在 3–4）。不是资源问题。
-2. **精力一直在 30–40**。不是精力问题，睡眠机制没有失灵。
-3. **体质对所有球单调下降 —— 包括幸存者**（70.8 → 34.9，还在掉）。
-   **勤劳反而一路上升**（死者最后顶到 100）—— 它们拼尽全力，仍然在掉。
+1. **World food is not exhausted** (it stays at 3–4). This is not a resource problem.
+2. **Energy stays at 30–40 throughout.** Not an energy problem; the sleep mechanism has not failed.
+3. **Condition falls monotonically for every ball — survivors included** (70.8 → 34.9, still falling).
+   **Industry rises all the way instead** (the dead reach 100 at the end) — they try their utmost and still fall.
 
-> ### ★ 规则 46：这个世界没有可持续均衡，所有球都在死亡倒计时上 ★
-> 体质只有单向漏，没有任何行为能把它拉回来。死亡不是"掉进了陷阱"，
-> 而是**"谁的起点低谁先归零"**。跑到 200 天大概会全灭。
+> ### ★ Rule 46: this world has no sustainable equilibrium; every ball is on a countdown to death ★
+> Condition leaks one way only, and no behaviour can pull it back. Death is not "falling into a trap",
+> it is **"whoever starts lowest hits zero first"**. Run to 200 days and the population would probably be wiped out.
 >
-> 60 天的实验之所以看起来没事（损失 4–8%），只是**倒计时还没走完**。
-> **在体质收支修好之前，任何长时程实验都做不了** —— 这不是统计问题，
-> 是模型没有稳态。
+> The 60-day experiments look fine (a loss of 4–8%) only because **the countdown has not finished**.
+> **No long-horizon experiment is possible until the condition balance is fixed** — this is not a statistical problem,
+> it is a model without a steady state.
 
-## 3f. ★ 体质收支表：恢复通道在移植后【完全关闭】★
+## 3f. ★ The condition balance sheet: after the transplant the recovery channel is **completely shut** ★
 
-体质在整个 `sim.py` 里**只有一处**变动（906–910 行），每 tick：
+Condition changes in **exactly one place** in the whole of `sim.py` (lines 906–910), each tick:
 
 ```python
-if self.hunger > 70:    self.condition -= 0.40     # 扣
-elif self.hunger < 30:  self.condition += 0.16     # 补
-# 30 ≤ hunger ≤ 70：什么都不发生 ← 40 分宽的死区
+if self.hunger > 70:    self.condition -= 0.40     # drain
+elif self.hunger < 30:  self.condition += 0.16     # restore
+# 30 ≤ hunger ≤ 70: nothing happens ← a dead zone 40 points wide
 ```
 
-扣的速度是补的 **2.5 倍**，中间还有个死区。实测各档 tick 占比（50 种子，
-贫瘠世界 → 第 30 天移植到基准，地板全关）：
+The drain is **2.5×** the restore, with a dead zone in between. Measured tick shares per phase (50 seeds,
+barren world → transplanted to baseline on day 30, all floors off):
 
 ```
-              饿>70    饿<30    死区    净体质/天
-幸存 第 0-29天   6.0%   19.6%   74.4%    +0.18
-     第30-59天   7.1%    2.1%   90.8%    −0.61
-     第60-89天   1.7%    1.1%   97.2%    −0.12
-     第90-119天  1.6%    0.0%   98.4%    −0.15
-死亡 第 0-29天  13.6%   17.9%   68.5%    −0.62
-     第30-59天   7.5%    0.0%   92.5%    −0.72
-     第60-89天   6.2%    0.0%   93.8%    −0.59
-     第90-119天 27.4%    0.0%   72.6%    −2.63
+              hunger>70  hunger<30  dead zone  net condition/day
+alive  days   0-29    6.0%    19.6%     74.4%      +0.18
+       days  30-59    7.1%     2.1%     90.8%      −0.61
+       days  60-89    1.7%     1.1%     97.2%      −0.12
+       days  90-119   1.6%     0.0%     98.4%      −0.15
+dead   days   0-29   13.6%    17.9%     68.5%      −0.62
+       days  30-59    7.5%     0.0%     92.5%      −0.72
+       days  60-89    6.2%     0.0%     93.8%      −0.59
+       days  90-119  27.4%     0.0%     72.6%      −2.63
 ```
 
-> ### ★ 规则 47：系统稳定在死区里，恢复通道等于不存在 ★
-> **移植之后「饿<30」的时间占比塌到 0–2%**（发育期还有 18–20%）。
-> 也就是说 **+0.16 那条恢复通道几乎从不触发**，
-> 系统 90–98% 的时间待在什么都不发生的死区里，
-> 只被偶发的 −0.40 一点点掏空。
+> ### ★ Rule 47: the system settles inside the dead zone, so the recovery channel might as well not exist ★
+> **After the transplant, the share of time with "hunger<30" collapses to 0–2%** (it was 18–20% during development).
+> That is, **the +0.16 recovery channel almost never fires**,
+> and the system spends 90–98% of its time in a dead zone where nothing happens,
+> being hollowed out little by little by the occasional −0.40.
 >
-> **没有任何球在第 30 天之后有正收支** —— 最健康的幸存者也是 −0.12/天。
-> 这不是"某些球运气差"，是**结构上不存在稳态**。
-> 死亡率因此完全由"起点体质 + 时间"决定，与行为策略基本无关 ——
-> 这也解释了为什么三种行为层改法（3d 节）全部无效：
-> **它们动的是分子，问题在分母。**
+> **No ball has a positive balance after day 30** — even the healthiest survivor is at −0.12/day.
+> This is not "some balls are unlucky", it is **the structural absence of a steady state**.
+> Mortality is therefore decided entirely by "starting condition + time" and is essentially independent of behavioural strategy —
+> which also explains why all three behaviour-layer fixes (§3d) failed:
+> **they move the numerator while the problem is in the denominator.**
 
-### 定量目标（改之前先定死）
+### Quantitative target (fixed before any change)
 
-幸存者 97% 的 tick 在死区、1.7% 在扣、1.1% 在补。要做到净收支为零，
-需要在死区里补上约 **0.005/tick**（或等价地把恢复阈值从 30 抬到 ~55，
-让死区的一部分变成恢复区）。
+Survivors spend 97% of ticks in the dead zone, 1.7% draining and 1.1% restoring. To reach a zero net balance,
+about **0.005/tick** must be added inside the dead zone (or equivalently the recovery threshold raised from 30 to ~55,
+turning part of the dead zone into a recovery zone).
 
-三个候选方向（**尚未实现，等定夺**）：
+Three candidate directions (**not yet implemented, awaiting a decision**):
 
-- **① 抬高恢复阈值** `hunger < 30` → `< 55`。最小改动，直接把死区削掉一半。
-- **② 死区也缓慢恢复**（例如 +0.05/tick），保留"吃饱才养得快"的层次。
-- **③ 恢复不只看饥饿**，让住所 / 睡眠也贡献体质。最贴近直觉，改动最大。
+- **① raise the recovery threshold** `hunger < 30` → `< 55`. The smallest change, cutting the dead zone in half directly.
+- **② slow recovery inside the dead zone too** (say +0.05/tick), preserving the "eat well to recover fast" gradation.
+- **③ recovery not driven by hunger alone**, letting shelter / sleep contribute to condition. The most intuitive, the largest change.
 
-⚠ 三个都会改变**全部历史数字**（011–022）。而且按规则 45 的教训，
-**必须同时测死亡率和比值**，任何让球活下来但抹平世界差异的改法都是失败。
+⚠ All three change **every historical number** (011–022). And by the lesson of rule 45,
+**mortality and the ratio must be measured together**; any fix that keeps the balls alive while flattening the world difference is a failure.
 
-## 3g. ★ 修法对比：只有「阈值 65」两项判据全过 ★（`cond_compare.py`）
+## 3g. ★ Fix comparison: only "threshold 65" passes both criteria ★ (`cond_compare.py`)
 
 ```
-修法               死亡%完整   死亡%无地板   比值 完整              比值 无地板
-现状                18.7%⚠     40.7%⚠   1.086 [1.043,1.162]  1.097 [1.031,1.160]
-① 阈值 45           15.7%⚠     46.3%⚠   1.082 [1.042,1.169]  1.114 [1.057,1.195]
-① 阈值 55           13.7%      43.3%⚠   1.096 [1.044,1.177]  1.130 [1.063,1.206]
-① 阈值 65            5.0%       7.3%    1.142 [1.068,1.218]  1.150 [1.072,1.220]  ★
-② 死区 +0.03        12.0%      40.3%⚠   1.087 [1.045,1.171]  1.112 [1.057,1.195]
-② 死区 +0.06        10.0%      35.3%⚠   1.100 [1.052,1.192]  1.129 [1.060,1.206]
-③ 住所 +0.05         7.7%      34.3%⚠   1.099 [1.052,1.185]  1.112 [1.050,1.189]
-③ 住所 +0.10         6.7%      34.0%⚠   1.117 [1.078,1.187]  1.130 [1.053,1.188]
+fix                   dead% full   dead% no floor   ratio full           ratio no floor
+status quo             18.7%⚠         40.7%⚠    1.086 [1.043,1.162]  1.097 [1.031,1.160]
+① threshold 45         15.7%⚠         46.3%⚠    1.082 [1.042,1.169]  1.114 [1.057,1.195]
+① threshold 55         13.7%          43.3%⚠    1.096 [1.044,1.177]  1.130 [1.063,1.206]
+① threshold 65          5.0%           7.3%     1.142 [1.068,1.218]  1.150 [1.072,1.220]  ★
+② dead zone +0.03      12.0%          40.3%⚠    1.087 [1.045,1.171]  1.112 [1.057,1.195]
+② dead zone +0.06      10.0%          35.3%⚠    1.100 [1.052,1.192]  1.129 [1.060,1.206]
+③ shelter +0.05         7.7%          34.3%⚠    1.099 [1.052,1.185]  1.112 [1.050,1.189]
+③ shelter +0.10         6.7%          34.0%⚠    1.117 [1.078,1.187]  1.130 [1.053,1.188]
 ①55 + ③0.05        12.0%      45.7%⚠   1.119 [1.048,1.199]  1.139 [1.075,1.215]
 ```
 
-**只有 ①阈值65 把「无地板」那列压下去了（40.7% → 7.3%）。** 其余八档
-在完整架构上都有改善，在无地板上**全部无效**（34–46%）——
-而无地板正是规则 44 的污染源，治不好它，021 第 3 节和 022 就重跑不了。
+**Only ①threshold 65 brings the "no floor" column down (40.7% → 7.3%).** The other eight
+improve the full architecture and are **all ineffective** with no floors (34–46%) —
+and the no-floor case is precisely the contamination source of rule 44; without curing it, 021 §3 and 022 cannot be re-run.
 
-### ★ 意外：比值没有塌，反而普遍上升 ★
+### ★ A surprise: the ratio did not collapse; it generally rose ★
 
-事前担心的是"体质变好 → 贫瘠世界压力变小 → 世界差异被抹平"。
-实测**九档的比值全部 ≥ 现状**，①65 最高（1.142 / 1.150）。
+The prior worry was "better condition → less pressure in the barren world → the world difference is flattened".
+Measured, **all nine variants have a ratio ≥ the status quo**, with ①65 the highest (1.142 / 1.150).
 
-> ### ★ 规则 48（假说）：生存压力压缩行为方差 ★
-> 快饿死的球没有选择，只能觅食；吃饱的球才有余裕表达性格。
-> 死亡率一降，**真实的分化幅度反而显露出来**了。
-> 这也说明此前 60 天窗口里的比值是被**幸存者筛选压低**的
-> —— 与长时程窗口里被抬高的方向相反，两种偏差都存在。
-> ⚠ 这条目前只是解释，没有直接检验。
+> ### ★ Rule 48 (hypothesis): survival pressure compresses behavioural variance ★
+> A ball about to starve has no choice but to forage; only a well-fed ball has the slack to express personality.
+> As mortality falls, **the true magnitude of differentiation becomes visible instead**.
+> This also implies the ratios in earlier 60-day windows were **suppressed by survivor filtering** —
+> the opposite direction to the inflation in long-horizon windows; both biases exist.
+> ⚠ For now this is only an explanation with no direct test.
 
-### ⚠ 55 → 65 之间是个悬崖，必须先探清楚
+### ⚠ There is a cliff between 55 and 65 that must be mapped first
 
-无地板死亡率：阈值 55 时 **43.3%**，阈值 65 时 **7.3%**。
-中间没有过渡，说明**均衡饥饿度正好落在 55–65 之间**，
-阈值一旦越过它，绝大多数 tick 就从死区翻进恢复区。
+No-floor mortality is **43.3%** at threshold 55 and **7.3%** at threshold 65.
+There is no transition in between, which suggests **the equilibrium hunger level falls exactly between 55 and 65**,
+and once the threshold crosses it, the vast majority of ticks flip from the dead zone into the recovery zone.
 
-**这是个脆弱点**：任何改变均衡饥饿度的参数（HUNGER_RATE、FOOD_NUTRITION、
-世界食物再生）都可能让死亡率重新爆掉。
-**采用之前必须先扫 58/60/62/65/68/70 把悬崖的位置和陡度测出来**，
-并确认选的值离悬崖有足够余量。
+**This is a fragile point**: any parameter that changes the equilibrium hunger level (HUNGER_RATE, FOOD_NUTRITION,
+world food regrowth) could make mortality explode again.
+**Before adopting it, sweep 58/60/62/65/68/70 to measure the cliff's position and steepness**,
+and confirm that the chosen value has enough margin from it.
 
-> ⚠ **上面这段的诊断是错的，见 3h。** 没有悬崖，也不需要扫阈值。
-> "均衡饥饿度卡在 55–65" 这个解释被 `cliff_probe.py` 直接证伪
-> （零点在 T≈38）。真相是**丰富世界那一支有个怠惰谷**（规则 49）。
-> 保留原文是因为它演示了一个典型错误：**把两条曲线的差解释成一条曲线的阈值。**
+> ⚠ **The diagnosis in the paragraph above is wrong; see §3h.** There is no cliff and no threshold sweep is needed.
+> The explanation "the equilibrium hunger level is stuck between 55 and 65" was falsified outright by `cliff_probe.py`
+> (the zero is at T≈38). The truth is that **the rich-world arm has a sloth valley** (rule 49).
+> The original text is kept because it demonstrates a classic error: **explaining the difference between two curves as a threshold in one curve.**
 
-## 3h. ★ 悬崖是假的：真相是怠惰谷 + 一半的选择效应 ★
-（`cliff_probe.py` · `death_split.py` · `rule48_test.py`）
+## 3h. ★ The cliff is fake: the truth is a sloth valley + half a selection effect ★
+(`cliff_probe.py` · `death_split.py` · `rule48_test.py`)
 
-3g 留了两个待办：扫阈值定悬崖、验规则 48。两个都做了，
-**但扫阈值这件事本身被证明是没必要的** —— 悬崖可以直接算出来，而且它不存在。
+§3g left two to-dos: sweep the threshold to locate the cliff, and verify rule 48. Both were done,
+**but the threshold sweep itself turned out to be unnecessary** — the cliff can be computed directly, and it does not exist.
 
-### 1. 不用扫：净收支是饥饿分布的泛函
+### 1. No sweep needed: the net balance is a functional of the hunger distribution
 
-体质只在 `sim.py:924-930` 一处变动，所以
+Condition changes in exactly one place, `sim.py:924-930`, so
 
 ```
-净体质/tick(T) = COND_RECOVER·P(饿<T) − COND_DRAIN·P(饿>70)
-               = 0.16·P(饿<T) − 0.40·P(饿>70)
+net condition/tick(T) = COND_RECOVER·P(hunger<T) − COND_DRAIN·P(hunger>70)
+                      = 0.16·P(hunger<T) − 0.40·P(hunger>70)
 ```
 
-一次分布测量就能预测**整条**阈值曲线。测了（N=60，贫瘠→基准@30，
-只统计移植后的 tick），用「现状」的分布外推：
+One distribution measurement predicts the **whole** threshold curve. Measured (N=60, barren→baseline@30,
+counting only post-transplant ticks) and extrapolated from the "status quo" distribution:
 
 ```
 T =        30      40      45      50      55      60      65      70
-净/tick  −0.009  +0.003  +0.021  +0.048  +0.082  +0.111  +0.133  +0.144
+net/tick  −0.009  +0.003  +0.021  +0.048  +0.082  +0.111  +0.133  +0.144
 ```
 
 **零点在 T≈38，不在 55–65。** 现状（T=30）的 −0.009/tick = −0.22/天，
