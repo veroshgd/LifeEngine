@@ -5490,53 +5490,53 @@ Memory stays event-triggered throughout (~6.6–6.9 / 80).
 ### The two definitions of the extensive margin **must not be mixed**
 
 ```
-usable（m ≠ 0）          Stable 64.2%   Volatile 73.2%
-complete（两侧都有条目）  Stable 65.75%  Volatile 73.25%
+usable (m ≠ 0)                    Stable 64.2%   Volatile 73.2%
+complete (entries on both sides)  Stable 65.75%  Volatile 73.25%
 ```
-差在 **6 个 Stable agent（1.5%）两侧都有条目、但两侧均值恰好相等 → m = 0**。
-**报哪个就一直报哪个，不许混。**
+The difference is **6 Stable agents (1.5%) that do have entries on both sides, but whose two means happen to be exactly equal → m = 0**.
+**Whichever one is reported must then be reported throughout; mixing them is not allowed.**
 
-### 读法
+### How to read this
 
-自然的 Stable/Volatile 发育史，经过**冻结的 λ=1 接口**，
-产生约 **少犯一次 post-change error** 的下游差异；
-该差异在**跨种子重新配对后仍在**（96%），
-但在**保持 marginal、只打乱 action–outcome 关系后被摧毁**（−9.4%）。
+Natural Stable/Volatile developmental histories, passed through the **frozen λ=1 interface**,
+produce a downstream difference of roughly **one fewer post-change error**;
+that difference **survives re-pairing across seeds** (96%),
+but is **destroyed once the marginals are preserved and only the action–outcome relation is shuffled** (−9.4%).
 
-⚠ CI 全是**描述性**的；没有 SESOI → **不做功能意义判读**。
-⚠ 这是**开发种子上的 rehearsal**，不是 029 的确认性结果。
-⛔ 不许据此改 λ 或任何 acquisition 参数。
+⚠ Every CI here is **descriptive**; there is no SESOI → **no functional-significance reading is made**.
+⚠ This is a **rehearsal on development seeds**, not a confirmatory 029 result.
+⛔ Neither λ nor any acquisition parameter may be changed on the basis of it.
 
-### 还差什么才能写预注册
+### What is still missing before the preregistration can be written
 
 ```
-① 决定发育史是否还要携带 trait 通路（否则 SWAP 永远是恒等式）——规则 93
-② SESOI（ΔC 的单位是 trial，现在 OWN ≈ 0.93）
-③ fresh final seeds（80000–81499 仍然干净）
+① decide whether the developmental history should also carry a trait pathway (else SWAP stays an identity) — rule 93
+② the SESOI (ΔC is measured in trials; OWN is currently ≈ 0.93)
+③ fresh final seeds (80000–81499 is still clean)
 ④ MEMORY_TRANSFER029_PREREGISTRATION.md
 ```
 
-### 复现方式（新增）
+### How to reproduce (new)
 
 - `memory_transfer_rehearsal.py` → `memory_transfer_rehearsal_result.txt` / `_console.txt`
-- `memory_lambda_calibration.py` 已冻结四个 gate + λ=1.00，exposure gate 改用 max，
-  并加了"λ 必须等于合格带 log 中心"的断言
+- `memory_lambda_calibration.py` has frozen the four gates + λ=1.00, switched the exposure gate to max,
+  and added the assertion that "λ must equal the log centre of the admissible band"
 
 ---
 
-## ★★ 预注册前的最后一轮拍板（2026-08-18）★★
+## ★★ The last round of decisions before preregistration (2026-08-18) ★★
 
-### ① 029 primary **不加** trait 通路 —— 规则 93 修订
+### ① The 029 primary does **not** add a trait pathway — rule 93 revised
 
-> ### ~~规则 93（原文，保留）：要让 SWAP 成为非平凡检验，发育史必须还携带记忆以外的东西~~
-> **⚠ 已修订。** 原话数学上没错，但**实验设计推论不对** ——
-> 为了让一个控制"非平凡"而故意加入 trait channel，会把原本干净的
+> ### ~~Rule 93 (original, kept): for SWAP to be a non-trivial test, the developmental history must carry something besides memory~~
+> **⚠ Revised.** The original statement is mathematically correct, but its **experimental-design inference is not** —
+> deliberately adding a trait channel just to make one control "non-trivial" would turn the clean
 > `history → relational memory → novel adaptation`
-> 重新变成 `history → memory + traits → novel adaptation`，
-> 然后又要处理 memory/trait competition、interaction、budget，
-> 即 027/028 那一整套。**没有必要。**
+> back into `history → memory + traits → novel adaptation`,
+> after which memory/trait competition, interaction and budget would all have to be handled again,
+> i.e. the entire 027/028 apparatus. **There is no need for it.**
 
-> ### ★ 规则 93（最终版）★
+> ### ★ Rule 93 (final version) ★
 > **When memory is the sole developmental pathway into the test task, DELETE
 > and within-seed SWAP are algebraic integrity checks rather than independent
 > causal evidence. A second developmental pathway should not be introduced
@@ -5544,100 +5544,100 @@ complete（两侧都有条目）  Stable 65.75%  Volatile 73.25%
 > from interventions on memory structure such as relational shuffling and
 > cross-seed donor tests.**
 >
-> 中文：当 memory 是 development 进入测试任务的唯一通路时，DELETE 与同种子
-> SWAP 是**代数上的完整性检查**，不是独立因果证据。**不能为了让这些控制变得
-> "非平凡"而人为增加第二条发育通路**；真正的因果支持应来自对**记忆结构本身**
-> 的干预，例如 relational SHUFFLE 和跨种子 donor 检验。
+> In plain terms: when memory is the only pathway by which development enters the test task, DELETE and same-seed
+> SWAP are **algebraic integrity checks**, not independent causal evidence. **A second developmental pathway must not**
+> **be added artificially just to make these controls "non-trivial"**; genuine causal support has to come from
+> interventions on **the memory structure itself**, such as relational SHUFFLE and cross-seed donor tests.
 
-**029 的目标不是证明"memory 比人格更重要"**，而是证明：真实经历能够产生
-relational memory，而这种关系结构足以在结构相似的新问题中产生功能性 transfer。
-所以 `NeutralBody` 不动，architecture 保持 memory-only。
+**The goal of 029 is not to prove that "memory matters more than personality"**, but to show that real experience can produce
+relational memory, and that this relational structure is enough to produce functional transfer on a structurally similar new problem.
+So `NeutralBody` stays as it is and the architecture remains memory-only.
 
-命名也一并冻结：`SWAP-XS` **正式改名 `XSEED-DONOR`** ——
-它和 SWAP 问的不是同一件事（SWAP 问"结果跟不跟记忆身份走"，此架构下是恒等式；
-XSEED-DONOR 问"效应是不是靠发育与测试共享种子"，非平凡）。
+The naming is frozen along with it: `SWAP-XS` is **formally renamed `XSEED-DONOR`** —
+it does not ask the same question as SWAP (SWAP asks "does the result follow the identity of the memory", an identity under this architecture;
+XSEED-DONOR asks "does the effect rely on development and test sharing a seed", which is non-trivial).
 
-### ② extensive margin 正式选 **complete**
+### ② The extensive margin is formally defined as **complete**
 
 ```
 primary extensive margin = P(relational memory complete)
-                           complete := 至少 1 条 stay 且至少 1 条 switch
+                           complete := at least 1 stay entry and at least 1 switch entry
 Stable 65.75%   Volatile 73.25%
 
-另报（可报告，但不许叫 extensive / availability）：
+also reported (reportable, but must not be called extensive / availability):
 non-zero evidence rate     Stable 64.25%   Volatile 73.25%
 ```
 
-> ### ★ 规则 94：m = 0 不等于"没有记忆" ★
-> 那 6 个 Stable agent（1.5%）**两侧都有条目**，只是
-> `mean(switch reward) == mean(stay reward)` → m = 0。
-> **它们形成了完整的关系性记忆**，只不过这份经验告诉它
-> "**过去 switch 和 stay 没有区别**" —— 这是**有意义的零证据**。
-> 把 `m ≠ 0` 定义成 memory availability，就会把"形成了一份中性经验"
-> 错误归类成"没有记忆"。
+> ### ★ Rule 94: m = 0 does not mean "no memory" ★
+> Those 6 Stable agents (1.5%) **do have entries on both sides**; it is only that
+> `mean(switch reward) == mean(stay reward)` → m = 0.
+> **They formed a complete relational memory**; that experience simply tells them
+> "**switching and staying made no difference in the past**" — which is **meaningful null evidence**.
+> Defining memory availability as `m ≠ 0` would misclassify "formed a neutral experience"
+> as "has no memory".
 >
-> 所以：completeness 与 non-zero evidence rate **是两个不同的量，
-> 报哪个就一直报哪个，不许混用**。
-> 规则 91 不变：**所有 primary transfer 分析仍使用全部预定义 agent，
-> 含 incomplete 与 m = 0。**
+> So: completeness and the non-zero evidence rate **are two different quantities;
+> whichever is reported must be reported throughout, and they must never be mixed**.
+> Rule 91 is unchanged: **every primary transfer analysis still uses the whole predefined set of agents,
+> including incomplete ones and those with m = 0.**
 
 ### ③ SESOI = **1.0 post-change error**
 
 ```
-ΔC = C_Volatile − C_Stable      负值 = Volatile 记忆更好
-SESOI: |ΔC| = 1.0 error   ⇔  40 个 post-change trial 里少犯 1 次  ⇔  2.5% accuracy
+ΔC = C_Volatile − C_Stable      negative = the Volatile memory is better
+SESOI: |ΔC| = 1.0 error   ⇔  one fewer mistake in 40 post-change trials  ⇔  2.5% accuracy
 ```
 
-理由：与 027/028 的 **1 trial 功能单位一致**，不是凭 rehearsal 的 −0.927
-临时创造一个 0.5 / 0.75 的门槛。而且**开发结果 −0.927 恰好落在门槛下方**，
-所以这个门槛**不会**把已看到的开发结果事后包装成"功能成功" ——
-按此判读，开发结果只能算 *detectable / directionally strong，功能意义尚未建立*。
-**这对预注册可信度是加分。**
+Rationale: it matches the **1-trial functional unit** of 027/028, instead of inventing a 0.5 / 0.75 threshold
+ad hoc from the rehearsal's −0.927. And **the development result of −0.927 falls just below the threshold**,
+so the threshold **cannot** retroactively dress the already-seen development result up as a "functional success" —
+under this reading the development result counts only as *detectable / directionally strong, functional significance not established*.
+**That is a point in favour of the preregistration's credibility.**
 
-三档判读（沿用 027/028 逻辑）：
+A three-band reading (following the 027/028 logic):
 
 ```
-CI 包含 0            No evidence of memory-mediated transfer
-CI < 0 但未越过 −1   Detectable, but functional significance not established
-CI 整体 < −1         Functionally meaningful memory-mediated transfer established
-CI 完全 > 0          明确是反方向 / 有害 transfer
+CI contains 0            No evidence of memory-mediated transfer
+CI < 0 but not past −1   Detectable, but functional significance not established
+CI entirely < −1         Functionally meaningful memory-mediated transfer established
+CI entirely > 0          Clearly the opposite direction / harmful transfer
 ```
-（开发 rehearsal `[−1.202, −0.677]` 正属于第二档。）
+(The development rehearsal `[−1.202, −0.677]` falls in the second band.)
 
-### ④ SHUFFLE 的 confirmatory 判据 —— ⚠ 有一处必须先拍板
+### ④ The confirmatory criterion for SHUFFLE — ⚠ one point needs a decision first
 
-不再只写"SHUFFLE 应该变小"，而是冻结 **retention ratio**：
+Rather than merely writing "SHUFFLE should get smaller", the **retention ratio** is frozen:
 
 ```
 R = |ΔC_SHUFFLE| / |ΔC_OWN|
-joint same-seed bootstrap，★abs 与除法逐 replicate 施加★（承 028 教训）
-⚠ 规则 84：R 恒 ≥ 0，"CI 排除 0" 无信息 → 判据只看【上界】
+joint same-seed bootstrap, ★abs and division applied per replicate★ (lesson from 028)
+⚠ rule 84: R is always ≥ 0, so "the CI excludes 0" is uninformative → the criterion reads the UPPER bound only
 ```
 
-**开发 rehearsal 实测（n=400）：**
+**Measured in the development rehearsal (n=400):**
 
 ```
-R 点估计 = 0.094      95% CI [0.005, 0.261]
+R point estimate = 0.094      95% CI [0.005, 0.261]
 ```
 
-> ### ⚠⚠ 两种写法判读不同 ⚠⚠
+> ### ⚠⚠ The two formulations read differently ⚠⚠
 > ```
-> (A) 点估计 < 0.25      → 满足（0.094）    用户原话"绝对点估计不超过 OWN 的 25%"
-> (B) CI 上界 < 0.25     → 不满足（0.261）  更保守
+> (A) point estimate < 0.25   → satisfied (0.094)    the original wording: "the absolute point estimate is at most 25% of OWN"
+> (B) CI upper bound < 0.25   → not satisfied (0.261)  more conservative
 > ```
-> **建议 (B)**：只有 (B) 才真正回答"摧毁 relation 后**至少 75%** 的 transfer
-> 是否消失"。FINAL 的 N=1500 是 rehearsal 的 3.75 倍，CI 宽度约缩到 1/1.94，
-> 0.261 很可能落到 0.25 以下 —— 但**这是功效推断，不是保证**，(B) 有真实失败风险。
-> 采用 (A) 会让这条控制几乎不可能失败，那它就失去了控制的意义。
+> **(B) is recommended**: only (B) really answers "does **at least 75%** of the transfer disappear
+> once the relation is destroyed". FINAL's N=1500 is 3.75× the rehearsal, so the CI width shrinks to about 1/1.94,
+> and 0.261 would very likely drop below 0.25 — but **that is a power inference, not a guarantee**, and (B) carries a real risk of failing.
+> Adopting (A) would make this control almost impossible to fail, which would strip it of its point as a control.
 >
-> ⚠ **必须诚实记录**：这个选择是在**已经看到 rehearsal 的 0.094 / 0.261 之后**
-> 做的，但**在见到 FINAL 块任何数值之前**写死。结果里必须写明这一点。
+> ⚠ **This must be recorded honestly**: the choice was made **after seeing the rehearsal's 0.094 / 0.261**,
+> but frozen **before any number from the FINAL block was seen**. The results must say so explicitly.
 
-分层后果：primary CI 含 0 → **R 不计算不解释**（分母不可辨识时比值无意义）；
-primary 可检出但 R 不满足 → 不许声称关系结构承载，只能写
-"marginal statistics 的贡献无法排除"。**primary 的成败不因 R 而改变。**
+Layered consequences: if the primary CI contains 0 → **R is neither computed nor interpreted** (a ratio is meaningless when the denominator is unidentifiable);
+if the primary is detectable but R is not satisfied → no claim that the relational structure carries it; only
+"a contribution from marginal statistics cannot be excluded" may be written. **The primary's success or failure does not change because of R.**
 
-### ⑤ FINAL 块冻结：`80000–81499, N=1500`
+### ⑤ FINAL block frozen: `80000–81499, N=1500`
 
 已核实：整个仓库与实验记录中 `80000` 只出现在"untouched / 不碰 / 预留"这类说明里，
 **没有任何 simulation 路径使用过这一段**。沿用 028 的工程保护：
