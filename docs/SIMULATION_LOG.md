@@ -1538,42 +1538,42 @@ store more food          12.3%     54.0%     +41.7%
 see the world            48.2%     16.7%     -31.5%
 ```
 
-> 被宠的球把一半人生花在往远处跑，被放养的球把一半人生花在囤粮。
+> The pampered ball spends half its life running into the distance; the neglected one spends half its life hoarding food.
 
-这是实验 011 以来第一次，**用户的影响既超过基线、又能讲成一个句子**。
-`behavior.py` 已把目标层放在主载体位置。
+This is the first time since experiment 011 that **the user's influence both exceeds the baseline and can be stated as a sentence**.
+`behavior.py` has moved the goal layer into the main-carrier position.
 
-理由（写进脚本注释）：比作息强 · 带 `created_from` 可追因 ·
-能讲成句子 · 是 LLM 接进来时最自然的接口（`context_packet` 就围着它组）。
-
----
-
-## ★ 实验 019 得到的规则
-
-27. **需求的抑制要作用在【意图形成】，不是【意图执行】。**
-    等体质掉下来才压制目标，亏空已经造成。
-
-28. **持久性不是"保留了多少"，是"当初造出了多少"。**
-    保留率区分不了因素（全在 85–103%），主指标要看移植后的绝对比值。
-
-29. **能留下来的，只有写进【个体】的东西。**
-    写进世界的（书、音乐）随环境消失；写进 trait_identity / flags 的跟着球走。
-
-30. **只写不读的结构等于装饰品。**
-    `knowledge` 有内容、能讲出来、完全不影响行为 —— 所以书打不过天气。
+The reasoning (written into the script comments): stronger than routine · carries `created_from` for attribution ·
+can be stated as a sentence · is the most natural interface once an LLM is wired in (`context_packet` is organised around it).
 
 ---
 
-## 还没解决的
+## ★ The rules from experiment 019
 
-- ⚠ **`knowledge` 没有接到 `score()` 上。** 这是规则 30 的直接待办：
-  语义记忆应该影响行为（比如"知道远处有食物"→ 荒季时更倾向探索），
-  否则书这条产品线立不住。
-- ⚠ **贫瘠世界 90 天死亡率 37.5%**。极端世界，但要确认这是设计意图。
-- ⚠ **goal 的五个参数**（BONUS / OFF_TASK / REFRACTORY / STALL_DAYS / slack）
-  仍然一次都没扫过鲁棒性。
-- 单因素移植后没有一个越过 1，**只有组合能**（规则 26 再次成立）。
-- `paired.py` / `ablation.py` 需要在修复后的 v2 上重跑一遍取基线。
+27. **The suppression of needs must act on intention formation, not intention execution.**
+    Waiting until condition falls before suppressing the goal means the deficit is already done.
+
+28. **Persistence is not "how much was retained" but "how much was created in the first place".**
+    Retention rates distinguish nothing between factors (all 85–103%); the main metric must be the absolute post-transplant ratio.
+
+29. **Only what is written into the individual can persist.**
+    What is written into the world (books, music) vanishes with the environment; what is written into trait_identity / flags travels with the ball.
+
+30. **A structure that is written and never read is an ornament.**
+    `knowledge` has content, can be recited, and affects behaviour not at all — which is why books lose to weather.
+
+---
+
+## Still unsolved
+
+- ⚠ **`knowledge` is not wired into `score()`.** This is the direct to-do of rule 30:
+  semantic memory should affect behaviour (for instance "knowing there is food far away" → more inclined to explore in the lean season),
+  or the "books" product line cannot stand at the behaviour layer.
+- ⚠ **The barren world's 90-day mortality is 37.5%.** An extreme world, but it must be confirmed as the design intent.
+- ⚠ **The five goal parameters** (BONUS / OFF_TASK / REFRACTORY / STALL_DAYS / slack)
+  have still never been swept for robustness once.
+- Not one single factor clears 1 after the transplant; **only the combination does** (rule 26 holds again).
+- `paired.py` / `ablation.py` need re-running on the fixed v2 to obtain a baseline.
 
 ---
 
@@ -1581,213 +1581,213 @@ see the world            48.2%     16.7%     -31.5%
 
 ---
 
-# 实验 020 —— 状态拉平 + 删除测试：差异到底存在哪
+# Experiment 020 — state levelling + deletion test: where does the difference actually live
 
-> 日期：2026-08-11
-> 前情：外部消融（`persistence_ablation.py`）已证明持久性**不是写死的**——
-> 把三个地板机制全关掉，移植比值仍是 1.07，死亡率只有 4%。
-> 但超过 1.0 的余量从 0.18 掉到 0.07，一眼可辨从 74.8% 掉到 60.4%。
-> **对外要报 1.07 那一行，不是 1.18。地板不是来源，是约六成的放大器。**
+> Date: 2026-08-11
+> Background: the external ablation (`persistence_ablation.py`) has already shown that persistence is **not hardcoded** —
+> with all three floor mechanisms switched off, the transplant ratio is still 1.07 and mortality is only 4%.
+> But the margin above 1.0 falls from 0.18 to 0.07, and visibly distinct falls from 74.8% to 60.4%.
+> **What is reported externally is the 1.07 row, not 1.18. The floors are not the source but an amplifier of about sixty percent.**
 
-## 1. ★ 状态拉平：caution 那条曲线是真的（`leveling.py`）★
+## 1. ★ State levelling: that caution curve is real (`leveling.py`) ★
 
-移植到中立世界后 caution 还在继续拉开。两种解释：
-
-```
-强解释  分化自我维持 —— 内部结构继续制造抬高 caution 的经历（路径依赖）
-弱解释  状态混淆   —— 它只是还没缓过来，体质/存粮更差，所以持续遇到坏事
-```
-
-**做法**：移植那一刻把 hunger / energy / condition / shelter / inventory
-强行拉平成完全一致，只留性格 / 记忆 / 目标不同。
-（`hardship` 故意不清 —— 它是经历，不是状态。）
-
-**★ 方法学修正：逐点结算存活集合 ★**
-第一版用"活到 120 天的那批"统一算所有行，损失 24.5%/38.0%。
-但幸存者恰好是"没跑掉的球"，而那正是这条曲线在讲的东西 ——
-**等于用结论筛样本**。改成每个检查点各自算：
+After the transplant into a neutral world, caution keeps widening. Two readings:
 
 ```
-【不拉平】            caution  curiosity  industry  condition   有效配对   损失
-第30天（移植点）        +19.3     -20.8     +10.7      +1.1       188     6.0%
-第60天                  +26.3     -17.4      +9.2     +12.9       187     6.5%
-第90天                  +30.2     -17.6      +9.7     +13.2       185     7.5%
-第120天                 +32.6     -19.2      +9.7     +14.8       151    24.5% ⚠
-
-【拉平】
-第30天（移植点）        +19.3     -20.8     +10.7      +1.1       188     6.0%
-第60天                  +28.9     -17.6     +11.7     +18.9       188     6.0%
-第90天                  +32.2     -17.9     +11.2     +23.9       180    10.0%
-第120天                 +30.3     -17.9      +9.6     +21.4       124    38.0% ⚠
+strong  differentiation is self-sustaining — internal structure keeps generating caution-raising experiences (path dependence)
+weak    state confound — it simply has not recovered; its condition/food store are worse, so it keeps meeting bad things
 ```
 
-只用损失 ≤15% 的点（30/60/90）：
+**Method**: at the moment of transplant, force hunger / energy / condition / shelter / inventory
+to be exactly equal, leaving only personality / memory / goals different.
+(`hardship` is deliberately not cleared — it is experience, not state.)
+
+**★ Methodological correction: settle the surviving set per point ★**
+The first version computed every row on "those alive at day 120", a loss of 24.5%/38.0%.
+But the survivors are precisely "the balls that did not run off", which is exactly what this curve is about —
+**selecting the sample by the conclusion**. Changed to computing each checkpoint separately:
 
 ```
-移植后 caution 增长    不拉平 +10.9    拉平 +12.9   （118%）
+[not levelled]        caution  curiosity  industry  condition   valid pairs   loss
+day 30 (transplant)     +19.3     -20.8     +10.7      +1.1         188      6.0%
+day 60                  +26.3     -17.4      +9.2     +12.9         187      6.5%
+day 90                  +30.2     -17.6      +9.7     +13.2         185      7.5%
+day 120                 +32.6     -19.2      +9.7     +14.8         151     24.5% ⚠
+
+[levelled]
+day 30 (transplant)     +19.3     -20.8     +10.7      +1.1         188      6.0%
+day 60                  +28.9     -17.6     +11.7     +18.9         188      6.0%
+day 90                  +32.2     -17.9     +11.2     +23.9         180     10.0%
+day 120                 +30.3     -17.9      +9.6     +21.4         124     38.0% ⚠
 ```
 
-> ### ★ 强解释成立，而且比预期更强 ★
-> **拉平状态之后，差距不但没缩小，还扩大得更快。**
-
-弱解释的核心预言是"贫瘠分身状态更差所以持续遇到坏事"。实测相反：
-**第 90 天拉平组里贫瘠分身的体质是 +23.9、存粮 +8.6 —— 它活得更好，
-而且还在继续变谨慎。** 恢复曲线这个解释被直接证伪。
-
-## 2. 删除测试：四档阶梯（`deletion.py`）
-
-移植那一刻按阶梯删掉各层：
+Using only the points with loss ≤15% (30/60/90):
 
 ```
-条件            移植点caut  +30caut  +60caut  +30比值  +60比值  +60一眼  +60损失
-① 完整             +19.3     +26.3    +30.2     1.17     1.23    70.6%    6.5%
-② −情节记忆        +19.3     +26.3    +30.2     1.17     1.23    70.6%    6.5%
-③ −情节+语义       +19.3     +26.3    +30.2     1.17     1.23    70.6%    6.5%
-④ 只剩 traits      +19.3     +26.7    +31.3     1.14     1.32    71.8%    6.0%
+caution growth after the transplant    not levelled +10.9    levelled +12.9   (118%)
 ```
 
-### ⚠ ②③ 和 ① 一模一样到小数点 —— 这不是结论，是 bug 的证据
+> ### ★ The strong reading holds, and more strongly than expected ★
+> **After levelling the state, the gap does not narrow; it widens faster.**
 
-查代码：`self.memories` 只在 `recall()` 和 `landmarks` 里被读，
-而 `recall()` 只被 `context_packet()` 调用；`context_packet()`
-**从来没有被 `score()` 或 `tick()` 调用过**。`knowledge` 同理。
+The core prediction of the weak reading is "the barren twin is in worse shape so it keeps meeting bad things". The measurement says the opposite:
+**at day 90 in the levelled group the barren twin's condition is +23.9 and its food store +8.6 — it is living better,
+and still becoming more cautious.** The recovery-curve explanation is falsified outright.
 
-> ### ★ 规则 31：整个记忆系统目前是只写不读的 ★
-> 实验 019 的规则 30 说的是 `knowledge`。现在确认**情节记忆也一样**。
-> 笔记 ④ 加的那一整层结构：能检索、能讲成话、**对行为零影响**。
+## 2. The deletion test: a four-step ladder (`deletion.py`)
+
+Delete each layer in a ladder at the moment of transplant:
+
+```
+condition          caut at move  +30 caut  +60 caut  +30 ratio  +60 ratio  +60 visible  +60 loss
+① full                 +19.3       +26.3     +30.2      1.17       1.23       70.6%       6.5%
+② −episodic memory     +19.3       +26.3     +30.2      1.17       1.23       70.6%       6.5%
+③ −episodic+semantic   +19.3       +26.3     +30.2      1.17       1.23       70.6%       6.5%
+④ traits only          +19.3       +26.7     +31.3      1.14       1.32       71.8%       6.0%
+```
+
+### ⚠ ②③ match ① to the decimal point — that is not a conclusion, it is evidence of a bug
+
+Checking the code: `self.memories` is read only in `recall()` and `landmarks`,
+and `recall()` is called only by `context_packet()`; `context_packet()`
+**has never been called by `score()` or `tick()`.** The same goes for `knowledge`.
+
+> ### ★ Rule 31: the entire memory system is currently write-only ★
+> Rule 30 of experiment 019 was about `knowledge`. It is now confirmed that **episodic memory is the same**.
+> That whole layer of structure added in note ④: retrievable, recitable, and **with zero effect on behaviour**.
 >
-> 所以删除测试的 ②③ 两档是**构造上必然的 no-op**，
-> 它们测不出"记忆重不重要"，只测出"记忆没接线"。
+> So steps ②③ of the deletion test are **no-ops by construction**;
+> they cannot measure "how important memory is", only "memory is not wired in".
 
-第 ④ 档（连 flags / hardship / goal 一起删）比值反而升到 1.32。
-所以差异**完全**沉淀在性格向量（+ 地板）里，别的什么都没在扛。
+Step ④ (deleting flags / hardship / goal as well) actually raises the ratio to 1.32.
+So the difference is **entirely** settled in the personality vector (+ the floors), and nothing else is carrying it.
 
-## 3. 三处代码修正（`persistence.py`）
+## 3. Three code corrections (`persistence.py`)
 
-**（a）机制检验数错了东西。** 原来算 `len(b) - len(a)`，那是"B 比 A 多几条"，
-不是"两边不一样"。两只球各有 3 条完全不同的 knowledge，会算成 0。
-改成**集合对称差**（有几条只存在于一边）后，机制表才有信息量：
-
-```
-因素        移植后作息  移植后目标  语义记忆  永久身份  关键经历
-书                0.87        0.80      1.54      0.43      1.54
-音乐              0.62        0.53      0.46      0.35      0.46
-天气              0.88        0.94      0.97      0.72      0.97
-材料              0.57        0.53      0.09      0.03      0.09
-食物速率          0.58        0.57      0.20      0.05      0.20
-组合（参照）      1.18        1.07      1.84      0.71      1.84
-```
-
-**天气的永久身份差 0.72，是单因素最高**（书 0.43）。
-而书的语义记忆差 1.54 最高却打不过天气 —— **正因为规则 31：那一列不进行为。**
-材料 0.03 / 食物 0.05 几乎不写任何持久结构，也确实最弱（0.57 / 0.58）。
-
-**（b）还原相跑了三个方向。**「基准」的 objects 是空的，在"有没有书"这件事上
-它等于贫瘠世界，丰富分身移植过去会失去书、`learn` 通路被砍 —— 不对称的适应成本。
+**(a) The mechanism check counted the wrong thing.** It computed `len(b) - len(a)`, which is "how many more B has than A",
+not "how far the two differ". Two balls with 3 completely different knowledge entries each would score 0.
+Only after switching to the **symmetric difference of the sets** (how many entries exist on only one side) does the mechanism table carry information:
 
 ```
-因素            →基准    →丰富世界   →贫瘠世界
-书               0.87       0.79        0.88
-天气             0.88       0.97        0.88
-组合（参照）     1.18       1.22        1.08
+factor        routine after move  goal after move  semantic memory  permanent identity  landmark
+books                0.87              0.80             1.54              0.43            1.54
+music                0.62              0.53             0.46              0.35            0.46
+weather              0.88              0.94             0.97              0.72            0.97
+material             0.57              0.53             0.09              0.03            0.09
+food rate            0.58              0.57             0.20              0.05            0.20
+combination (ref)    1.18              1.07             1.84              0.71            1.84
 ```
 
-**方向依赖是温和的，组合三个方向都 ≥1（1.08–1.22），结论稳。**
+**Weather's permanent-identity difference of 0.72 is the highest of any single factor** (books 0.43).
+And books' semantic-memory difference of 1.54 is the highest yet still loses to weather — **precisely because of rule 31: that column does not enter behaviour.**
+Material at 0.03 and food at 0.05 write practically nothing persistent, and are indeed the weakest (0.57 / 0.58).
 
-**（c）`cohort()` 加了缓存。** 六因素 × 四 cohort，基准世界被重复算很多遍。
+**(b) The restoration phase was run in three directions.** The `objects` of "baseline" are empty, so on the question of "are there books"
+it equals the barren world: a rich twin moved there loses its books and the `learn` channel is cut — an asymmetric adaptation cost.
+
+```
+factor           →baseline   →rich world   →barren world
+books               0.87         0.79           0.88
+weather             0.88         0.97           0.88
+combination (ref)   1.18         1.22           1.08
+```
+
+**The direction dependence is mild, and the combination is ≥1 in all three directions (1.08–1.22), so the conclusion is solid.**
+
+**(c) `cohort()` gained a cache.** With six factors × four cohorts, the baseline world was being recomputed many times over.
 
 ---
 
-## ★ 实验 020 得到的规则
+## ★ The rules from experiment 020
 
-31. **整个记忆系统只写不读。** 情节和语义都不进 `score()`。
-    能检索、能叙述、对行为零影响 —— 删掉它不改变任何数字。
+31. **The entire memory system is write-only.** Neither episodic nor semantic memory enters `score()`.
+    Retrievable, narratable, and with zero effect on behaviour — deleting it changes no number.
 
-32. **逐点结算存活集合。** 用"活到最后那批"统一算全表，
-    等于用结论筛样本 —— 尤其当幸存者的特征正好是被测的那个特征时。
+32. **Settle the surviving set per point.** Computing the whole table on "those alive at the end"
+    means selecting the sample by the conclusion — especially when the survivors' defining feature is the very feature being measured.
 
-33. **对外报最保守的那一档。** 地板全关是 1.07，完整架构是 1.18；
-    该报 1.07。地板不是持久性的来源，但放大了约六成。
-
----
-
-## 还没做的
-
-- ⚠ **把记忆接到行为上**（规则 30 + 31）。这是现在最大的结构缺口：
-  `knowledge` 应该进 `score()` 或 `propose_goals()`，
-  否则"给它一本书"这条产品线在行为层立不住，
-  删除测试的中间两档也永远测不出东西。
-- **新情境探针**（状态拉平 + 跨样本预测）还没做。
-- **长时程死亡率**：120 天配对损失 24.5%（拉平组 38.0%），
-  所以曲线最后一个点不可用。要么修到 <10%，要么永远只报到 90 天。
-- goal 的五个参数仍然没扫过鲁棒性。
+33. **Report the most conservative variant externally.** All floors off gives 1.07 and the full architecture gives 1.18;
+    1.07 is what should be reported. The floors are not the source of persistence, but they amplify it by about sixty percent.
 
 ---
 
+## Still to do
+
+- ⚠ **Wire memory into behaviour** (rules 30 + 31). This is the biggest structural gap right now:
+  `knowledge` should enter `score()` or `propose_goals()`,
+  or the "give it a book" product line cannot stand at the behaviour layer,
+  and the middle two steps of the deletion test will never measure anything.
+- **The novel-situation probe** (state levelling + cross-sample prediction) has not been done.
+- **Long-horizon mortality**: the 120-day paired loss is 24.5% (38.0% in the levelled group),
+  so the last point of the curve is unusable. Either fix it to <10%, or only ever report up to 90 days.
+- The five goal parameters still have not been swept for robustness.
+
+---
+
 ---
 
 ---
 
-# 实验 021 —— 方法学审计：为写论文做的精度体检
+# Experiment 021 — a methodological audit: a precision check-up for writing the paper
 
-> 日期：2026-08-13
-> 起因：准备把 018–020 写成论文，先问一句"实验次数够不够"。
-> 结论：**次数不是问题，次数少造成的【上偏】才是问题。**
-> 所有此前报过的比值都是乐观值。
+> Date: 2026-08-13
+> Trigger: preparing to write 018–020 up as a paper, first asking "are there enough runs".
+> Conclusion: **the number of runs is not the problem; the upward bias caused by too few is.**
+> Every ratio reported until now was optimistic.
 
-## 1. ★ 比值估计量系统性上偏 ★
+## 1. ★ The ratio estimator is systematically biased upward ★
 
-给移植比值做 bootstrap（cluster bootstrap，按 agent 重采样）：
-
-```
-条件              N=150               N=600               N=1500
-完整架构     1.181 [1.030,1.359]  1.150 [1.073,1.231]  1.132 [1.085,1.184] ✅
-−全部地板①②  1.065 [0.912,1.244]  1.075 [0.993,1.160]  1.044 [0.996,1.094] ❌
-```
-
-点估计随 N **单调下滑**。原因是 `比值 = 均值之比`，分母（基线 TV）有噪声，
-`E[X/Y] > E[X]/E[Y]`（Jensen 不等式）。样本越小，虚高越多。
-
-> ### ★ 规则 34：比值必须报样本量，且样本量要拉满 ★
-> 1500 颗种子只要 44 秒。此前停在 150/250 纯粹是没意识到有偏。
-> **论文里所有比值一律用 N=1500 重跑。** 头条从 1.18 修正为 **1.13**。
-
-## 2. ★ 相邻配对把基线做小了 ★
-
-`transplant.py:106` 的基线是 `(al[i], al[i+1])` 步长 2 —— 每只球用一次，
-配对方式是"种子相邻"。改成随机配对（样本量完全相同）：
+Bootstrapping the transplant ratio (cluster bootstrap, resampling by agent):
 
 ```
-基线配对方式        比值      CI 宽度
-相邻 1 次（现状）   1.1499    0.1402
-随机配对 K=1        1.1321    0.1360     ← 样本量一样，只是打乱了
-随机配对 K=5        1.1248    0.1131     ← 窄 19%，+14 秒
-随机配对 K=20       1.1251    0.1077     ← 饱和，不划算
+condition             N=150               N=600               N=1500
+full architecture  1.181 [1.030,1.359]  1.150 [1.073,1.231]  1.132 [1.085,1.184] ✅
+−all floors ①②     1.065 [0.912,1.244]  1.075 [0.993,1.160]  1.044 [0.996,1.094] ❌
 ```
 
-两个发现：
+The point estimate **falls monotonically** with N. The cause is that `ratio = a ratio of means`, the denominator (baseline TV) is noisy, and
+`E[X/Y] > E[X]/E[Y]` (Jensen's inequality). The smaller the sample, the greater the inflation.
 
-1. **相邻种子生成的球比随机两只球更像** → 基线偏小 → 比值虚高 2.2%。
-   这是实现层的问题，不是统计问题：值得查一眼 `scenarios.make` 里
-   seed 怎么派生子 RNG，相邻整数可能产生相关的初始性格。
-2. 基线是个 U 统计量，K=5 就到方差下界（between-agent 方差）了。
+> ### ★ Rule 34: a ratio must be reported with its sample size, and the sample size must be maxed out ★
+> 1500 seeds take only 44 seconds. Stopping at 150/250 previously was purely a failure to realise there was a bias.
+> **Every ratio in the paper is re-run at N=1500.** The headline is corrected from 1.18 to **1.13**.
 
-> ### ★ 规则 35：基线配对要随机且重复 K=5 次 ★
-> 免费换 19% 的精度，还去掉 2.2% 的偏差。
+## 2. ★ Adjacent pairing made the baseline too small ★
 
-三处修正叠加后，头条数字的演化：
-`1.18（记录）→ 1.13（拉满 N）→ 1.125（修配对）`。**始终 > 1，但一路缩水。**
+The baseline at `transplant.py:106` is `(al[i], al[i+1])` with a step of 2 — each ball used once,
+paired by "adjacent seeds". Switching to random pairing (with exactly the same sample size):
 
-## 3. ⚠ 规则 33 那个 1.07 站不住
+```
+baseline pairing method      ratio      CI width
+adjacent, once (current)    1.1499      0.1402
+random pairing K=1          1.1321      0.1360     ← same sample size, merely shuffled
+random pairing K=5          1.1248      0.1131     ← 19% narrower, +14 seconds
+random pairing K=20         1.1251      0.1077     ← saturated, not worth it
+```
 
-`− 全部地板①②` 在 N=1500 下是 **1.044，95% CI [0.996, 1.094] —— 压线含 1.0**。
-加 N 救不回来，因为真值就在 1.04 附近。
+Two findings:
 
-`persistence_ablation.py` 开头预判的审稿人质问：
+1. **Balls generated from adjacent seeds are more alike than two random ones** → baseline too small → ratio inflated by 2.2%.
+   This is an implementation problem, not a statistical one: it is worth checking how `scenarios.make` derives
+   the child RNG from the seed, since adjacent integers may produce correlated initial personalities.
+2. The baseline is a U-statistic, and K=5 already reaches the variance lower bound (the between-agent variance).
 
-> "你不是发现了不可逆性，你是把不可逆性写进去了。"
+> ### ★ Rule 35: baseline pairing must be random and repeated K=5 times ★
+> 19% more precision for free, plus removal of a 2.2% bias.
 
-**目前的数据答不上来。** 地板一关，效应落进噪声。两条路：
+After all three corrections, the evolution of the headline number:
+`1.18 (as logged) → 1.13 (N maxed out) → 1.125 (pairing fixed)`. **Always > 1, but shrinking all the way.**
+
+## 3. ⚠ That 1.07 of rule 33 does not stand
+
+`− all floors ①②` at N=1500 is **1.044, 95% CI [0.996, 1.094] — right on the line, containing 1.0**.
+More N cannot rescue it, because the true value is around 1.04.
+
+The reviewer's challenge anticipated at the head of `persistence_ablation.py`:
+
+> "You did not discover irreversibility, you wrote irreversibility in."
+
+**The current data cannot answer it.** Once the floors are off, the effect falls into the noise. Two routes:
 - **诚实降级**：承认 `trait_identity` 是持久性的【必要机制】，不是放大器。
   规则 33 那句"地板不是来源，是约六成的放大器"要撤回。
 - **修机制再测**：把记忆接进 `score()`（规则 30/31 的待办），
