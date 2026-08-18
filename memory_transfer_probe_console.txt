@@ -10,7 +10,7 @@ probe knobs (uncalibrated): GOOD_THRESH=0.6 PE_THRESH=0.3 SURPRISE_RUN_MIN=3
       m(Memory S) = -0.6667     m(Memory V) = +0.6667     m(empty store) = 0 (no evidence)
   ✓ determinism: same body + same memory + same seed → identical trial by trial
   ✓ memory-blind (λ=0): all 400 seeds completely identical trial by trial
-  ✓ retrieval firing: 180/400 seeds fire at least once (45.0%）
+  ✓ retrieval firing: 180/400 seeds fire at least once (45.0%)
       on average 0.69 trials fire per seed (out of 80)   median first-firing trial 43   average firings before the reversal 0.04
   ⚑ base_learning's own p(switch) at the moment of firing: median 0.208   quartiles [0.179, 0.245]   share ≥0.9 0.0%
 

@@ -48,7 +48,7 @@
     G = -0.0979 trial   95% CI [-0.2203, +0.0210]   SESOI = 1.0 trial
 
   secondary R_B = min(|E_B+|,|E_B−|)  ✗ INVALID
-    R_B = 0.0385   95% CI [+0.0000, +0.0804]   （B+ -0.0385 · B− -0.0734）
+    R_B = 0.0385   95% CI [+0.0000, +0.0804]   (B+ -0.0385 · B− -0.0734)
 
   Each of C± against the ±1.0 equivalence region:
     Cp  E=+0.0210  [-0.1364, +0.2343]  contains 0
