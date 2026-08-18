@@ -3858,145 +3858,145 @@ rather than four independent design mistakes.
 There is still one channel in the capacity audit that is **not bimodal**:
 
 ```
-knowledge   99.7% 至少有 1 条    87.8% 少于 4 条    → 分布是【梯度】的，不是双峰
+knowledge   99.7% have ≥1 entry    87.8% have fewer than 4    → the distribution is a **gradient**, not bimodal
 ```
 
-`knowledge` 是唯一一个**近乎全员参与、且取值连续分布**的通道。
-下一轮该不该去它那里，等拍板。
+`knowledge` is the only channel with **near-universal participation and a continuously distributed value**.
+Whether the next round should go there awaits a decision.
 
 
-## ★ 规则 72：manipulation check 的窗口口径必须与 G1 一致 ★
+## ★ Rule 72: the window convention of a manipulation check must match G1 ★
 
-`novel_calibrate3.py` 里发现一个真实实现错误（**记录下来，不悄悄改**）：
+A genuine implementation bug was found in `novel_calibrate3.py` (**recorded here, not fixed quietly**):
 
 ```python
-def act_share(r, w_dec):        # ← w_dec 传进来了，但函数体里根本没用
+def act_share(r, w_dec):        # ← w_dec is passed in, but never used in the body
     acc = Counter()
-    for h in r["per_hour"]:     # ← 汇总的是【整个 consequence window】
+    for h in r["per_hour"]:     # ← this aggregates the **entire consequence window**
         acc.update(h)
 ```
 
-而 goal 那一侧用的是 `r["goals"][:w_dec]`。于是：
+The goal side, meanwhile, uses `r["goals"][:w_dec]`. So:
 
 ```
 goal manipulation check   = decision window   ✓
-action manipulation check = 整个 consequence window   ✗
+action manipulation check = entire consequence window   ✗
 ```
 
-**这与规则 62「decision / consequence 窗口分离」没有对齐。**
+**This is not aligned with rule 62, "separate the decision and consequence windows".**
 
-> ### 规则 72 ###
-> **所有 manipulation check 必须与 G1 用同一个窗口口径。**
-> 两侧窗口不一致时，"goal 变了但动作没变"这类判读**没有意义** ——
-> 你比较的是两个不同时间尺度上的量。
-> 实现上：动作轨迹要按天（或按 decision window）单独存，
-> 不能只留 `per_hour` 的全窗口汇总。
+> ### Rule 72 ###
+> **Every manipulation check must use the same window convention as G1.**
+> When the two sides use different windows, a reading like "the goal changed but the action did not" is **meaningless** —
+> you are comparing quantities on two different time scales.
+> In implementation terms: action trajectories must be stored per day (or per decision window) separately,
+> not kept only as a whole-window `per_hour` aggregate.
 
-⚠ **这不影响 Probe C 退役的结论** —— 退役靠的是 intervention saturation
-（75–85%）与 shelter 双峰轨迹，两者都是独立证据，且都在窗口口径之外。
-但 Probe D 若继续，**必须先修**。
+⚠ **This does not affect the conclusion that Probe C is retired** — the retirement rests on intervention saturation
+(75–85%) and the bimodal shelter trajectory, both of which are independent evidence and both outside the window convention.
+But if Probe D goes ahead, **this must be fixed first**.
 
-## knowledge effective-support audit（group-blind，已排除 books，n=591）
+## knowledge effective-support audit (group-blind, books excluded, n=591)
 
-沿用规则 70：不问"变量看起来连不连续"，问**"固定大小的干预还能不能改变
-argmax"**。knowledge 进决策的通路是
-`score += KNOWLEDGE_WEIGHT(12.0) × know(key) × slack`（`sim.py:835`），
-所以可动用幅度上限是 12.0，能否改变行为取决于**决策时 top1−top2 的间距**。
+Following rule 70: do not ask "does the variable look continuous", ask **"can a fixed-size intervention still change the
+argmax"**. The path by which knowledge enters a decision is
+`score += KNOWLEDGE_WEIGHT(12.0) × know(key) × slack` (`sim.py:835`),
+so the maximum available swing is 12.0, and whether behaviour changes depends on **the top1−top2 margin at decision time**.
 
 ```
-【1】knowledge_strength（★不是条数★）
-key            持有比例   均值强度    p10     p50     p90
+[1] knowledge_strength (★ not the number of entries ★)
+key               held mean str     p10     p50     p90
 far_places      77.0%    0.746    0.000   0.979   0.980
 shelter         46.4%    0.439    0.000   0.000   0.980
 food            88.8%    0.646    0.000   0.680   0.979
 
-【2】决策间距 margin = top1 − top2   （n = 425,520 个决策 tick）
-    p10 0.59   p25 1.76   中位 4.57   p75 9.22   p90 16.42
+[2] decision margin = top1 − top2   (n = 425,520 decision ticks)
+    p10 0.59   p25 1.76   median 4.57   p75 9.22   p90 16.42
 
-【3】有效支撑
-   Δ     可翻转的决策占比   responsive agent 占比
+[3] effective support
+   Δ     flippable decisions   responsive agents
   1.0        15.7%            67.9%
   3.0        37.4%           100.0%
   6.0        59.1%           100.0%
  12.0        83.8%           100.0%
 ```
 
-### ⚠ 我的放行判据口径写错了（更正，不追认）
+### ⚠ I wrote the clearance criterion with the wrong convention (corrected, not retro-approved)
 
-我把放行条件写成「responsive **agent** 占比 ∈ [20%, 80%]」，于是只有
-Δ=1.0 "合格"。**但那个上界是错的**：
+I had written the clearance condition as "share of responsive **agents** ∈ [20%, 80%]", which left only
+Δ=1.0 "eligible". **But that upper bound is wrong**:
 
-- 规则 70 担心的饱和是**低端**（干预再也改不动任何东西）
-- **高端**的风险是"干预压倒一切"，而那要用**可翻转的决策占比**衡量，
-  不是用 agent 占比。Δ=3.0 时 100% 的 agent responsive，
-  意思只是"每只球都还有活动空间"，那是**好事**，不是饱和。
+- The saturation rule 70 worries about is at the **low end** (the intervention can no longer change anything)
+- The risk at the **high end** is "the intervention overwhelms everything", and that has to be measured by the **share of flippable decisions**,
+  not by the share of agents. At Δ=3.0, 100% of agents are responsive,
+  which only means "every ball still has room to move" — that is a **good** thing, not saturation.
 
-正确读法：**Δ ∈ [1, 6] 给出 16–59% 的决策可翻转，且每只球都有余量
-—— 这是四轮以来第一个真正有动态范围的通道。**
-对照 Probe C：75–85% 的干预时刻**根本无法施加**。
+### The correct reading: **Δ ∈ [1, 6] gives 16–59% of decisions flippable, with every ball retaining slack
+— the first channel in four rounds that genuinely has dynamic range.**
+Compare Probe C: at 75–85% of the intervention moments the wear **could not be applied at all**.
 
-**判据该怎么定，我不自行改口径**（那正是 adaptive analysis）——
-需要拍板。我的建议：门槛应设在**可翻转决策占比 ∈ [20%, 60%]**（对应 Δ≈2–6）。
+**How the criterion should be set is not something I change on my own** (that is exactly adaptive analysis) —
+it needs a decision. My suggestion: the threshold should be set on the **share of flippable decisions ∈ [20%, 60%]** (corresponding to Δ≈2–6).
 
-### ★ 规则 73：knowledge_strength 本身是近乎二值的，梯度在 margin 里 ★
+### ★ Rule 73: knowledge_strength itself is nearly binary; the gradient lives in the margin ★
 
-【1】那张表要看仔细：`far_places` 的 p10 = 0.000、p50 = 0.979 ——
-因为 strength 学到即回满 1.0，之后每天只衰减 0.02。
-**所以"有没有这条知识"几乎是 0/1，不是梯度** —— 规则 71 在这里同样成立。
+Table [1] has to be read carefully: `far_places` has p10 = 0.000 and p50 = 0.979 —
+because strength returns to a full 1.0 the moment it is learned, and then decays by only 0.02 per day.
+**So "does the agent have this piece of knowledge" is essentially 0/1, not a gradient** — rule 71 holds here too.
 
-真正梯度的是 **决策间距 margin**（p10 0.59 → p90 16.42）。
+What is genuinely graded is the **decision margin** (p10 0.59 → p90 16.42).
 
-> 所以 Probe D 必须**作用于 margin 结构**，
-> **不能依赖"knowledge 强度是连续的"** —— 它不是。
-> 这条要写进 Probe D 的设计约束，否则会重蹈 A2「乘性加成乘到 0 上」的覆辙。
+> So Probe D must **act on the margin structure**
+> and **must not rely on "knowledge strength is continuous"** — it is not.
+> This has to be written into Probe D's design constraints, or it will repeat A2's "multiplicative bonus multiplied by zero" mistake.
 
 
 ---
 
-# ★ 实验 026 封存 —— v3 的 novel-situation generalization 无法干净检验 ★
+# ★ Experiment 026 sealed — novel-situation generalization cannot be tested cleanly in v3 ★
 
-**不再设计 Probe D。026 到此结束。**
+**No Probe D will be designed. 026 ends here.**
 
-## 结论（诚实版，可直接进论文）
+## Conclusion (the honest version, ready for the paper)
 
-> 在冻结的 v3 架构中，我们**没有找到任何可以干净检验
-> novel-situation generalization 的动作经济**。这不是"没想到好 probe"，
-> 而是四轮 **group-blind feasibility testing** 得出的结构性结果。
+> Within the frozen v3 architecture we **found no action economy in which
+> novel-situation generalization can be tested cleanly**. This is not "we failed to think of a good probe";
+> it is a structural result from four rounds of **group-blind feasibility testing**.
 
-四个 probe，四种失败，**每一次都在烧掉 final block 之前被拦下**：
+Four probes, four kinds of failure, **every one of them stopped before any final block was burned**:
 
-| Probe | 机制 | 失败原因 | 规则 |
+| Probe | Mechanism | Reason for failure | Rule |
 |---|---|---|---|
-| A 冻土 | shelter 门控 world.food | 生存分裂：探索派存活 35–51% | 64 |
-| B 盐碱地 | 采材料↔觅食零和耦合 | 生存分裂（反向）：盖房派存活 13%→0% | 64 |
-| A2 探路 | explore 提高采集 yield | **乘性加成落空**：77% 的球从不采集，乘的是 0 | 68 |
-| C 离家失修 | explore 损耗 shelter | **干预饱和 75–85%**：shelter 双峰，无人在作用区 | 70 / 71 |
+| A permafrost | shelter gates world.food | survival split: explorers survive 35–51% | 64 |
+| B saline flats | zero-sum coupling of gathering ↔ foraging | survival split (reversed): builders 13% → 0% | 64 |
+| A2 pathfinding | explore raises gathering yield | **the multiplicative bonus misses**: 77% of balls never gather, so it multiplies zero | 68 |
+| C disrepair | explore wears shelter down | **intervention saturation 75–85%**: shelter is bimodal, nobody sits in the active range | 70 / 71 |
 
-## ★ 共同根因：规则 71 ★
+## ★ The common root cause: rule 71 ★
 
 ```
-材料      77% 恒为 0     23% 囤到 100–200
-shelter   52% 恒为 0     48% 维持 ~98
-knowledge 近乎 0/1（学到即回满 0.98，每天只衰减 0.02）  ← 规则 73
-食物      全员紧约束      但 eat 跨个体 SD = 0.0007
+material  77% stuck at 0 23% hoard 100–200
+shelter   52% stuck at 0 48% hold at ~98
+knowledge nearly 0/1 (refilled to 0.98 on learning, decays only 0.02/day)  ← rule 73
+food      binding for allbut eat cross-individual SD = 0.0007
 ```
 
-**v3 的正反馈（性状漂移 + 目标持续）把 agent 推向专精，
-每条资源轴都塌成"全投入 / 全放弃"，梯度型干预没有中间地带。**
+**v3's positive feedback (trait drift + goal persistence) pushes agents toward specialisation,
+every resource axis collapses into "all in / all out", and gradient-type interventions have no middle ground.**
 
-> **同一套产生持久个体差异的正反馈机制，
-> 同时消灭了梯度型 novel contingency 可以作用的中间地带。**
+> **The same positive-feedback machinery that produces persistent individual differences
+> also wipes out the middle ground on which a gradient-type novel contingency could act.**
 >
-> 这解释了为什么本项目在 **persistence 阶段很成功、
-> 在 generalization 阶段这么困难 —— 是同一个机制的两面。**
+> This explains why the project was **so successful in the persistence phase
+> and so hard in the generalization phase — they are two sides of one mechanism.**
 
-## 唯一逃出去的东西：decision margin
+## The one thing that escaped: the decision margin
 
-`knowledge effective-support audit` 发现：内部状态高度极化，
-**但最终的决策间距没有完全极化**（margin p10 0.59 → p90 16.42）。
-Δ=3.0 的标准化扰动可以翻转 **37.4%** 的决策，且每只球都有余量。
+The `knowledge effective-support audit` found that internal states are highly polarised,
+**but the final decision margin is not fully polarised** (margin p10 0.59 → p90 16.42).
+A standardised perturbation of Δ=3.0 can flip **37.4%** of decisions, and every ball retains some slack.
 
-通俗地说：**这些小球的"性格"已经很固定，但在那些它们自己也有点犹豫的决定上，
+In plain terms: **these little balls already have quite fixed "personalities", but on the decisions where they
 仍然留着一个入口。** 这一点被保留下来，但**不再用它去承担 generalization 这个
 大结论** —— 它转为规则 71 周边的一个机制探针（见下）。
 
