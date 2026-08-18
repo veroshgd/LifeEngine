@@ -3578,145 +3578,145 @@ for a ball raised in the barren world = **something entirely new** (it has never
 **That is not "novel to both"; it re-exposes a developmental difference.**
 
 Worse: `read` is identically 0 in `B_familiar` (the common garden has no books),
-所以这份"先前经验优势"**根本不会出现在 `B_familiar` 里** ——
-它会直接灌进 `ΔOOS`，让 G1 因为一个**平凡理由**而通过。
-**这正是 G1 最需要挡住的那种假阳性。**
+So this "prior-experience advantage" **would never appear inside `B_familiar` at all** —
+it would pour straight into `ΔOOS`, letting G1 pass for a **trivial reason**.
+**That is exactly the kind of false positive G1 most needs to block.**
 
-> ### ★ 规则 67：novel 情境必须对两组【同等新颖】 ★
-> 若某个可供性在一个发育世界里存在、另一个没有，
-> 那么在 novel 情境里引入它 = 重新暴露发育期差异，
-> 属于 N0（参数外推）的变体，**不是结构新颖**。
-> 选 probe 之前必须核对：**这个可供性在两个发育世界里的可及性是否相同。**
-> `material` 两边都有（只是 2.0 vs 0.5 的速率差）→ 合格；
-> `book` / `music` 只有丰富世界有 → 不合格。
+> ### ★ Rule 67: a novel situation must be **equally novel** to both groups ★
+> If an affordance exists in one developmental world but not in the other,
+> then introducing it in a novel situation = re-exposing the developmental difference;
+> that is a variant of N0 (parameter extrapolation), **not structural novelty**.
+> Before choosing a probe one must verify: **is this affordance equally accessible in both developmental worlds?**
+> `material` exists on both sides (only a 2.0 vs 0.5 rate difference) → eligible;
+> `book` / `music` exist only in the rich world → not eligible.
 
-## ⚠ 一个必须一起说清的射程限制
+## ⚠ A scope limitation that has to be stated alongside this
 
-v3 **没有在场因果学习**，所以 agent **不可能"发现"新规则并据此选路线**。
-它只能**被动地**对改变后的收益作出反应（通过 goal 进度、inventory、状态）。
+v3 has **no online causal learning**, so an agent **cannot "discover" a new rule and pick a route from it**.
+It can only react **passively** to the changed payoffs (via goal progress, inventory, state).
 
-因此新 probe 的novel 结构必须**经由反应式通路**产生行为分化
-（`gather_material` 收益变了 → `improve_home` 的目标进度变了 → 目标切换变了），
-**不能依赖"agent 意识到应该先做 X 才能做 Y"**。
-设计文案里也不许那样写（措辞纪律，§0）。
+So the new probe's novel structure has to produce behavioural divergence **through the reactive pathway**
+(`gather_material` payoff changes → `improve_home` goal progress changes → goal switching changes),
+**it must not rely on "the agent realizes it should do X first in order to do Y"**.
+The design text is not allowed to be written that way either (wording discipline, §0).
 
-## 下一步待拍板
+## Awaiting a decision on the next step
 
-新 probe 建在 `explore ↔ gather_material` 轴上、不碰食物、两组同等新颖。
-具体机制**未定**，按指示不自行敲定。候选方向（都满足规则 65/66/67）：
+The new probe sits on the `explore ↔ gather_material` axis, does not touch food, and is equally novel to both groups.
+The concrete mechanism is **undecided**; per instructions I do not settle it myself. Candidate directions (all satisfying rules 65/66/67):
 
-1. **材料可及性依赖探索历史**：`material_yield` 取决于近期 explore 量
-   —— 新关系（两个世界都没有），两条路都活得好好的
-2. **材料枯竭/轮休**：连续采集使 `material_yield` 递减，需要交替
-3. **住所—材料的新耦合**：`build` 的收益取决于材料的"来源多样性"
+1. **Material accessibility depends on exploration history**: `material_yield` depends on recent explore volume
+   — a new relation (present in neither world), with both routes remaining perfectly viable
+2. **Material depletion / fallow**: continuous gathering makes `material_yield` decay, forcing alternation
+3. **A new shelter–material coupling**: the payoff of `build` depends on the "source diversity" of the material
 
-三者都只动材料/住所经济，`eat` 与 `world.food` 一律不碰。
+All three touch only the material/shelter economy; `eat` and `world.food` are left strictly untouched.
 
-## Probe A2「探路」：可行性校准不合格（`novel_calibrate2.py`，N=300）
+## Probe A2 "pathfinding": failed the feasibility calibration (`novel_calibrate2.py`, N=300)
 
-机制（按精确定义实现）：必须执行 `gather_material` 才拿得到材料，
-**该次采集的 yield 取决于最近 τ tick 内 explore 的比例**（加成 α）。
-纯 explore 拿不到材料；纯 gather 只能低效拿；受益的是**时序组合**。
+Mechanism (implemented to the precise definition): material can only be obtained by performing `gather_material`,
+**and that gather’s yield depends on the fraction of explore within the last τ ticks** (bonus α).
+Pure explore gets no material; pure gather gets it inefficiently; what pays off is the **temporal combination**.
 
 ```
-   τ    α    存活    命中率  命中SD  单次收益  收益提升  轨迹TV   三档材料(低/中/高探索)
+   τ    α  surviv    hit  hitSD  yield    gain trajTV   material by explore tercile (low/mid/high)
    6  0.5  100.0%  13.4%  0.143  1.005   +0.5%  0.000   116.2   0.8   0.0
   24  4.0  100.0%  49.7%  0.441  1.091   +9.1%  0.010   116.4   1.0   0.0
   48  4.0  100.0%  52.1%  0.459  1.120  +12.0%  0.011   116.6   1.2   0.0
 ```
 
-**规则 65 完全达标**：存活 100%，与规则关闭时逐格无差别 ——
-**"不碰粮食"这条原则确实消除了生存混淆**，这是本轮实打实的收获。
-命中率随 τ 从 13% 升到 54%，跨个体 SD 到 0.46 —— 机制本身生效。
+**Rule 65 is fully met**: 100% survival, cell-by-cell indistinguishable from the rule-off condition —
+**the "do not touch food" principle really does remove the survival confound**, and that is this round’s solid gain.
+The hit rate climbs with τ from 13% to 54%, cross-individual SD reaches 0.46 — the mechanism itself works.
 
-**但 ⑤轨迹 TV 只有 0.000–0.011（阈值 0.02），16/16 格失败。**
-**代码上有新规则，行为上没有形成新的 strategy landscape。**
-⚠ 这正是本轮新增的 manipulation check 抓到的 —— 没有它，
-这个 probe 会带着"机制生效"的假象一路走到 final。
+**But ⑤ trajectory TV is only 0.000–0.011 (threshold 0.02); 16/16 cells fail.**
+**There is a new rule in the code, but no new strategy landscape in the behaviour.**
+⚠ This is precisely what the manipulation check added this round caught — without it,
+this probe would have walked all the way to the final run under the illusion that "the mechanism works".
 
-### ⚠ 更正：材料**不是**过剩，而是**双峰**
+### ⚠ Correction: material is **not** in surplus, it is **bimodal**
 
-我先前根据三档均值（116 / 0.8 / 0.0）判断"材料严重过剩"。**这是错的。**
-直接测 common garden 30 天后的材料库存（n=237）：
+I earlier judged from the three-tercile means (116 / 0.8 / 0.0) that "material is in severe surplus". **That was wrong.**
+Measuring material stock directly after 30 days of common garden (n=237):
 
 ```
-中位 0.0    p10 0.0    p90 203.0
-库存 < 3（盖一次房的成本）的比例：76.8%
+median 0.0    p10 0.0    p90 203.0
+share with stock < 3 (the cost of one build): 76.8%
 ```
 
-**中位数是 0，77% 的球连一次盖房都买不起。** 分布是极端双峰：
-少数采集者囤到 100–200，绝大多数**一直是 0**。
+**The median is 0; 77% of the balls cannot afford even a single build.** The distribution is extremely bimodal:
+a few gatherers hoard 100–200, while the vast majority sit **at 0 the whole time**.
 
-> ### ★ 规则 68：乘性加成对"从不执行该动作"的个体恒等于零 ★
-> A2 给的是 `material_yield × (1 + α·f)` 的**乘性**加成。
-> - 对 77% 从不采集的球：**乘的是 0**，加成再大也没有任何效果
-> - 对 23% 采集者：他们已经囤到 116，加成落在**用不掉的地方**
+> ### ★ Rule 68: a multiplicative bonus is identically zero for individuals who never perform the action ★
+> A2 hands out a **multiplicative** bonus of the form `material_yield × (1 + α·f)`.
+> - For the 77% of balls that never gather: **it multiplies zero** — no bonus, however large, has any effect
+> - For the 23% who do gather: they already hoard 116, so the bonus lands **where it cannot be spent**
 >
-> **加成落不到任何"既够得着又用得上"的人群上。**
-> 设计 probe 时必须先查：**这个操纵作用的动作，有多少比例的个体真的会做？**
-> 近乎全员执行的非食物动作只有 `sleep`(100%) 与 `explore`(76%)。
+> **The bonus reaches no population that can both access it and use it.**
+> When designing a probe one must first check: **what fraction of individuals actually performs the action the manipulation acts on?**
+> The only non-food actions performed by nearly everyone are `sleep` (100%) and `explore` (76%).
 
-### 夹击结构（三轮 group-blind 证据）
-
-```
-资源        是否紧约束                     是否有个体方差
-食物/hunger  是（规则 64）                  否 —— eat 跨个体 SD = 0.0007
-材料         对 77% 是（库存恒 0）           是 —— p90−p10 = 0.426
-             但那 77% 从不采集 → 操纵够不着
-```
-
-**动紧约束的（食物）只能压出生存差异；
-动有方差的（材料）够不着真正被约束的那群人。**
-
-这不是第四次"选错战场"，而是开始成为一个**关于 v3 动作经济的结构性结论**：
-v3 里似乎没有一个维度**同时**满足「近乎全员参与」「个体差异大」「非食物」。
-
-### 下一步的证据约束（不自行决定）
-
-按规则 68，操纵必须落在**近乎全员执行**的动作上。排除食物后只剩：
-
-- `sleep`（100% 执行，p90−p10 = 0.146）—— 但它经 `SLEEP_EFF_FLOOR` 与
-  condition 相连，**算不算触犯规则 65 需要拍板**，我不自行扩大解释
-- `explore`（76% 执行，p90−p10 = 0.640，方差最大）—— 它的**非食物**产出是
-  landmark / flag / knowledge 与性状反馈（curiosity +0.20、caution −0.10）。
-  一个作用于 explore **信息性产出**的新结构，可能是唯一还没被证伪的方向
-
-
-## ★ v3 novel-probe capacity audit（统一资格标准，group-blind）★
-
-三个 probe 连续失败后，**不再凭感觉找第四个**，改成把 v3 所有现有行为通道
-用**同一套六条资格标准**扫一遍（`novel_capacity_audit.py`，n=591，存活 100%）：
+### The pincer structure (three rounds of group-blind evidence)
 
 ```
-  Q1 近乎全员可参与  参与率 ≥ 70%          Q4 不决定生死    （规则 65）
-  Q2 个体差异足够    p90−p10 ≥ 0.10        Q5 有回读通路    进 score()/goal
-  Q3 确实是紧约束    ≥20% 个体被它限制住    Q6 两世界同等可及（规则 67）
+resource      binding constraint?             individual variance?
+food/hunger   yes (rule 64)                   no — eat cross-individual SD = 0.0007
+material      yes for 77% (stock stuck at 0)  yes — p90−p10 = 0.426
+              but that 77% never gathers → the manipulation cannot reach them
+```
+
+**Manipulating the binding constraint (food) can only squeeze out survival differences;
+manipulating the one that has variance (material) cannot reach the people actually constrained by it.**
+
+This is no longer a fourth case of "picking the wrong battlefield"; it is starting to become a **structural conclusion about v3’s action economy**:
+there seems to be no dimension in v3 that **simultaneously** satisfies "nearly universal participation", "large individual differences" and "non-food".
+
+### Evidential constraints on the next step (not decided unilaterally)
+
+Per rule 68 the manipulation has to land on an action performed by **nearly everyone**. Excluding food, only these remain:
+
+- `sleep` (100% performed, p90−p10 = 0.146) — but it is tied to condition through
+  `SLEEP_EFF_FLOOR`, so **whether that violates rule 65 needs a decision**; I do not broaden the reading myself
+- `explore` (76% performed, p90−p10 = 0.640, the largest variance) — its **non-food** outputs are
+  landmark / flag / knowledge plus trait feedback (curiosity +0.20, caution −0.10).
+  A new structure acting on explore's **informational output** may be the only direction not yet falsified
+
+
+## ★ v3 novel-probe capacity audit (unified eligibility standard, group-blind) ★
+
+After three consecutive probe failures, **no fourth one is sought by intuition**; instead every existing behavioural channel in v3 is swept
+with **one and the same set of six eligibility criteria** (`novel_capacity_audit.py`, n=591, 100% survival):
+
+```
+  Q1 nearly universal         participation ≥ 70%         Q4 not life-or-death   (rule 65)
+  Q2 enough variance          p90−p10 ≥ 0.10              Q5 readback path       into score()/goal
+  Q3 genuinely binding        ≥20% of individuals bound   Q6 equally accessible  (rule 67)
 ```
 
 ```
-通道                    Q1参与率  Q2方差  Q3紧约束  Q4非生死 Q5回读 Q6同等   资格
-sleep / energy         100.0%✓  0.146✓  54.0%✓     ✗      ✓     ✓    不够格
-explore / 非食物产出       76.0%✓  0.640✓  23.0%✓     ✓      ✓     ✓    ★够格
-material / build        58.4%✗  0.426✓  75.5%✓     ✓      ✓     ✓    不够格
-goal 结构               99.3%✓  0.533✓  87.1%✓     ✓      ✓     ✓    ★够格
-knowledge              99.7%✓  0.500✓  87.8%✓     ✓      ✓     ✓    ★够格
-shelter / storm        100.0%✓  0.976✓  51.6%✓     ✗      ✓     ✓    不够格
-objects / 动作合法性         0.0%✗  0.000✗   0.0%✗     ✓      ✓     ✗    不够格
+channel                     Q1 part  Q2 var  Q3 bind  Q4 safe Q5 read Q6 equal  verdict
+sleep / energy              100.0%✓  0.146✓   54.0%✓        ✗       ✓        ✓  not eligible
+explore / non-food output    76.0%✓  0.640✓   23.0%✓        ✓       ✓        ✓  ★ eligible
+material / build             58.4%✗  0.426✓   75.5%✓        ✓       ✓        ✓  not eligible
+goal structure               99.3%✓  0.533✓   87.1%✓        ✓       ✓        ✓  ★ eligible
+knowledge                    99.7%✓  0.500✓   87.8%✓        ✓       ✓        ✓  ★ eligible
+shelter / storm             100.0%✓  0.976✓   51.6%✓        ✗       ✓        ✓  not eligible
+objects / action legality     0.0%✗  0.000✗    0.0%✗        ✓       ✓        ✗  not eligible
 ```
 
-### ★ 结论：026 不封存 —— 有三个通道够格 ★
+### ★ Conclusion: 026 is not sealed — three channels are eligible ★
 
-**"三次失败已足够宣布 v3 做不到"这个判断早了一步。**
-三次失败的其实是**同一类通道**（资源经济：食物、材料），
-而 v3 还有**非资源类**通道从未被测过：`goal 结构`、`knowledge`、
-`explore` 的**信息性产出**。
+**The judgement that "three failures are enough to declare v3 incapable" was one step premature.**
+What failed three times was in fact **the same class of channel** (the resource economy: food, material),
+while v3 still has **non-resource** channels that have never been tested: `goal structure`, `knowledge`,
+and the **informational output** of `explore`.
 
-> ### ★ 规则 69：连续失败要先归类，再决定是"换战场"还是"宣布不可能" ★
-> Probe A / B / A2 全部建在**资源经济**上（食物 → 食物 → 材料）。
-> 三次失败只证明**资源经济这一类**不行，不能外推到"v3 的动作经济不行"。
-> **宣布架构性不可能之前，必须先做一次覆盖全部通道的统一标准扫描。**
+> ### ★ Rule 69: classify consecutive failures before deciding between "change battlefield" and "declare impossibility" ★
+> Probes A / B / A2 were all built on the **resource economy** (food → food → material).
+> Three failures prove only that **this one class — the resource economy — does not work**; they cannot be extrapolated to "v3’s action economy does not work".
+> **Before declaring architectural impossibility, one must first run a unified-standard sweep covering every channel.**
 
-### 三个够格通道的附加警告（下一轮必须先堵）
+### Additional warnings for the three eligible channels (to be plugged before the next round)
 
 - **`goal 结构`（最强）**：99.3% 的球采用过 ≥2 种目标、主目标占比 p90−p10 = 0.533、
   87.1% 没有被单一目标垄断。goal 直接进 `score()`，两个世界共用同一套
