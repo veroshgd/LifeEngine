@@ -3997,147 +3997,147 @@ The `knowledge effective-support audit` found that internal states are highly po
 A standardised perturbation of Δ=3.0 can flip **37.4%** of decisions, and every ball retains some slack.
 
 In plain terms: **these little balls already have quite fixed "personalities", but on the decisions where they
-仍然留着一个入口。** 这一点被保留下来，但**不再用它去承担 generalization 这个
-大结论** —— 它转为规则 71 周边的一个机制探针（见下）。
+still hesitate a little themselves, an entrance remains.** This is kept, but **it is no longer asked to carry the big
+generalization conclusion** — it becomes a mechanistic probe in the neighbourhood of rule 71 (see below).
 
-## 026 留下的资产（不作废）
+## Assets 026 leaves behind (not discarded)
 
-`novel_situation.py` 的机制层（GatedWorld / 三个 probe / 拉平 / 规则 61 分叉 /
-完整可执行状态序列化）、四套 group-blind 校准脚本、
-以及规则 **60–73**。这些在 v4 阶段可以直接复用。
+The mechanism layer of `novel_situation.py` (GatedWorld / the three probes / levelling / the rule-61 fork /
+full executable state serialisation), the four group-blind calibration scripts,
+and rules **60–73**. All of this can be reused directly in a v4 phase.
 
 ---
 
-# 收尾三件事（论文剩余工作）
+# Three closing items (the remaining work for the paper)
 
-1. **规则 71 因果消融** —— 证明是不是那套正反馈同时造成
-   specialization 与 plasticity 下降。**比开发 v4 更科学**：
-   v4 会改变模型，消融是直接问 v3 里的机制到底是不是原因。
-   附带机制探针：**标准化决策扰动（Δ=3.0）下的 susceptibility**
-   —— ⚠ 它只作 mechanistic assay，**不承担 generalization 结论**。
-2. **v3 参数稳健性** —— 目前最明确的投稿硬缺口。
-   现有 `sweep_results.csv` / `holdout.csv` 是 **v2** 的；
-   论文的 candidate architecture 是 frozen v3，
-   审稿人必然会问"为什么 robustness 分析用的是旧模型"。
-   → 已启动 `param_sweep.py --out sweep_results_v3.csv`（500 组 × 300 种子，
-   带 `resultmeta` 版本列）。
-3. **reproducibility + ODD + repo 清理** —— prereg / seed ledger / frozen dirs /
-   SHA256 已经到位，但工程入口还不行：
-   `pytest -q --collect-only` 会因为 `v2_frozen/`、`v3_frozen/` 与根目录
-   **同名 test module** 而 collection error。
-   目标：**fresh clone 后一条命令跑完核心 regression / self-check。**
+1. **A causal ablation of rule 71** — establish whether that positive feedback really causes both
+   specialization and the drop in plasticity. **More scientific than building v4**:
+   v4 would change the model, whereas an ablation asks directly whether the mechanism inside v3 is the cause.
+   With an accompanying mechanistic probe: **susceptibility under a standardised decision perturbation (Δ=3.0)**
+   — ⚠ it serves only as a mechanistic assay and **carries no generalization conclusion**.
+2. **v3 parameter robustness** — currently the clearest hard gap for submission.
+   The existing `sweep_results.csv` / `holdout.csv` belong to **v2**;
+   the paper's candidate architecture is frozen v3,
+   and a reviewer will certainly ask "why was the robustness analysis run on the old model?".
+   → `param_sweep.py --out sweep_results_v3.csv` has been launched (500 sets × 300 seeds,
+   with a `resultmeta` version column).
+3. **Reproducibility + ODD + repo cleanup** — prereg / seed ledger / frozen dirs /
+   SHA256 are all in place, but the engineering entry point is not:
+   `pytest -q --collect-only` raises a collection error because `v2_frozen/` and `v3_frozen/` hold
+   **test modules with the same names** as the root directory.
+   Goal: **one command after a fresh clone runs the core regression / self-check end to end.**
 
 
-## ★ v3 参数稳健性（`sweep_results_v3.csv`，500 组 × 300 种子，45.5 分钟）★
+## ★ v3 parameter robustness (`sweep_results_v3.csv`, 500 sets × 300 seeds, 45.5 minutes) ★
 
-补上投稿硬缺口：论文的 candidate architecture 是 frozen v3，
-但此前的 robustness 分析用的是 v2。现在有了 v3 的自己的一份。
+Filling the hard submission gap: the paper's candidate architecture is frozen v3,
+but the earlier robustness analysis was run on v2. Now v3 has one of its own.
 
 ```
-                      v2（372→324 组）              v3（372→337 组）
-移植比值（作息）★头条★  1.058  IQR[1.010,1.128]      1.076  IQR[1.010,1.153]
-                      > 1 的比例 80.2%              > 1 的比例 78.3%
-移植比值（目标）        1.061  IQR[0.992,1.116]      0.998  IQR[0.941,1.052]
-                      > 1 的比例 72.2%              > 1 的比例 48.7%   ← ⚠
-对数比值（作息）        0.048  > 0 的 78.4%           0.062  > 0 的 76.6%
+                           v2 (372→324 sets)            v3 (372→337 sets)
+ratio, routine ★headline★  1.058  IQR[1.010,1.128]      1.076  IQR[1.010,1.153]
+                           share > 1: 80.2%             share > 1: 78.3%
+ratio, goals               1.061  IQR[0.992,1.116]      0.998  IQR[0.941,1.052]
+                           share > 1: 72.2%             share > 1: 48.7%   ← ⚠
+log ratio, routine         0.048  share > 0: 78.4%      0.062  share > 0: 76.6%
 ```
 
-### ★ 头条稳健性在 v3 下保住了 ★
+### ★ The headline robustness survives under v3 ★
 
-**作息（动作分布）轴**：中位 1.058 → **1.076**（略强），
-参数集合里 **78.3%** 的组合仍然 > 1（v2 是 80.2%）。
-对数比值同样保住（76.6% vs 78.4%）。
-**这是论文的头条指标，跨 500 组随机参数依然成立。**
+**The routine (action-distribution) axis**: median 1.058 → **1.076** (slightly stronger),
+and **78.3%** of the parameter sets are still > 1 (v2 had 80.2%).
+The log ratio holds up equally well (76.6% vs 78.4%).
+**This is the paper's headline metric, and it still holds across 500 random parameter sets.**
 
-顺带：剔除团灭的组数 **50 → 35**（v3 死亡率修正的直接体现）。
+Incidentally: the number of sets dropped for total wipe-out falls **50 → 35** (a direct effect of the v3 mortality fix).
 
-### ⚠ 但目标（goal）轴在 v3 下塌到随机水平
+### ⚠ But the goal axis collapses to chance level under v3
 
-`72.2% → 48.7%`，中位 `1.061 → 0.998`。**基本就是抛硬币。**
+`72.2% → 48.7%`, median `1.061 → 0.998`. **Essentially a coin flip.**
 
-机制上说得通：v3 唯一的改动是 `COND_RECOVER_AT 30→65`，
-体质常驻高位 → `recover` 目标很少被触发（goal-pair 审计实测只有 16.6%）
-→ 两个世界的**目标剖面因此收敛**。
-换句话说，**v2 里"目标层的世界差异"有相当一部分是体质差异的投影**，
-而那个体质差异正是我们在 v3 里修掉的东西（规则 46/47/49）。
+Mechanistically this makes sense: v3's only change is `COND_RECOVER_AT 30→65`,
+condition sits permanently high → the `recover` goal is rarely triggered (the goal-pair audit measured only 16.6%)
+→ so the **goal profiles of the two worlds converge**.
+In other words, **a substantial part of the "world difference at the goal layer" in v2 was a projection of the condition difference**,
+and that condition difference is exactly what we fixed in v3 (rules 46/47/49).
 
-> ### ★ 规则 74：v3 只保住了动作层的稳健性，目标层的没有 ★
-> 论文里必须**分开报**：
-> - **动作分布轴**：中位 1.076、78.3% 的参数组合 > 1 —— 稳健，可作头条
-> - **目标轴**：中位 0.998、48.7% > 1 —— **在参数集合上不稳健，不得作为主张**
+> ### ★ Rule 74: v3 preserves robustness at the action layer only, not at the goal layer ★
+> The paper must **report the two separately**:
+> - **Action-distribution axis**: median 1.076, 78.3% of parameter sets > 1 — robust, usable as the headline
+> - **Goal axis**: median 0.998, 48.7% > 1 — **not robust across the parameter set; must not be claimed**
 >
-> ⚠ 这条不是坏消息，而是**修正 confound 之后应有的结果**：
-> 目标层的差异原来是搭了体质差异的便车。
-> **修掉 mortality confound 的代价，就是失去一个原本不干净的次指标。**
+> ⚠ This is not bad news; it is **the result one should expect after correcting a confound**:
+> the goal-layer difference had been riding on the condition difference all along.
+> **The price of fixing the mortality confound is losing a secondary metric that was never clean.**
 
-### 参数敏感度：v2 / v3 高度一致
+### Parameter sensitivity: v2 and v3 agree closely
 
 ```
               v2       v3
-TRAIT_DRIFT        +0.432   +0.442   ← 两版都是第一
-PERSONALITY_WEIGHT +0.289   +0.357   ← 两版都是第二
-GOAL_BONUS         −0.050   −0.214   ← v3 里升到第三
-LANDMARK_BONUS     −0.153   −0.028   ← v3 里退出
+TRAIT_DRIFT        +0.432   +0.442   ← first in both versions
+PERSONALITY_WEIGHT +0.289   +0.357   ← second in both versions
+GOAL_BONUS         −0.050   −0.214   ← rises to third in v3
+LANDMARK_BONUS     −0.153   −0.028   ← drops out in v3
 ```
 
-**`TRAIT_DRIFT` 在两个版本上都是最敏感参数（ρ≈0.44）** ——
-这与规则 71 消融的独立发现互相印证：**正反馈增益是 persistence 的主要来源。**
-两条完全独立的分析（参数随机化 vs 定向消融）指向同一个机制，
-这在论文里是很强的一句话。
+**`TRAIT_DRIFT` is the most sensitive parameter in both versions (ρ≈0.44)** —
+which corroborates the independent finding of the rule-71 ablation: **positive-feedback gain is the main source of persistence.**
+Two completely independent analyses (parameter randomisation vs targeted ablation) point at the same mechanism,
+which makes for a strong sentence in the paper.
 
 
-## ★ 规则 71 因果消融结果：后半部分撤回 ★（`rule71_ablation.py`，N=300）
+## ★ Rule 71 causal ablation results: the second half is withdrawn ★ (`rule71_ablation.py`, N=300)
 
 ```
-TRAIT_DRIFT   n    (a)移植比值  (b)shelter极化  (b)material两极  (c)可翻转决策  margin中位  material中间层
+TRAIT_DRIFT   n  (a) ratio(b) shelt.pol (b) mat.split (c) flippable    margin   mat.mid
    0.00     289      1.021        31.1%         93.8%         41.1%      3.95      6.2%
    0.30     288      1.012        56.2%         93.8%         38.6%      4.29      6.3%
    0.60     290      1.058        60.9%         93.6%         37.6%      4.57      6.4%
-   1.20     289      1.157        58.7%         94.6%         38.0%      4.67      5.4%   ← v3 默认
+   1.20     289      1.157        58.7%         94.6%         38.0%      4.67      5.4%   ← v3 default
    2.40     286      1.575        78.8%         89.7%         44.2%      3.81     10.3%
 ```
 
-### ✓ 前半部分：正反馈**因果地**造就 persistence
+### ✓ First half: positive feedback **causally** produces persistence
 
-移植比值 `1.021 → 1.575`，基本单调，幅度很大。
-**drift = 0 时比值只有 1.021 —— 几乎没有个体差异残留。**
+The transplant ratio runs `1.021 → 1.575`, essentially monotonic and over a wide range.
+**At drift = 0 the ratio is only 1.021 — almost no individual difference is left.**
 
-这与 v3 参数扫描**独立印证**：`TRAIT_DRIFT` 是 500 组随机参数里
-最敏感的旋钮（Spearman ρ = **+0.442**，v2 上是 +0.432）。
-**两条完全独立的分析（参数随机化 vs 定向消融）指向同一个机制。**
+This is **independently corroborated** by the v3 parameter sweep: `TRAIT_DRIFT` is the most sensitive
+knob among the 500 random parameter sets (Spearman ρ = **+0.442**; on v2 it was +0.432).
+**Two completely independent analyses (parameter randomisation vs targeted ablation) point at the same mechanism.**
 
-### ✗ 后半部分：不成立，**撤回**
+### ✗ Second half: does not hold, **withdrawn**
 
-> ### ~~规则 71（原文）：同一套正反馈既造就 persistence，又消灭了梯度干预
-> ~~可以作用的中间地带~~ ★ 撤回 ★
+> ### ~~Rule 71 (original): the same positive feedback both produces persistence and wipes out the middle
+> ground on which a gradient intervention could act~~ ★ withdrawn ★
 
-事前预测是"(c) 可翻转决策随 drift 单调下降"。实测：
+The a-priori prediction was "(c) the share of flippable decisions falls monotonically with drift". Measured:
 
 ```
 41.1% → 38.6% → 37.6% → 38.0% → 44.2%
 ```
 
-**从 0 到默认值 1.2 只掉了 3.1pp，而且到 2.4 反而升回 44.2%。
-这不是"可塑性被消灭"，这是几乎不动。**
+**From 0 to the default of 1.2 it drops by only 3.1pp, and at 2.4 it climbs back to 44.2%.
+That is not "plasticity being wiped out"; that is barely moving at all.**
 
-更关键的是 **material 两极程度与 drift 完全无关**：
-`93.8% → 89.7%`，**drift = 0（完全没有性状正反馈）时就已经是 93.8%**，
-中间层始终只有 5–10%。
+More importantly, **the degree of material polarisation is entirely independent of drift**:
+`93.8% → 89.7%`, and **at drift = 0 (no trait positive feedback whatsoever) it is already 93.8%**,
+with the middle layer never rising above 5–10%.
 
-> ### ★ 规则 71（修订版）★
-> `TRAIT_DRIFT` 正反馈**因果地**产生 persistence（1.02 → 1.58），
-> 并且**部分地**造成 shelter 的极化（31% → 79%）。
-> **但它既不造成 material 的双峰（drift=0 时就已 93.8%），
-> 也不显著降低决策层可塑性（Δ=3 可翻转决策始终在 37–44%）。**
+> ### ★ Rule 71 (revised) ★
+> `TRAIT_DRIFT` positive feedback **causally** produces persistence (1.02 → 1.58),
+> and **partly** causes the polarisation of shelter (31% → 79%).
+> **But it neither causes the bimodality of material (already 93.8% at drift=0)
+> nor appreciably reduces plasticity at the decision layer (flippable decisions at Δ=3 stay between 37–44%).**
 
-### ⚠ 连带更正：026 封存词里那句"漂亮的讽刺"是错的
+### ⚠ A consequential correction: the "elegant irony" line in the 026 sealing note is wrong
 
-我在 026 封存时写过：
+When sealing 026 I wrote:
 
-> ~~"同一套产生持久个体差异的正反馈机制，同时消灭了梯度型 novel contingency
-> 可以作用的中间地带…… 这是同一个机制的两面。"~~
+> ~~"The same positive-feedback machinery that produces persistent individual differences also wipes out
+> the middle ground on which a gradient-type novel contingency could act… two sides of one mechanism."~~
 
-**这句话被本次消融证伪，撤回。** 正确的说法是：
+**That sentence is falsified by this ablation and is withdrawn.** The correct statement is:
 
 > **阻挡 026 四个 probe 的资源双峰，主要是 v3【资源动力学本身】的性质
 > （material 只被 build 以 3/次消耗、shelter 以 0.35/tick 单调衰减），
