@@ -1,75 +1,76 @@
-# 实验 029 预注册 —— Memory-Mediated Transfer
+# Experiment 029 preregistration — Memory-Mediated Transfer
 
-**写死日期：2026-08-18 · 状态：★ 全部冻结 ★ → 待起飞检查 → 待执行**
+**Fixed on: 2026-08-18 · Status: ★ fully frozen ★ → awaiting the pre-launch check → awaiting execution**
 
-一次性文件。写完之后到跑完之前，**不改这个文件、不改 architecture、
-不改 acquisition 参数、不改 retrieval、不改 λ、不改 capacity gates、
-不改 primary endpoint、不改 SESOI、不改判读规则、不改统计程序、不改种子块。**
-跑完之后**也不改**，只在实验记录里追加结果。
+A one-shot document. Between finishing it and finishing the run, **this file, the architecture,
+the acquisition parameters, retrieval, λ, the capacity gates, the primary endpoint, the SESOI,
+the reading rules, the statistical procedure and the seed block are not changed.**
+They are **not changed after the run either**; results are only appended to the experiment log.
 
-> ✅ **§6.3 已拍板：CI 上界 < 0.25（B）**，并附条件性判读（§6.3.2）与
-> pilot-informed 透明披露（§6.3.1）。
-> **本文件至此全部冻结。** 80000–81499 在通过起飞检查之前仍然一颗不碰。
+> ✅ **§6.3 is settled: CI upper bound < 0.25 (option B)**, with the conditional reading (§6.3.2)
+> and the pilot-informed transparent disclosure (§6.3.1).
+> **This file is fully frozen from here.** Not one seed of 80000–81499 is touched before the
+> pre-launch check passes.
 
 ---
 
-## 0. 研究问题
+## 0. Research question
 
-> **相同的异常经历，因为后来在不同世界里得到不同结果，是否能形成不同的
-> 关系性记忆；而这份记忆，是否能在表面陌生但结构相似的未来问题里
-> 减少实际错误？**
+> **Can the same anomalous experience, because it later turned out differently in different
+> worlds, form different relational memories; and can that memory reduce actual errors on a
+> future problem that is superficially unfamiliar but structurally similar?**
 
-形式化：
+Formally:
 
 ```
 Can structurally relevant past experience be retrieved and causally used
 to adapt to a surface-novel problem?
 ```
 
-### 与 025 / 027 / 028 的分工
+### Division of labour with 025 / 027 / 028
 
-| 实验 | 问题 | 结果 |
+| Experiment | Question | Result |
 |---|---|---|
-| 025 / v3 | 过去能不能**留下**？ | ✓ 明显 |
-| 027 | 留下的 personality 会**自动迁移**吗？ | 极弱（0.08 trial） |
-| 028 | 等预算下**加宽** personality readout 能救吗？ | 没有（G ≈ 0） |
-| **029** | 过去的**经验**能否被**检索**并**因果使用**？ | ← 本实验 |
+| 025 / v3 | Can the past **persist**? | ✓ clearly |
+| 027 | Does the personality that persists **transfer automatically**? | extremely weakly (0.08 trials) |
+| 028 | Does **widening** the personality readout at equal budget rescue it? | no (G ≈ 0) |
+| **029** | Can past **experience** be **retrieved** and **used causally**? | ← this experiment |
 
-⚠ 029 换掉的是**通路的类型**，不是带宽：
+⚠ What 029 replaces is the **type of pathway**, not the bandwidth:
 
 ```
-027 / 028   历史 → 我们替它读出的一个标量 → β → 探索加成
-029         历史 → 可寻址的关系性条目 → agent 自己按情境取用 → 决策
+027 / 028   history → one scalar we read out on its behalf → β → exploration bonus
+029         history → addressable relational entries → the agent draws on them by context → decision
 ```
 
 ---
 
-## 1. ★ 冻结对象（跑本实验前全部已冻结）★
+## 1. ★ What is frozen (all of it frozen before this experiment runs) ★
 
 ```
-architecture   memory-only。发育史【只】经记忆进入测试任务。
-               body = NeutralBody（curiosity=caution=50），两个 condition 完全相同。
-               ⛔ 不加 trait 通路（理由见 §8 规则 93 最终版）
+architecture   memory-only. The developmental history enters the test task **only** through memory.
+               body = NeutralBody (curiosity=caution=50), identical in both conditions.
+               ⛔ No trait pathway is added (reasoning in §8, rule 93 final form)
 
-acquisition    3 problems × 66 trial；ANOMALY_AT=36，ANOMALY_LEN=8，anomaly 后 22
+acquisition    3 problems × 66 trials; ANOMALY_AT=36, ANOMALY_LEN=8, 22 trials after the anomaly
                α=0.05  τ=0.20  Q_INIT=0.5  P_HIGH/P_LOW=0.80/0.20
 
-retrieval      情境窗口 stateful：RETRIEVE → ACTIVE → RESOLVED
-               进入：Q[cur] ≥ 0.60 且连续 surprise ≥ 3（PE < −0.30）
-               退出：Q[另一个] > Q[suspect]  或  在 suspect 上连续 3 次不再意外
-               ★ RESOLVED 在 Q-update【之后】判 ★（probe3 修掉的时序 bug）
+retrieval      stateful context window: RETRIEVE → ACTIVE → RESOLVED
+               entry: Q[cur] ≥ 0.60 and a run of surprises ≥ 3 (PE < −0.30)
+               exit:  Q[the other] > Q[suspect]  or  3 consecutive non-surprises on the suspect
+               ★ RESOLVED is judged **after** the Q update ★ (the timing bug fixed in probe3)
 
-interface      logit(switch) += λ · m · s     s=+1 离开 suspect / s=−1 回到 suspect
-               ★ MEMORY_LAMBDA = 1.00 ★（group-blind capacity calibration 冻结）
+interface      logit(switch) += λ · m · s     s=+1 leaving the suspect / s=−1 returning to it
+               ★ MEMORY_LAMBDA = 1.00 ★ (frozen by the group-blind capacity calibration)
 
 capacity gates SATURATION_MAX=0.05  MEDIAN_ABS_DP_MIN=0.02
-               PREF_FLIP_MAX=0.25   ACTIVE_EXPOSURE_MAX=20/80（★取 max 不取 mean★）
+               PREF_FLIP_MAX=0.25   ACTIVE_EXPOSURE_MAX=20/80 (★max, not mean★)
 
-novel task     027 的 novel_task.py，一个数不改。指纹 26778f672e9e7009
-               80 trial，第 41 trial 反转，P=0.80/0.20，哪个先好按种子随机
+novel task     027's novel_task.py, not one number changed. Fingerprint 26778f672e9e7009
+               80 trials, reversal at trial 41, P=0.80/0.20, which is good first randomised by seed
 ```
 
-### λ 的 selection rule（照抄进论文）
+### The selection rule for λ (copy verbatim into the paper)
 
 > Lambda was calibrated without condition labels or downstream transfer
 > outcomes. Values were required to satisfy prespecified interface-capacity
@@ -77,218 +78,226 @@ novel task     027 的 novel_task.py，一个数不改。指纹 26778f672e9e7009
 > and retrieval exposure. Among admissible values, the log-scale midpoint of
 > the admissible range was selected.
 
-合格带 {0.5, 1.0, 2.0}，`1.0 = √(0.5×2)` 是 log 尺度中心 ——
-**选"距离上下两个失效方向最远的"，不是"potency 最大的"**。
-代码里有断言：λ 若不再等于合格带 log 中心即报错。
+The passing band is {0.5, 1.0, 2.0}, and `1.0 = √(0.5×2)` is its log-scale centre —
+**picking the value furthest from both failure directions, not the one with the largest potency**.
+The code carries an assertion: if λ ceases to equal the log centre of the band, it raises.
 
-⚠ **λ 在看到任何 group transfer outcome 之前冻结。**
-所以"是不是换个 λ 就能阳"这个问题的答案是：**不知道，也不允许事后换。**
-
----
-
-## 2. 发育史：Stable vs Volatile（★ 两边都经历 surprise ★）
-
-⛔ **错误做法**：「Stable 从来没有 surprise，Volatile 有很多」——
-那会让记忆的区别退化成"一个有数据、一个没数据"。
-
-✅ **本设计**：**同一种表面现象，意味着不同的东西。**
-
-```
-trial  0 .. 35     原策略 p_high、另一个 p_low        ← 两条件相同
-trial 36 .. 43     ★两个都掉到 p_low★                ← 两条件【逐位相同】
-trial 44 .. 65     Stable  ：原策略恢复 p_high
-                   Volatile：另一个变成 p_high
-```
-
-- 奖励抽样两条件**共用同一条随机流** → `trial < 44` 上**逐位相同**。
-  **光看异常本身分不出身处哪个世界**，差异只在"这次异常意味着什么"。
-- 每个 problem 的 first-good side 按种子 counterbalance。
-- 学到的关系是：
-  - **Stable**：persistent surprise 有时只是 noise，**stay 更划算**
-  - **Volatile**：persistent surprise 往往意味着规则变了，**switch 更划算**
-
-### 必须匹配（构造性，逐位相等）
-
-```
-① 总 trial 数      ② 总 reward opportunity      ③ first-good identity
-④ pre-anomaly observations                       ⑤ task length structure
-```
-
-### ★ 明确【不】匹配，且不许事后补平 ★
-
-- **realized reward**：Volatile 更低（change point 后必须重新学习）。
-  补平它 ≈ 给 Volatile 额外补偿、**取消 volatility 本身的成本**。
-- **memory completeness**：两侧不等（见 §9）。强行配平 =
-  **修改 post-treatment mediator**。
-- **episode 数**：行为产物，报告即可。
+⚠ **λ was frozen before any group transfer outcome had been seen.**
+So the answer to "would a different λ have made it positive?" is: **unknown, and changing it
+afterwards is not allowed.**
 
 ---
 
-## 3. 记忆结构（★ 规则 85：存 relation，不存 identity ★）
+## 2. Developmental history: Stable vs Volatile (★ both sides experience surprise ★)
+
+⛔ **The wrong approach**: "Stable never has a surprise, Volatile has many" — that would degenerate
+the memory difference into "one has data, the other does not".
+
+✅ **This design**: **the same surface phenomenon means different things.**
+
+```
+trials  0 .. 35     the original strategy p_high, the other p_low   ← identical in both conditions
+trials 36 .. 43     ★both drop to p_low★                            ← **bit-identical** in both conditions
+trials 44 .. 65     Stable  : the original strategy returns to p_high
+                    Volatile: the other one becomes p_high
+```
+
+- The reward draws **share one random stream** across the two conditions → **bit-identical** for
+  `trial < 44`. **The anomaly alone cannot tell you which world you are in**; the difference lies
+  only in "what this anomaly meant".
+- The first-good side of each problem is counterbalanced by seed.
+- The relations learned are:
+  - **Stable**: persistent surprise is sometimes just noise, **staying pays better**
+  - **Volatile**: persistent surprise usually means the rule changed, **switching pays better**
+
+### What must match (constructively, bit-equal)
+
+```
+① total trials      ② total reward opportunity      ③ first-good identity
+④ pre-anomaly observations                          ⑤ task length structure
+```
+
+### ★ What explicitly does **not** match, and must not be equalised afterwards ★
+
+- **realized reward**: lower for Volatile (it has to relearn after the change point).
+  Equalising it ≈ compensating Volatile and **cancelling the cost of volatility itself**.
+- **memory completeness**: unequal between the sides (see §9). Forcing it to match =
+  **modifying a post-treatment mediator**.
+- **episode count**: a behavioural product; simply report it.
+
+---
+
+## 3. Memory structure (★ rule 85: store relations, not identities ★)
 
 ```
 Episode:
-    context               关系性情境标签（"previously_good_strategy"）
-    previous_expectation  窗口开始时 Q[suspect]
-    observation           触发窗口的那串异常里的平均回报
+    context               a relational context label ("previously_good_strategy")
+    previous_expectation  Q[suspect] at the start of the window
+    observation           the mean return over the run of anomalies that triggered the window
     prediction_error      observation − previous_expectation
     action_relation       ★ "stay" / "switch" ★
-    outcome               这次决策拿到的回报
+    outcome               the return this decision obtained
 ```
 
-**存了 A/B，换一个新任务之后就没有任何可迁移性** —— 新任务里根本没有 A 和 B。
-已实现为**硬约束**：`Episode.__post_init__` + `_assert_relational_only()`，
-字段里出现任何选项身份直接报错。
+**Storing A/B leaves nothing transferable once the task changes** — the new task has no A or B at
+all. This is implemented as a **hard constraint**: `Episode.__post_init__` +
+`_assert_relational_only()` raise immediately if any option identity appears in a field.
 
-读出：
+Read-out:
 
 ```
 m = E[R | switch, similar past] − E[R | stay, similar past]
-任一侧无条目 → m = 0（无证据，不是"证据为零差异"）
+no entries on either side → m = 0 (no evidence, not "evidence of zero difference")
 ```
 
-⚠ `suspect` 是决策时的**工作变量**，不是 Episode 字段。
+⚠ `suspect` is a **working variable** at decision time, not an Episode field.
 
 ---
 
-## 4. ★ Primary endpoint：ΔC ★
+## 4. ★ Primary endpoint: ΔC ★
 
 ```
-C_i = Σ_{t=40..79} 1( choice_t ≠ correct_option_t )     规则变化后一共选错多少次
-ΔC  = C(Volatile-history) − C(Stable-history)           同种子配对
-ΔC < 0  ⇔  Volatile 型记忆更有帮助
+C_i = Σ_{t=40..79} 1( choice_t ≠ correct_option_t )     how many wrong choices after the rule changes
+ΔC  = C(Volatile-history) − C(Stable-history)           same-seed paired
+ΔC < 0  ⇔  a Volatile-type memory helps more
 ```
 
-`C = 40 × (1 − 反转后正确率)`，恒等式已写成断言。
+`C = 40 × (1 − post-reversal accuracy)`; the identity is written as an assertion.
 
-### 为什么不是 switch latency（★ 规则 89 ★）
+### Why not switch latency (★ rule 89 ★)
 
-`ACTIVE` 的退出条件 ≈「Q 证明新策略更好」，
-restricted switch latency ≈「新策略开始稳定占优」——**构造上重叠**。
-**primary endpoint 不能与机制自身的活跃窗口重叠。**
-latency 保留为 secondary mechanistic。
+The exit condition of `ACTIVE` ≈ "Q proves the new strategy is better", while restricted switch
+latency ≈ "the new strategy begins to dominate stably" — **they overlap by construction**.
+**The primary endpoint must not overlap with the mechanism's own active window.**
+Latency is retained as a secondary mechanistic measure.
 
-ΔC 的好处：窗口由任务事先固定 / 不读 ACTIVE 或 RESOLVED /
-无 never-switch censoring / **所有 agent 都有** / 单位是 trial / 测的是实际
-functional cost。
+The advantages of ΔC: the window is fixed in advance by the task / it does not read ACTIVE or
+RESOLVED / there is no never-switch censoring / **every agent has it** / its unit is trials / it
+measures the actual functional cost.
 
 ### ★ SESOI = 1.0 post-change error ★
 
-即在固定的 40 个 post-change trial 里**少犯 1 次错误**，
-等价于 `1/40 = 2.5%` 的 post-change accuracy。
+That is: **one fewer mistake** within the fixed 40 post-change trials, equivalent to
+`1/40 = 2.5%` of post-change accuracy.
 
-理由：
-- 与 027 / 028 采用的 **1 trial 功能单位一致**，不是现在临时创造一个 0.5 或 0.75；
-- **开发 rehearsal 已经看到 ΔC = −0.927**，定 1.0 **不会**把已看到的开发结果
-  事后包装成"功能成功" —— 恰恰相反，按此门槛开发结果只能算
-  *statistically detectable / directionally strong，功能意义尚未建立*。
+Reasons:
+- consistent with the **1-trial functional unit** used in 027 / 028, rather than inventing a 0.5
+  or 0.75 on the spot;
+- the development rehearsal **has already shown ΔC = −0.927**, so setting the threshold at 1.0
+  **does not** retro-package the development result as a "functional success" — quite the
+  opposite: under this threshold the development result counts only as
+  *statistically detectable / directionally strong, with functional significance not established*.
 
-### ★ 三档判读（95% CI，双侧）★
+### ★ Three-way reading (95% CI, two-sided) ★
 
-| 情况 | 判读 |
+| Case | Verdict |
 |---|---|
-| CI **包含 0** | **No evidence of memory-mediated transfer.** |
-| CI 完全 **< 0**，但未完全越过 **−1** | **Detectable memory-mediated transfer, but functional significance not established.** |
-| CI **整体 < −1** | **Functionally meaningful memory-mediated transfer established.** |
-| CI 完全 **> 0** | 明确是**反方向 / 有害** transfer，照写 |
+| the CI **contains 0** | **No evidence of memory-mediated transfer.** |
+| the CI lies entirely **< 0** but has not cleared **−1** | **Detectable memory-mediated transfer, but functional significance not established.** |
+| the CI lies **entirely < −1** | **Functionally meaningful memory-mediated transfer established.** |
+| the CI lies entirely **> 0** | clearly transfer in the **opposite / harmful** direction; write it as such |
 
-（开发 rehearsal 的 `[−1.202, −0.677]` 正属于第二档。）
+(The development rehearsal's `[−1.202, −0.677]` falls into the second row.)
 
 ---
 
 ## 5. Secondary mechanistic
 
 ```
-restricted switch latency（截尾规则沿用 027：0–35 真实值，36 = 观察窗内未切换）
-retrieval exposure（potential 在 λ=0 轨迹上定义 / realized 在正式轨迹上）
+restricted switch latency (censoring as in 027: 0–35 real values, 36 = never switched within the window)
+retrieval exposure (potential defined on the λ=0 trajectory / realized on the official trajectory)
 per-opportunity potency Δp
 ACTIVE duration
 ```
 
-⚠ **规则 88**：`potential` 与 `realized` 必须分开报，
-且**绝不许**只分析"成功想起了记忆"的 agent。
+⚠ **Rule 88**: `potential` and `realized` must be reported separately, and it is **never**
+permitted to analyse only the agents that "successfully recalled a memory".
 
 ---
 
-## 6. ★ Confirmatory mechanistic control：SHUFFLE ★
+## 6. ★ Confirmatory mechanistic control: SHUFFLE ★
 
-### 6.1 定义
+### 6.1 Definition
 
-在**每个 agent 自己的条目内**打乱 `action_relation`：
+Shuffle `action_relation` **within each agent's own entries**:
 
 ```
-保留：episode 数、stay/switch 各自的条数、outcome 的边际分布
-摧毁：action ↔ outcome 的【关系】
+preserved: the episode count, the counts of stay and switch, the marginal distribution of outcome
+destroyed: the **relation** between action and outcome
 ```
 
-问的是：**起作用的是关系结构，还是记忆库的 marginal statistics？**
+The question: **is what works the relational structure, or the marginal statistics of the memory store?**
 
-### ★ permutation rule 与 salt 冻结（FINAL 前写死）★
+### ★ The permutation rule and salt are frozen (fixed in writing before FINAL) ★
 
 ```
 rng = random.Random( SHUFFLE_SALT ^ seed ^ (len(episodes) << 8) )
 rng.shuffle(relations)                     SHUFFLE_SALT = 0x29C10
 ```
 
-⛔ **不许**在 FINAL 运行时现场生成新的 shuffle 方案。
-同一 `(seed, len(episodes))` 必须永远给出同一个置换（runner 里写成确定性自检）。
+⛔ Generating a new shuffle scheme on the spot during the FINAL run is **forbidden**.
+The same `(seed, len(episodes))` must always produce the same permutation (written as a
+deterministic self-check in the runner).
 
-### 6.2 统计量：retention ratio
+### 6.2 The statistic: retention ratio
 
 ```
 R = |ΔC_SHUFFLE| / |ΔC_OWN|
 ```
 
-**joint same-seed bootstrap**：每个 replicate 重采样**一组**种子下标，
-两个臂共用该组下标，**abs 与除法逐 replicate 施加**（承 028 的教训：
-先分别求均值再套非线性、或拿两条 marginal CI 的端点相除，都是错的）。
+**joint same-seed bootstrap**: each replicate resamples **one** set of seed indices shared by both
+arms, and **abs and division are applied per replicate** (the lesson of 028: taking the means
+separately and then applying the non-linearity, or dividing the endpoints of two marginal CIs, are
+both wrong).
 
-⚠ **规则 84**：`R` 恒 ≥ 0，所以"CI 排除 0"没有信息量。
-判据**只看上界**与 0.25 的关系。
+⚠ **Rule 84**: `R` is always ≥ 0, so "the CI excludes 0" carries no information.
+The criterion looks **only at the upper bound** against 0.25.
 
-### 6.3 ★ 判据：CI 上界 < 0.25（选 B，已拍板）★
+### 6.3 ★ Criterion: CI upper bound < 0.25 (option B, settled) ★
 
 ```
-判据：  CI_97.5%( R )  <  0.25
+criterion:  CI_97.5%( R )  <  0.25
 ```
 
-⛔ **不采用**"点估计 < 0.25"。只要求点估计，会让"**至少 75% 的 transfer 被摧毁**"
-这句话说得**比证据强**。既然我们真正想声称的是"relational structure 被破坏后，
-大部分 transfer 消失"，那么**不确定性本身也必须支持这句话**。
+⛔ "point estimate < 0.25" is **not used**. Requiring only the point estimate would let the
+sentence "**at least 75% of the transfer is destroyed**" be stated **more strongly than the
+evidence**. Since what we really want to claim is "once the relational structure is destroyed,
+most of the transfer disappears", **the uncertainty itself must support that sentence too**.
 
-### 6.3.1 ⚠ 透明披露（必须写进结果与论文）⚠
+### 6.3.1 ⚠ Transparent disclosure (must go into the results and the paper) ⚠
 
-开发 rehearsal（n=400）实测：
+Measured in the development rehearsal (n=400):
 
 ```
 R = 0.094      95% CI [0.005, 0.261]
 ```
 
-按本判据，开发数据上的诚实写法是：
+Under this criterion, the honest way to write the development data is:
 
 > **point estimate strongly supports collapse, but the rehearsal sample is
 > insufficient to establish ≥75% attenuation with 95% confidence.**
 
-**不是**"差一点所以改成 A"。
+It is **not** "we just missed it, so we switch to option A".
 
-必须随结果一起写明：
+The following must be written alongside the results:
 
 > **The CI-upper interpretation in §6.3 was finalized after observing the
 > development rehearsal retention estimate R = 0.094, 95% CI [0.005, 0.261],
 > but before any observation from the confirmatory seed block.**
 
-即：029 相对 FINAL 仍然是 **prospective**，但**这条机制判据明确是
-pilot-informed**，不许假装是 rehearsal 之前就有的。
+That is: 029 remains **prospective** with respect to FINAL, but **this mechanistic criterion is
+explicitly pilot-informed**, and must not be presented as if it predated the rehearsal.
 
-（功效尺度检查：把同一份 400 种子的 joint per-seed 经验分布放大到 N=1500，
-预期 ratio CI 约缩到 `[0.014, 0.182]` 量级。**这不是对 FINAL 的预测保证**，
-只说明 B 在 N=1500 下不是一个荒谬地严、注定失败的 gate。）
+(A power-scale check: scaling the same 400-seed joint per-seed empirical distribution up to
+N=1500, the ratio CI is expected to shrink to about `[0.014, 0.182]`. **This is not a guarantee
+about FINAL**; it only shows that at N=1500, option B is not an absurdly strict gate doomed to
+fail.)
 
-### 6.3.2 ★★ 条件性判读（分母不可辨识时不许判 SHUFFLE）★★
+### 6.3.2 ★★ Conditional reading (no SHUFFLE verdict when the denominator is unidentifiable) ★★
 
-若 FINAL 的 `ΔC_OWN ≈ 0`，则 `R` 的分母接近 0，比值不稳定甚至爆炸。
-**这时不能说 "SHUFFLE control failed"** —— 根本没有一个 OWN transfer
-可以拿来问"保留了多少"。
+If FINAL's `ΔC_OWN ≈ 0`, then the denominator of `R` approaches 0 and the ratio becomes unstable
+or explodes. **In that case "SHUFFLE control failed" must not be said** — there is simply no OWN
+transfer to ask "how much was retained" about.
 
 > **The SHUFFLE retention criterion is interpreted only if the OWN primary
 > effect shows evidence of transfer (its 95% CI excludes 0 in the preregistered
@@ -296,58 +305,59 @@ pilot-informed**，不许假装是 rehearsal 之前就有的。
 > reported descriptively but no relational-mediation claim is evaluated.**
 
 ```
-OWN CI 含 0（或方向相反）
-    → primary 不成立
-    → R 仅作描述性报告
-    → ⛔ 不判 "relation retained / destroyed"
+OWN CI contains 0 (or points the other way)
+    → the primary does not hold
+    → R is reported descriptively only
+    → ⛔ no verdict of "relation retained / destroyed"
 
-OWN CI 完全 < 0
-    → 才进入 SHUFFLE mechanism gate
-    → CI_97.5%(R) < 0.25 才支持 "≥75% attenuation"
+OWN CI lies entirely < 0
+    → only then does the SHUFFLE mechanism gate apply
+    → CI_97.5%(R) < 0.25 is required to support "≥75% attenuation"
 ```
 
-**这一条在看到 FINAL 之前写死。**
+**This clause is fixed in writing before FINAL is seen.**
 
-## 7. Seed-coupling control：XSEED-DONOR
+## 7. Seed-coupling control: XSEED-DONOR
 
-种子 s 使用**另一个种子**的**同条件**记忆。
+Seed s uses the **same-condition** memory of **another seed**.
 
-问的是：**效应是不是靠"发育与测试共享同一个种子"的耦合造成的？**
+The question: **is the effect caused by the coupling of "development and test sharing one seed"?**
 
-### ★ donor mapping 冻结（FINAL 前写死，不许临场决定）★
+### ★ The donor mapping is frozen (fixed before FINAL, never decided on the spot) ★
 
 ```
 donor_index(i) = (i + N // 2) % N          deterministic half-block rotation
-FINAL：N = 1500  →  donor_index(i) = (i + 750) % 1500
-rehearsal：N = 400 →  (i + 200) % 400      （同一条规则）
+FINAL: N = 1500  →  donor_index(i) = (i + 750) % 1500
+rehearsal: N = 400 →  (i + 200) % 400      (the same rule)
 ```
 
-必须满足（runner 里写成断言）：
+It must satisfy (written as assertions in the runner):
 
 ```
-① 无 self-donor：∀i, donor_index(i) ≠ i
-② 一一映射（bijection）
-③ Stable 与 Volatile 使用【同一个】 donor permutation
-④ ⛔ 不许根据任何 memory / outcome 选择 donor
+① no self-donor: ∀i, donor_index(i) ≠ i
+② a bijection
+③ Stable and Volatile use **the same** donor permutation
+④ ⛔ donors must not be chosen on the basis of any memory / outcome
 ```
 
-预期：基本保留（开发 rehearsal：保留 OWN 的 **96.0%**）。
+Expectation: largely retained (the development rehearsal retained **96.0%** of OWN).
 
-⚠ 命名纪律：**不叫 SWAP-XS**。它与 SWAP 问的不是同一件事。
+⚠ Naming discipline: **it is not called SWAP-XS**. It asks a different question from SWAP.
 
 ---
 
-## 8. ★ Integrity assertions：DELETE 与 within-seed SWAP ★
+## 8. ★ Integrity assertions: DELETE and within-seed SWAP ★
 
 ```
-DELETE   两个 condition 都用空库 → 逐 trial 相同 → ΔC ≡ 0
-SWAP     两个 condition 的记忆互换 → ΔC ≡ −ΔC(OWN)
+DELETE   both conditions use an empty store → identical trial by trial → ΔC ≡ 0
+SWAP     the two conditions' memories are exchanged → ΔC ≡ −ΔC(OWN)
 ```
 
-在 memory-only 架构下这两条**在构造上必然成立**。
-它们作为**断言**运行（不符即整批作废），**不作为科学证据报告**。
+Under a memory-only architecture both hold **by construction**.
+They are run **as assertions** (a mismatch voids the whole batch) and are **not reported as
+scientific evidence**.
 
-> ### ★ 规则 93（最终版）★
+> ### ★ Rule 93 (final form) ★
 > When memory is the sole developmental pathway into the test task, DELETE and
 > within-seed SWAP are **algebraic integrity checks rather than independent
 > causal evidence**. A second developmental pathway should **not** be introduced
@@ -355,203 +365,210 @@ SWAP     两个 condition 的记忆互换 → ΔC ≡ −ΔC(OWN)
 > from **interventions on memory structure** such as relational shuffling and
 > cross-seed donor tests.
 
-⛔ **不许**为了让 SWAP"变得非平凡"而把 trait 通路加回来。那会把干净的
-`history → relational memory → novel adaptation` 重新变成
-`history → memory + traits → …`，又要处理 memory/trait competition、
-interaction、budget —— 即 027/028 那一整套。
-**029 的目标不是证明"memory 比人格更重要"。**
+⛔ The trait pathway **must not** be added back just to make SWAP "non-trivial". That would turn
+the clean `history → relational memory → novel adaptation` back into
+`history → memory + traits → …`, bringing back memory/trait competition, interaction and budget —
+i.e. the whole 027/028 apparatus.
+**029's goal is not to prove that "memory matters more than personality".**
 
 ---
 
-## 9. ★ Extensive margin 的口径（冻结）★
+## 9. ★ The convention for the extensive margin (frozen) ★
 
 ```
 primary extensive margin  =  P( relational memory COMPLETE )
-                             complete := 至少 1 条 stay 且至少 1 条 switch
+                             complete := at least one stay entry and at least one switch entry
 ```
 
-开发块实测：**Stable 65.75% / Volatile 73.25%**
+Measured on the development block: **Stable 65.75% / Volatile 73.25%**
 
-另报（**可以报，但不许叫 extensive / availability**）：
+Also reported (**reportable, but must not be called extensive / availability**):
 
 ```
 non-zero evidence rate     Stable 64.25% / Volatile 73.25%
 ```
 
-差别来自 **6 个 Stable agent（1.5%）两侧都有条目、但两侧均值恰好相等 → m = 0**。
+The difference comes from **6 Stable agents (1.5%) that have entries on both sides but whose two
+means happen to be exactly equal → m = 0**.
 
-> ⚠ 它们**不是"没有形成记忆"**。它们形成了**完整的**关系性记忆，
-> 只不过这份经验告诉它"**过去 switch 和 stay 没有区别**" ——
-> 这是**有意义的零证据**。把 `m ≠ 0` 叫成 memory availability，
-> 会把"形成了一份中性经验"错误归类成"没有记忆"。
+> ⚠ They have **not "failed to form a memory"**. They formed a **complete** relational memory
+> which simply tells them "**switching and staying made no difference in the past**" —
+> that is **meaningful zero evidence**. Calling `m ≠ 0` memory availability would misclassify
+> "formed a neutral experience" as "has no memory".
 
-### ★ 规则 91（不变）★
+### ★ Rule 91 (unchanged) ★
 
 > Memory availability is itself a developmental outcome. Do not condition
 > transfer or calibration on successful memory formation. Report the extensive
 > margin (P[m usable]) and intensive margin (m | usable) separately, but all
 > primary analyses use the full predefined population.
 
-**所有 primary transfer 分析使用全部预定义 agent，含 incomplete 与 m = 0。**
+**Every primary transfer analysis uses all predefined agents, including incomplete ones and m = 0.**
 
 ---
 
-## 10. 统计程序
+## 10. Statistical procedure
 
 ```
-配对        逐种子 d_i = C_Volatile,i − C_Stable,i（same-seed 双胞胎）
-Primary     mean(d_i)
-CI          按种子 cluster bootstrap 10,000 次，95%
-R           joint same-seed bootstrap 10,000 次，逐 replicate 施加 abs 与除法
-分析种子    8181（固定，落盘）
+pairing        per seed d_i = C_Volatile,i − C_Stable,i (same-seed twins)
+primary        mean(d_i)
+CI             cluster bootstrap by seed, 10,000 times, 95%
+R              joint same-seed bootstrap 10,000 times, abs and division applied per replicate
+analysis seed  8181 (fixed, persisted)
 ```
 
-⚠ 双胞胎共享 novel task 的奖励表与 softmax 抽样 `u_t` ——
-这是 **common random numbers / counterfactual pairing 的方差缩减设计**，
-**不是**假装现实中两个 agent 会共享随机数。必须在 Methods 说明。
+⚠ The twins share the novel task's reward table and the softmax draw `u_t` — this is a
+**common random numbers / counterfactual pairing variance reduction design**, **not** a pretence
+that two agents share random numbers in reality. It must be stated in the Methods.
 
-### 提前套用规则 56（可判定性）
+### Applying rule 56 (decidability) in advance
 
-`CI 是否越过 −1` 又是一条 bright line。**彩排阶段**（已烧种子）要换 8 个分析
-随机种子重跑；若判读会被分析随机种子左右，**在跑 FINAL 之前**把边界宽度
-取 ≥10 × 实测 MC SD 写成三值判读。**绝不事后改。**
+"Does the CI clear −1" is another bright line. **At the rehearsal stage** (on burned seeds) it must
+be re-run with 8 analysis random seeds; if the verdict would be decided by the analysis random
+seed, a three-valued verdict with a boundary width of ≥10 × the measured MC SD must be written in
+**before FINAL is run**. **Never afterwards.**
 
 ---
 
-## 11. ★ Validity gates（判读顺序：先于 outcome）★
+## 11. ★ Validity gates (reading order: before the outcome) ★
 
-按顺序执行，**全部通过之后才允许计算 ΔC**：
+Executed in order; **ΔC may only be computed once all of them pass**:
 
-### G1 acquisition manipulation check（构造性）
-
-```
-trial < 44 两条件逐位相同                              必须成立
-总 trial 数 / 总 reward opportunity / first-good side  必须逐位相等
-```
-
-### G2 interface capacity transport（★ group-blind ★）
-
-在 **FINAL 块**上重算 empirical m 分布（**pooled、含 m=0、排序，label 丢弃**），
-用 λ=0 的 frozen decision states 重算四个 capacity 读数：
+### G1 acquisition manipulation check (constructive)
 
 ```
-P(推后饱和) ≤ 0.05     median|Δp| ≥ 0.02
-P(翻转偏好) ≤ 0.25     max(realized exposure @ m10/m50/m90) ≤ 20/80
+bit-identical across the two conditions for trial < 44          must hold
+total trials / total reward opportunity / first-good side       must be bit-equal
 ```
 
-⚠ 这一步**不会**泄露分组：label 在输入处即被丢弃。
+### G2 interface capacity transport (★ group-blind ★)
 
-**失败时的固定措辞：**
+Recompute the empirical m distribution on the **FINAL block** (**pooled, m=0 included, sorted,
+label discarded**), and recompute the four capacity readings on the λ=0 frozen decision states:
+
+```
+P(saturated after push) ≤ 0.05     median|Δp| ≥ 0.02
+P(preference flip) ≤ 0.25          max(realized exposure @ m10/m50/m90) ≤ 20/80
+```
+
+⚠ This step **cannot** leak the grouping: the label is discarded at the input.
+
+**The fixed wording on failure:**
 
 > Interface capacity calibrated on the development block did not transport to
 > the confirmatory population; the memory channel is not cleanly interpretable
 > under the preregistered capacity constraints.
 
-⛔ gate 失败**不许重估 λ**。
+⛔ A gate failure **must not** lead to re-estimating λ.
 
 ### G3 integrity assertions
 
 ```
-DELETE ΔC ≡ 0（逐种子）        SWAP ΔC ≡ −ΔC(OWN)（逐种子）
+DELETE ΔC ≡ 0 (per seed)        SWAP ΔC ≡ −ΔC(OWN) (per seed)
 ```
 
-任一失败 → **整批作废**（说明发育史存在记忆以外的泄漏通路）。
+Either failing → **the whole batch is void** (it would mean the developmental history has a
+leakage path besides memory).
 
 ---
 
-## 12. ★ 种子账本与 FINAL 块 ★
+## 12. ★ Seed ledger and the FINAL block ★
 
 ```
-0–1499          development（029 的全部探针、校准、rehearsal 都在 0–399）
-10000–11499     021 留出集 / 028 transport rehearsal
-20000–21499     022 预注册段 / 027 + 028 group-blind calibration
+0–1499          development (every 029 probe, calibration and rehearsal lives in 0–399)
+10000–11499     021 holdout set / 028 transport rehearsal
+20000–21499     022 preregistration block / 027 + 028 group-blind calibration
 50000–51499     v3 / 025 persistence FINAL
 60000–61499     027 novel-task FINAL
 70000–71499     028 breadth FINAL
 80000–81499     ★ 029 FINAL ★
 ```
 
-### 029 FINAL CONFIRMATORY BLOCK
+### The 029 FINAL CONFIRMATORY BLOCK
 
 ```
 seed0 = 80000     N = 1500     seeds = 80000–81499
 ```
 
-- **仅用于 Experiment 029 FINAL**
-- **禁止**用于 calibration / transport / rehearsal / parameter selection
-- **一旦任何 agent trajectory 被正式生成，该 block 视为 burned**
+- **for Experiment 029 FINAL only**
+- **forbidden** for calibration / transport / rehearsal / parameter selection
+- **once any agent trajectory has been officially generated, the block counts as burned**
 
-已核实：整个仓库与实验记录中 `80000` 只出现在
-"untouched / 不碰 / 预留"这类说明里，**没有任何 simulation 路径使用过这一段**。
+Verified: throughout the repository and the experiment log, `80000` appears only in notes of the
+"untouched / do not touch / reserved" kind, and **no simulation path has ever used this block**.
 
-### 工程保护（runner 必须实现，沿用 028 那套）
+### Engineering protections (the runner must implement these, following 028's set)
 
-1. **Seed guard** —— `--final` 只接受 `seed0=80000, N=1500`，其他值直接拒绝
-2. **One-shot lock** —— `final_029_STARTED.lock` 一旦创建，
-   **哪怕后续崩溃，该 seed block 永久 burned**；`final_029_result.txt`
-   已存在则拒绝再次运行
-3. **Preflight ledger print** —— 开始前打印并落盘完整种子账本
-4. 任务指纹 `26778f672e9e7009` + 冻结常量校验，任一不符即拒绝运行
-5. 落盘 `MEMORY_LAMBDA`、四个 gate 值、分析种子、各模块 sha256
+1. **Seed guard** — `--final` accepts only `seed0=80000, N=1500` and rejects anything else outright
+2. **One-shot lock** — once `final_029_STARTED.lock` is created, **that seed block is permanently
+   burned even if the run subsequently crashes**; if `final_029_result.txt` already exists, refuse
+   to run again
+3. **Preflight ledger print** — print and persist the full seed ledger before starting
+4. the task fingerprint `26778f672e9e7009` + the frozen-constant check, refusing to run on any mismatch
+5. persist `MEMORY_LAMBDA`, the four gate values, the analysis seed, and the sha256 of each module
 
 ---
 
 ## 13. ★★ Closure rule ★★
 
-> **一旦看到 80000–81499 的 Stable/Volatile 结果，不允许再改：**
-> architecture（memory-only / NeutralBody）、acquisition 参数、retrieval 规则、
-> λ、capacity gates、primary endpoint、SESOI、三档判读、SHUFFLE 判据、
-> XSEED-DONOR 定义、extensive margin 口径、统计程序、种子块。
+> **Once the Stable/Volatile result of 80000–81499 has been seen, none of the following may be changed:**
+> the architecture (memory-only / NeutralBody), the acquisition parameters, the retrieval rules,
+> λ, the capacity gates, the primary endpoint, the SESOI, the three-way reading, the SHUFFLE
+> criterion, the XSEED-DONOR definition, the extensive-margin convention, the statistical
+> procedure, the seed block.
 >
-> **Primary 失败就是失败。**
+> **If the primary fails, it fails.**
 
-失败后可做 exploratory analysis，但**只能标为 exploratory**。
+Exploratory analysis after a failure is allowed, but **may only be labelled exploratory**.
 
 ---
 
-## 14. 事前预测（跑前写下，跑完照抄对比）
+## 14. Prior predictions (written before the run, copied verbatim for comparison afterwards)
 
-| 项 | 预测 |
+| Item | Prediction |
 |---|---|
-| ΔC 方向 | 预测 **< 0**（Volatile 型记忆更有帮助）—— 这是**有方向的**预测，与 027/028 的双侧不同 |
-| ΔC 是否越过 SESOI = 1.0 | **未知** —— 这是本实验唯一真正未知的一项。开发块 −0.927 就在门槛下方 |
-| G1 / G3 | 必过（构造性 + 已在开发块通过） |
-| G2 capacity transport | 预计通过（开发块四项均有余量） |
-| SHUFFLE R | 点估计预计 ≈ 0.1；CI 上界能否 < 0.25 **不预设**（功效尺度检查提示 N=1500 下约 `[0.014, 0.182]`，但那不是保证） |
-| ΔC_OWN ≈ 0 的情形 | 则按 §6.3.2 **不判** SHUFFLE，只描述性报告 R |
-| XSEED-DONOR | 预计保留 OWN 的 ≥ 80% |
-| memory completeness | 预计 Stable ≈ 66%、Volatile ≈ 73% |
+| ΔC direction | predicted **< 0** (a Volatile-type memory helps more) — a **directional** prediction, unlike the two-sided ones of 027/028 |
+| Does ΔC clear SESOI = 1.0 | **unknown** — the only genuinely unknown item in this experiment. The development block's −0.927 sits just under the threshold |
+| G1 / G3 | must pass (constructive + already passing on the development block) |
+| G2 capacity transport | expected to pass (all four items have margin on the development block) |
+| SHUFFLE R | point estimate expected ≈ 0.1; whether the CI upper bound clears 0.25 is **not assumed** (the power-scale check suggests about `[0.014, 0.182]` at N=1500, but that is no guarantee) |
+| the case ΔC_OWN ≈ 0 | then, per §6.3.2, **no SHUFFLE verdict** is given and R is reported descriptively |
+| XSEED-DONOR | expected to retain ≥ 80% of OWN |
+| memory completeness | expected Stable ≈ 66%, Volatile ≈ 73% |
 
 ---
 
-## 15. 措辞纪律
+## 15. Wording discipline
 
-- ⛔ **不许写** *analogical reasoning* / agent "理解了结构 / 理解了因果"
-- ⛔ **不许写** *generalized individuality*
-- ⛔ **不许**把 DELETE / within-seed SWAP 写成因果证据（规则 93）
-- ⛔ **不许**把 `m ≠ 0` 叫 memory availability（§9）
-- ⛔ **不许**只报 complete-only 的分离度（规则 91）
-- ✅ 可写：**retrieval-conditioned adaptation to a surface-novel task**
-- ✅ 可写：**memory-mediated transfer**（若 primary 达标）
-- ✅ 必须在 Methods 说明 common random numbers 的方差缩减设计
-- ✅ 必须说明 λ 是 group-blind capacity calibration 冻结的，并附 selection rule 原文
+- ⛔ **Must not write** *analogical reasoning* / that the agent "understood the structure / understood the causality"
+- ⛔ **Must not write** *generalized individuality*
+- ⛔ **Must not** present DELETE / within-seed SWAP as causal evidence (rule 93)
+- ⛔ **Must not** call `m ≠ 0` memory availability (§9)
+- ⛔ **Must not** report the complete-only separation alone (rule 91)
+- ✅ May write: **retrieval-conditioned adaptation to a surface-novel task**
+- ✅ May write: **memory-mediated transfer** (if the primary is met)
+- ✅ The Methods section must explain the common-random-numbers variance reduction design
+- ✅ It must be stated that λ was frozen by a group-blind capacity calibration, with the selection
+  rule quoted verbatim
 
 ---
 
-## 附：029 与 027/028 的关系（写进 Discussion）
+## Appendix: how 029 relates to 027/028 (goes into the Discussion)
 
-027 + 028 已经确立：
+027 + 028 have already established:
 
 > **Persistent individuality ≠ automatically functional generalization.**
 
-029 **不推翻**它，而是把问题换掉：不再问"过去塑造出的性格会不会神奇地帮助
-任何新问题"，而是严格测试一条具体机制 ——
+029 **does not overturn** that; it replaces the question. Instead of asking "will the personality
+shaped by the past magically help with any new problem", it rigorously tests one specific
+mechanism —
 
-> 相同的异常经历，因为后来在不同世界里得到不同结果，是否能形成不同的
-> **关系性记忆**；而这份记忆，是否能在**表面陌生但结构相似**的未来问题里
-> **减少实际错误**。
+> whether the same anomalous experience, because it later turned out differently in different
+> worlds, can form different **relational memories**; and whether that memory can **reduce actual
+> errors** on a future problem that is **superficially unfamiliar but structurally similar**.
 
-若 029 也 ≈ 0：核心命题**加强**为"即使给它一条真正的 episodic 检索通道、
-且该通道的接口容量已被独立校准为充分，持久个体差异仍然几乎不携带
-可复制的功能迁移"。**两个方向都有信息量** —— 这一段在跑数之前写死，
-防止事后为了拿阳性而回头改设计。
+If 029 also comes out ≈ 0, the core proposition is **strengthened** into "even when given a
+genuine episodic retrieval channel whose interface capacity has been independently calibrated as
+sufficient, persistent individual differences still carry almost no replicable functional
+transfer". **Both directions are informative** — this paragraph is fixed in writing before the
+numbers are run, to prevent going back and changing the design in order to obtain a positive.
