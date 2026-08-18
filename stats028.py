@@ -1,50 +1,50 @@
 """
-028 统计层 —— joint same-seed bootstrap + validity gates
-=========================================================
+028 statistics layer — joint same-seed bootstrap + validity gates
+=================================================================
 
-自检：  python stats028.py
+Self-check:  python stats028.py
 
-★★ 唯一正确的推断方式 ★★
-五个臂来自**同一批配对种子**，彼此高度相关。所以 `G` 的 CI **必须**在
-**每个 bootstrap replicate 内部**完整重算：
+★★ The only correct way to do the inference ★★
+The five arms come from **the same batch of paired seeds** and are highly correlated. So the CI of `G` **must**
+be recomputed in full **inside each bootstrap replicate**:
 
-    每个 replicate b：
-        idx = 重采样一次种子下标（★五臂共用同一组 idx★）
-        E_A^(b), E_Bp^(b), E_Bm^(b), E_Cp^(b), E_Cm^(b)  ← 都用这组 idx
+    for each replicate b:
+        idx = resample the seed indices once (★the same idx shared by all five arms★)
+        E_A^(b), E_Bp^(b), E_Bm^(b), E_Cp^(b), E_Cm^(b)  ← all using that idx
         G^(b)  = min(|E_Cp^(b)|, |E_Cm^(b)|) − |E_A^(b)|
         R_B^(b)= min(|E_Bp^(b)|, |E_Bm^(b)|)
-    CI 直接取自 {G^(b)} 与 {R_B^(b)} 的分布
+    the CI is taken directly from the distributions of {G^(b)} and {R_B^(b)}
 
-⛔ **两类等价的错误做法，本模块用对抗性测试显式让它们失败：**
-   ① 分别算 A / C+ / C− 的 marginal CI，再拿端点相减
-   ② 先对各臂求 bootstrap 均值，再套 abs() / min()
-   两者都忽略了臂间相关，而 `G` 含 `abs` 与 `min`，是**非线性**的 ——
-   非线性函数必须逐 replicate 施加，不能施加在汇总量上。
+⛔ **Two equivalent wrong approaches, which this module makes fail explicitly through adversarial tests:**
+   ① compute the marginal CIs of A / C+ / C− separately, then subtract the endpoints
+   ② take the bootstrap mean of each arm first, then apply abs() / min()
+   Both ignore the inter-arm correlation, and since `G` contains `abs` and `min` it is **non-linear** —
+   a non-linear function must be applied per replicate, never to an aggregate.
 
-★ validity gates（跑前冻结）★
-    support gate           raw 越界 ≤ 2.0%  且  boundary mass ≤ 2.0%
-    budget-transport gate  |μ_j − μ_A|/SD_A ≤ 10%  且  |SD_j − SD_A|/SD_A ≤ 10%
-    ⚠ μ_A / SD_A 必须是**同一批 confirmatory population 上实际跑出来的 A 臂**，
-      不是 calibration 的 A —— 这样 population shift 自动被消掉。
+★ validity gates (frozen before the run) ★
+    support gate           raw out-of-range ≤ 2.0%  and  boundary mass ≤ 2.0%
+    budget-transport gate  |μ_j − μ_A|/SD_A ≤ 10%  and  |SD_j − SD_A|/SD_A ≤ 10%
+    ⚠ μ_A / SD_A must be **arm A as actually run on the same confirmatory population**,
+      not calibration's A — that way any population shift cancels automatically.
 
-★ gate 失败的分层处理 ★
-    C+ 或 C− 任一失败 → primary G **invalid / not cleanly interpretable**，
-                        既不许声称 breadth gain，也不许声称 no-gain
-    B+ 或 B− 失败     → R_B secondary invalid；**若 C± 都通过，G 不受影响**
-    A 没有 mapping transport gate（它就是 contemporaneous reference），
-                        仍做 027 exact-replication 与 sampling-level replication
+★ Layered handling of a gate failure ★
+    either C+ or C− fails → the primary G is **invalid / not cleanly interpretable**;
+                            neither a breadth gain nor a no-gain may be claimed
+    B+ or B− fails        → R_B secondary invalid; **if both C± pass, G is unaffected**
+    A has no mapping transport gate (it is the contemporaneous reference itself),
+                            but still undergoes the 027 exact-replication and sampling-level replication checks
 
-★ 判读顺序 ★ **gates 必须先于 task outcome 打印和判定** ——
-  哪怕代码已经把 outcome 算出来了，也要先判 validity，
-  避免看到结果之后产生解释自由度。
+★ Reading order ★ **The gates must be printed and judged before the task outcome** —
+  even if the code has already computed the outcome, validity is judged first,
+  to avoid the interpretive freedom that comes from having seen the result.
 """
 
 import random
 import statistics as st
 import sys
 
-SUPPORT_GATE = 0.02        # raw 越界比例 / boundary mass 上限
-BUDGET_GATE = 0.10         # |Δμ| 与 |ΔSD| 相对 SD_A 的上限
+SUPPORT_GATE = 0.02        # upper bound on the raw out-of-range share / boundary mass
+BUDGET_GATE = 0.10         # upper bound on |Δμ| and |ΔSD| relative to SD_A
 N_BOOT = 10000
 BOOT_SEED = 20260817
 
@@ -56,7 +56,7 @@ CLOSURE_TEXT = (
 
 # ------------------------------------------------------------------ gates
 def check_gates(diag, muA, sdA):
-    """diag[arm] = {'oos':比例, 'boundary':比例, 'mu':均值, 'sd':标准差}"""
+    """diag[arm] = {'oos': share, 'boundary': share, 'mu': mean, 'sd': standard deviation}"""
     out = {}
     for arm, d in diag.items():
         sup_ok = d["oos"] <= SUPPORT_GATE and d["boundary"] <= SUPPORT_GATE
@@ -72,18 +72,18 @@ def check_gates(diag, muA, sdA):
 
 # ------------------------------------------------- joint same-seed bootstrap
 def joint_bootstrap(d, n_boot=N_BOOT, seed=BOOT_SEED):
-    """d[arm] = 逐种子的配对差（五臂等长、按种子对齐）。
+    """d[arm] = per-seed paired differences (five arms of equal length, aligned by seed).
 
-    ★每个 replicate 只抽一次下标，五臂共用★ —— 这是唯一正确利用
-    same-seed 设计的方式。`G` 的非线性在**每个 replicate 内部**施加。
+    ★Each replicate draws the indices once, shared by all five arms★ — the only correct way to exploit
+    the same-seed design. The non-linearity of `G` is applied **inside each replicate**.
     """
     arms = list(d)
     n = len(d[arms[0]])
-    assert all(len(d[a]) == n for a in arms), "各臂长度不一致"
+    assert all(len(d[a]) == n for a in arms), "the arms have different lengths"
     rng = random.Random(seed)
     G, RB, E = [], [], {a: [] for a in arms}
     for _ in range(n_boot):
-        idx = [rng.randrange(n) for _ in range(n)]          # ★共用★
+        idx = [rng.randrange(n) for _ in range(n)]          # ★shared★
         e = {a: st.mean(d[a][i] for i in idx) for a in arms}
         for a in arms:
             E[a].append(e[a])
@@ -101,18 +101,18 @@ def ci(vals, lo=0.025, hi=0.975):
 
 
 def point_G(d):
-    """点估计：同样在【原始样本】上完整施加非线性，不走任何汇总量"""
+    """Point estimate: apply the non-linearity in full on the **original sample** too, never on an aggregate"""
     e = {a: st.mean(d[a]) for a in d}
     return min(abs(e["Cp"]), abs(e["Cm"])) - abs(e["A"])
 
 
-# ------------------------------------------------------------ 对抗性回归测试
+# ------------------------------------------------------------ adversarial regression tests
 def _wrong_endpoint_subtraction(d, n_boot=N_BOOT, seed=BOOT_SEED):
-    """⛔ 错误做法①：各臂分别 bootstrap 出 marginal CI，再拿端点相减"""
+    """⛔ Wrong approach ①: bootstrap a marginal CI per arm, then subtract the endpoints"""
     rng = random.Random(seed)
     n = len(d["A"])
     marg = {a: [] for a in d}
-    for a in d:                                   # ★各臂各抽各的★ ← 错在这
+    for a in d:                                   # ★each arm draws its own★ ← the mistake is here
         for _ in range(n_boot):
             idx = [rng.randrange(n) for _ in range(n)]
             marg[a].append(st.mean(d[a][i] for i in idx))
@@ -124,16 +124,16 @@ def _wrong_endpoint_subtraction(d, n_boot=N_BOOT, seed=BOOT_SEED):
 
 
 def _wrong_abs_after_average(boot):
-    """⛔ 错误做法②：先对各臂求 bootstrap 均值，再套 abs()/min()"""
+    """⛔ Wrong approach ②: take the bootstrap mean of each arm first, then apply abs()/min()"""
     e = {a: st.mean(v) for a, v in boot["E"].items()}
     return min(abs(e["Cp"]), abs(e["Cm"])) - abs(e["A"])
 
 
 def _test_joint_vs_endpoint_subtraction():
-    """★对抗性测试★ 构造 A 与 C 高度相关的数据，让端点相减显式失败"""
+    """★Adversarial test★ construct data where A and C are highly correlated, making endpoint subtraction fail explicitly"""
     rng = random.Random(4242)
     n = 800
-    base = [rng.gauss(0.5, 1.0) for _ in range(n)]        # 共同成分（很大）
+    base = [rng.gauss(0.5, 1.0) for _ in range(n)]        # the common component (large)
     d = {
         "A": [b + rng.gauss(0, 0.05) for b in base],
         "Cp": [b + rng.gauss(0, 0.05) for b in base],
@@ -146,40 +146,40 @@ def _test_joint_vs_endpoint_subtraction():
     wlo, whi = _wrong_endpoint_subtraction(d, n_boot=4000, seed=7)
     jw, ww = jhi - jlo, whi - wlo
     assert jw < 0.5 * ww, (
-        f"✗ 对抗性构造失败：joint 宽度 {jw:.4f} 未显著窄于端点相减 {ww:.4f}")
-    # 端点相减必须包含 joint CI 明确排除的值
+        f"✗ the adversarial construction failed: joint width {jw:.4f} is not clearly narrower than endpoint subtraction's {ww:.4f}")
+    # Endpoint subtraction must include values the joint CI clearly excludes
     outside = [x for x in (wlo, whi) if x < jlo or x > jhi]
-    assert outside, "✗ 端点相减未给出 joint CI 排除的值"
-    print(f"  ✓ 对抗性测试：joint CI 宽 {jw:.4f}，端点相减宽 {ww:.4f}"
-          f"（{ww/jw:.1f}× 虚宽）—— 旧方法已显式失败")
+    assert outside, "✗ endpoint subtraction produced no value excluded by the joint CI"
+    print(f"  ✓ adversarial test: joint CI width {jw:.4f}, endpoint subtraction width {ww:.4f}"
+          f" ({ww/jw:.1f}× too wide) — the old method fails explicitly")
 
 
 def _test_abs_after_average_is_wrong():
-    """abs/min 必须逐 replicate 施加，不能施加在汇总量上"""
+    """abs/min must be applied per replicate, never to an aggregate"""
     rng = random.Random(99)
     n = 500
-    d = {"A": [rng.gauss(0.0, 1.0) for _ in range(n)],     # 真值 ≈ 0 → abs 有偏
+    d = {"A": [rng.gauss(0.0, 1.0) for _ in range(n)],     # true value ≈ 0 → abs is biased
          "Cp": [rng.gauss(0.0, 1.0) for _ in range(n)],
          "Cm": [rng.gauss(0.0, 1.0) for _ in range(n)]}
     boot = joint_bootstrap(d, n_boot=4000, seed=11)
     right = st.mean(boot["G"])
     wrong = _wrong_abs_after_average(boot)
-    assert abs(right - wrong) > 1e-6, "两种做法竟然一致？构造无效"
-    print(f"  ✓ 逐 replicate 施加非线性 {right:+.5f}"
-          f" ≠ 先平均再 abs/min {wrong:+.5f}（差 {abs(right-wrong):.5f}）")
+    assert abs(right - wrong) > 1e-6, "the two approaches somehow agree? the construction is invalid"
+    print(f"  ✓ non-linearity applied per replicate {right:+.5f}"
+          f" ≠ averaging first then abs/min {wrong:+.5f} (difference {abs(right-wrong):.5f})")
 
 
 def _test_shared_indices():
-    """五臂必须共用同一组重采样下标 —— 用完全相同的数据验证"""
+    """The five arms must share one set of resampling indices — verified with completely identical data"""
     n = 300
     same = [float(i) for i in range(n)]
     d = {"A": list(same), "Cp": list(same), "Cm": list(same)}
     boot = joint_bootstrap(d, n_boot=500, seed=5)
     for a in ("Cp", "Cm"):
         assert boot["E"][a] == boot["E"]["A"], \
-            "✗ 相同数据在不同臂上给出不同 bootstrap 轨迹 —— 下标没共用"
-    assert all(abs(g) < 1e-12 for g in boot["G"]), "✗ G 应恒为 0"
-    print("  ✓ 五臂共用同一组重采样下标（相同数据 → 逐 replicate 相同）")
+            "✗ identical data gave different bootstrap trajectories across arms — the indices are not shared"
+    assert all(abs(g) < 1e-12 for g in boot["G"]), "✗ G should be identically 0"
+    print("  ✓ the five arms share one set of resampling indices (identical data → identical per replicate)")
 
 
 def _test_gates():
@@ -191,21 +191,21 @@ def _test_gates():
     bad = {"Cp": dict(good["Cp"], mu=muA + 0.0020)}       # Δμ = 16% SD_A
     g, pv2, _ = check_gates(bad, muA, sdA)
     assert not pv2 and not g["Cp"]["budget"]
-    # B 失败不得拖累 primary
+    # A B failure must not drag down the primary
     mix = {"Cp": good["Cp"], "Cm": good["Cp"],
            "Bp": dict(good["Cp"], oos=0.05), "Bm": good["Cp"]}
     g3, pv3, sv3 = check_gates(mix, muA, sdA)
-    assert pv3 and not sv3, "✗ B 臂失败不应使 primary G 失效"
-    print("  ✓ gates：C± 失败 → primary invalid；B± 失败 → 仅 secondary invalid")
+    assert pv3 and not sv3, "✗ an arm-B failure should not invalidate the primary G"
+    print("  ✓ gates: C± failure → primary invalid; B± failure → secondary invalid only")
 
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("028 统计层自检")
+    print("028 statistics-layer self-check")
     _test_shared_indices()
     _test_joint_vs_endpoint_subtraction()
     _test_abs_after_average_is_wrong()
     _test_gates()
-    print(f"\n冻结阈值：support ≤ {SUPPORT_GATE:.0%}  boundary ≤ {SUPPORT_GATE:.0%}"
+    print(f"\nFrozen thresholds: support ≤ {SUPPORT_GATE:.0%}  boundary ≤ {SUPPORT_GATE:.0%}"
           f"  |Δμ|,|ΔSD| ≤ {BUDGET_GATE:.0%} × SD_A")
-    print("全部通过。")
+    print("All passed.")

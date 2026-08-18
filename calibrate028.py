@@ -1,54 +1,54 @@
 """
-实验 028 常数冻结 —— ★ group-blind ★
-=====================================
+Experiment 028 constant freezing — ★ group-blind ★
+==================================================
 
-运行：  python calibrate028.py          → 写出 interface028_frozen.json
+Run:  python calibrate028.py          → writes interface028_frozen.json
 
-★★ 结构性 group-blind ★★
-只收集 traits 三元组，**不带任何世界标签**；`_assert_blind()` 强制检查
-池子里没有可用于分组的字段。本脚本**物理上算不出 rich/poor 差异**。
+★★ Structural group-blindness ★★
+Only trait triples are collected, **with no world label of any kind**; `_assert_blind()` enforces that the pool
+contains no field usable for grouping. This script **physically cannot compute a rich/poor difference**.
 
 --------------------------------------------------------------------------
-要冻结什么（五个问题一次解决）
---------------------------------------------------------------------------
-① **负 beta** —— 不用"线性缩放 + 钳位"，改用 **quantile mapping**：
-   把每个 readout 的排序映射到 **A 臂（027 原接口）的冻结 beta 边际分布**。
-   于是 support / mean / SD / 偏度 / 尾部 / 钳位率 **全部与 A 相同**，
-   负 beta 问题**不存在**，也不需要解释"主动回避未知项"。
+What is frozen (five problems solved at once)
+---------------------------------------------
+① **Negative beta** — instead of "linear rescale + clamp", use **quantile mapping**:
+   map the ordering of each readout onto the **frozen beta marginal of arm A (the original 027 interface)**.
+   Support / mean / SD / skew / tails / clamp rate are then **all identical to A**, the negative-beta problem
+   **does not exist**, and there is no need to explain "actively avoiding the unknown option".
 
-② **C+ / C− 预算不等** —— quantile mapping 之后**自动消失**：
-   两者都获得 A 的整条边际分布，**唯一剩下的差异是"哪些 agent 拿到较大的
-   beta"**（排序），这正是我们要比较的东西。
+② **Unequal C+ / C− budgets** — this **disappears automatically** after quantile mapping:
+   both receive A's entire marginal distribution, and **the only remaining difference is which agents get the
+   larger beta** (the ordering), which is exactly what we want to compare.
 
-③ **共线性** —— 实测 `corr(x_A, industry) = −0.8781`，raw industry 基本是
-   A 的反向镜像。若直接用它，`C− = A − B ≈ 2A`，标准化后又变回很像 A，
-   **测到的不是 breadth 而是两个共线变量的加减**。
-   所以正式 breadth test 用 **正交残差（OLS 残差）**：
+③ **Collinearity** — measured `corr(x_A, industry) = −0.8781`, so raw industry is essentially A's mirror image.
+   Using it directly gives `C− = A − B ≈ 2A`, which after standardisation looks a lot like A again, and
+   **what is measured is not breadth but the sum and difference of two collinear variables**.
+   So the formal breadth test uses the **orthogonal residual (OLS residual)**:
 
        slope = Cov(a_ord, x_B) / Var(a_ord)
-       x_B⊥  = (x_B − slope · a_ord) / SD(残差)
+       x_B⊥  = (x_B − slope · a_ord) / SD(residual)
 
-   ⚠ **不要用** `(x_B − ρ·x_A)/√(1−ρ²)` —— 那个公式只在两者**都已标准化**
-     时才正交；实测 σ(curiosity)=20.87、σ(caution)=29.55，套那个公式会
-     **残留 +0.8629 的相关**（被断言抓到过，见规则 81）。
+   ⚠ **Do not use** `(x_B − ρ·x_A)/√(1−ρ²)` — that formula is orthogonal only when **both are already
+     standardised**; measured σ(curiosity)=20.87, σ(caution)=29.55, so applying it leaves a **residual
+     correlation of +0.8629** (caught by an assertion; see rule 81).
 
-   ⚠ 正交化的基准必须是 **a_ord = curiosity − caution**，即
-     **A 臂 beta 实际的排序变量**，而不是 `z(cur) − z(cau)`。
-     因为 A 的 beta = clamp((cur−cau+100)/200) 是 **raw 差**的单调函数；
-     而 σ_cur ≠ σ_cau，所以 z 差与 raw 差**排序并不相同**
-     （Spearman 0.9999，接近但不等于 1）。
-     quantile mapping 完全是**基于排序**的，所以必须对齐排序变量。
-   B 的含义随之变精确：**不是"industry 能不能迁移"，而是
-   "industry 中不被 exploration 轴解释的那部分历史信息能不能迁移"。**
+   ⚠ The basis of the orthogonalisation must be **a_ord = curiosity − caution**, i.e.
+     **the variable that actually orders arm A's beta**, not `z(cur) − z(cau)`.
+     A's beta = clamp((cur−cau+100)/200) is a monotone function of the **raw difference**;
+     and since σ_cur ≠ σ_cau, the z difference and the raw difference **do not order identically**
+     (Spearman 0.9999, close to but not equal to 1).
+     Quantile mapping is entirely **ordering-based**, so it must be aligned to the ordering variable.
+   The meaning of B sharpens accordingly: **not "can industry transfer" but "can the part of industry's
+   historical information that the exploration axis does not explain transfer".**
 
-④ **符号任意性** —— 正交化后 B⊥ 更没有天然方向，所以双符号全跑。
+④ **Sign arbitrariness** — after orthogonalisation B⊥ has even less of a natural direction, so both signs are run.
 
-⑤ **A 保持 027 原样** —— A 不重新标准化，其余臂来适配它。
-   A 因而是货真价实的 **sampling-level replication arm**（规则 80）。
+⑤ **A stays exactly as in 027** — A is not re-standardised; the other arms adapt to it.
+   A is therefore a genuine **sampling-level replication arm** (rule 80).
 
 --------------------------------------------------------------------------
-⚠ 所有常数只在 calibration block（20000–21499）上估一次并冻结，
-   **final 阶段只应用、绝不重估**。
+⚠ Every constant is estimated once on the calibration block (20000–21499) and frozen;
+   **the final stage only applies them and never re-estimates.**
 """
 
 import hashlib
@@ -59,17 +59,17 @@ import statistics as st
 
 import novel_task as NT
 
-WA, WB = "丰富世界", "贫瘠世界"
+WA, WB = "rich world", "barren world"
 CAL_SEED0, CAL_N = 20000, 1500
 CHUNK = 25
-RANK_GATE = 0.05     # ★practical redundancy gate★ 看幅度，不做显著性检验
-                     #  （n=2936 下极小的相关也可能"显著"）
+RANK_GATE = 0.05     # ★practical redundancy gate★ judged by magnitude, with no significance test
+                     #  (at n=2936 even a tiny correlation can be "significant")
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                    "interface028_frozen.json")
 
 
 def task(job):
-    """★ 只回传 traits 三元组，无任何世界标签 ★"""
+    """★ Returns only the trait triple, with no world label whatsoever ★"""
     world, seed0, n = job
     import novel_situation as NS
     sim = NS.sim
@@ -85,7 +85,7 @@ def task(job):
         ok, _ = NS.run_window(life, 0, 30)
         if not ok:
             continue
-        w = sim.World(s, **NS.scenarios.WORLDS["基准"])
+        w = sim.World(s, **NS.scenarios.WORLDS["baseline"])
         ok, _ = NS.run_window(life, 30, 30, world=w)
         if not ok:
             continue
@@ -100,10 +100,10 @@ def _dispatch(j):
 
 
 def _assert_blind(pool):
-    """池子必须只是 [cur, cau, ind] 的裸三元组 —— 没有任何可分组字段"""
+    """The pool must be nothing but bare [cur, cau, ind] triples — no groupable field at all"""
     for r in pool[:100]:
         assert isinstance(r, list) and len(r) == 3 and all(
-            isinstance(v, float) for v in r), f"✗ group-blind 被破坏：{r}"
+            isinstance(v, float) for v in r), f"✗ group-blindness broken: {r}"
 
 
 def main():
@@ -118,7 +118,7 @@ def main():
     _assert_blind(pool)
     n = len(pool)
     print(f"★ group-blind ★ calibration pool n={n}"
-          f"（seeds {CAL_SEED0}–{CAL_SEED0+CAL_N-1}，两世界混合，无标签）")
+          f" (seeds {CAL_SEED0}–{CAL_SEED0+CAL_N-1}, two worlds mixed, unlabelled)")
 
     cur = [p[0] for p in pool]
     cau = [p[1] for p in pool]
@@ -128,30 +128,30 @@ def main():
     mi, si = st.mean(ind), st.stdev(ind)
 
     z = lambda v, m, s: (v - m) / s
-    # ★正交化基准 = A 臂 beta 的【实际排序变量】★（见 docstring 的说明）
+    # ★Orthogonalisation basis = the **variable that actually orders** arm A's beta★ (see the docstring)
     a_ord = [p[0] - p[1] for p in pool]
     m_ao, s_ao = st.mean(a_ord), st.stdev(a_ord)
-    xA = [(v - m_ao) / s_ao for v in a_ord]          # 标准化后的 A 轴
+    xA = [(v - m_ao) / s_ao for v in a_ord]          # the standardised A axis
     xB = [z(p[2], mi, si) for p in pool]
     rho = st.covariance(xA, xB) / (st.stdev(xA) * st.stdev(xB))
-    print(f"  corr(A轴, industry_raw) = {rho:+.4f}"
-          f"   ← raw industry 与 exploration 轴高度共线")
+    print(f"  corr(A axis, industry_raw) = {rho:+.4f}"
+          f"   ← raw industry is highly collinear with the exploration axis")
 
-    # ★正交残差★ 用 OLS 残差，不用 (x_B − ρ·x_A)/√(1−ρ²) ——
-    # 后者只在 x_A、x_B **都已标准化**时才正交，而这里
-    # x_A = z(cur) − z(cau) 的 SD 是 1.93（不是 1），套那个公式会残留 +0.86 的相关。
-    # （这个错误被下面的 assert 抓到过，保留说明以免重犯。）
+    # ★Orthogonal residual★ use the OLS residual, not (x_B − ρ·x_A)/√(1−ρ²) —
+    # the latter is orthogonal only when x_A and x_B are **both standardised**, and here
+    # x_A = z(cur) − z(cau) has SD 1.93 (not 1), so that formula leaves a residual correlation of +0.86.
+    # (That mistake was caught by the assert below; the note is kept so it is not repeated.)
     slope = st.covariance(xA, xB) / st.variance(xA)
     xBo_raw = [b - slope * a for a, b in zip(xA, xB)]
     s_res = st.stdev(xBo_raw)
-    xBo = [v / s_res for v in xBo_raw]                     # 缩放到单位方差
+    xBo = [v / s_res for v in xBo_raw]                     # rescale to unit variance
     rho2 = st.covariance(xA, xBo) / (st.stdev(xA) * st.stdev(xBo))
-    print(f"  corr(A轴, B⊥)          = {rho2:+.6f}   ← Pearson 正交化后")
-    assert abs(rho2) < 1e-9, "✗ Pearson 正交化失败"
+    print(f"  corr(A axis, B⊥)          = {rho2:+.6f}   ← after Pearson orthogonalisation")
+    assert abs(rho2) < 1e-9, "✗ Pearson orthogonalisation failed"
 
     # ★★ rank-space redundancy gate ★★
-    # quantile mapping 完全基于排序，所以 Pearson 正交【不够】——
-    # 必须检查真正决定 coupling assignment 的 rank space。
+    # Quantile mapping is entirely ordering-based, so Pearson orthogonality is **not enough** —
+    # the rank space that actually decides the coupling assignment must be checked.
     def _rank(v):
         o = sorted(range(len(v)), key=lambda i: v[i])
         r = [0] * len(v)
@@ -163,21 +163,21 @@ def main():
         ru, rv = _rank(u), _rank(v)
         return st.covariance(ru, rv) / (st.stdev(ru) * st.stdev(rv))
 
-    rho_s = _spearman(a_ord, xBo)      # a_ord 决定 beta_A 的排序
-    print(f"  Spearman(beta_A 排序, B⊥ 排序) = {rho_s:+.4f}"
-          f"   门槛 |ρs| < {RANK_GATE}")
+    rho_s = _spearman(a_ord, xBo)      # a_ord decides the ordering of beta_A
+    print(f"  Spearman(beta_A ordering, B⊥ ordering) = {rho_s:+.4f}"
+          f"   threshold |ρs| < {RANK_GATE}")
     assert abs(rho_s) < RANK_GATE, (
-        f"✗ rank-space 冗余 {rho_s:+.4f} 超过门槛 —— quantile mapping 后两条"
-        f"接口仍共享大量排序信息，应改用 rank-space / normal-score 残差化")
+        f"✗ rank-space redundancy {rho_s:+.4f} exceeds the threshold — after quantile mapping the two"
+        f" interfaces still share a great deal of ordering information; switch to rank-space / normal-score residualisation")
 
     xCp = [a + b for a, b in zip(xA, xBo)]
     xCm = [a - b for a, b in zip(xA, xBo)]
 
-    # A 臂 = 027 原接口，一动不动
+    # Arm A = the original 027 interface, untouched
     ns = [min(1.0, max(0.0, (p[0] - p[1] + 100.0) / 200.0)) for p in pool]
     betaA = sorted(NT.BETA * v for v in ns)
-    print(f"  A 臂（027 原接口）: μ={st.mean(betaA):.6f}  SD={st.stdev(betaA):.6f}"
-          f"  范围 [{betaA[0]:.6f}, {betaA[-1]:.6f}]")
+    print(f"  arm A (original 027 interface): μ={st.mean(betaA):.6f}  SD={st.stdev(betaA):.6f}"
+          f"  range [{betaA[0]:.6f}, {betaA[-1]:.6f}]")
 
     frozen = {
         "n_cal": n, "cal_seed0": CAL_SEED0, "cal_n": CAL_N,
@@ -195,13 +195,13 @@ def main():
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(frozen, f, ensure_ascii=False)
 
-    print(f"\n  quantile mapping 之后，五个臂的 beta 边际分布【完全相同】")
-    print(f"  （support / mean / SD / 偏度 / 尾部 / 钳位率 全部等于 A）")
-    print(f"  唯一差异 = 哪些 agent 拿到较大的 beta（排序）")
-    print(f"\n已冻结 → {OUT}")
+    print(f"\n  After quantile mapping the beta marginals of the five arms are **completely identical**")
+    print(f"  (support / mean / SD / skew / tails / clamp rate all equal to A's)")
+    print(f"  The only difference = which agents receive the larger beta (the ordering)")
+    print(f"\nFrozen → {OUT}")
     print(f"  sha256 {frozen['sha256'][:32]}…")
-    print(f"  任务指纹 {frozen['task_fingerprint']}")
-    print("\n⚠ final 阶段只应用这些常数，绝不重估。")
+    print(f"  task fingerprint {frozen['task_fingerprint']}")
+    print("\n⚠ The final stage only applies these constants and never re-estimates them.")
 
 
 if __name__ == "__main__":

@@ -1,31 +1,31 @@
 """
-knowledge effective-support audit —— ★ group-blind ★ Probe D 的放行前提
-========================================================================
+knowledge effective-support audit — ★ group-blind ★ the go/no-go precondition for Probe D
+=========================================================================================
 
-运行：  python knowledge_support_audit.py --seeds 300
+Run:  python knowledge_support_audit.py --seeds 300
 
-★ 沿用规则 70 的思想 ★
-不问"变量看起来连不连续"，问 **"一个固定大小的外部 contingency 还能不能改变
-决策"**。knowledge 分布是梯度的（99.7% 有 ≥1 条、87.8% 少于 4 条）——
-但那只是"看起来连续"。真正要量的是**有效支撑**：
+★ Following the idea of rule 70 ★
+Do not ask "does the variable look continuous"; ask **"can a fixed-size external contingency still change a
+decision"**. The knowledge distribution is graded (99.7% hold ≥1 entry, 87.8% hold fewer than 4) —
+but that is only "looking continuous". What must actually be measured is the **effective support**:
 
     score(action) += KNOWLEDGE_WEIGHT(12.0) × know(key) × slack     sim.py:835
     propose_goals: pri += KNOWLEDGE_GOAL_WEIGHT(0.25) × know(key)   sim.py:656
 
-所以一个作用于 knowledge 的干预，其可动用的分数幅度上限就是 **12.0 × strength**。
-它能不能改变行为，取决于**决策时刻 top1 与 top2 的分数间距（margin）**：
+So the maximum score amplitude available to an intervention acting on knowledge is **12.0 × strength**.
+Whether it can change behaviour depends on **the score gap between top1 and top2 at the moment of decision (the margin)**:
 
-    margin < Δ  →  这次决策可以被 Δ 大小的干预翻转
-    margin ≥ Δ  →  翻不动，干预静默失效（= 规则 70 说的饱和）
+    margin < Δ  →  this decision can be flipped by an intervention of size Δ
+    margin ≥ Δ  →  it cannot be moved, and the intervention silently expires (= the saturation of rule 70)
 
-★ 放行条件（跑前冻结）★
-存在某个可行的 Δ（≤ KNOWLEDGE_WEIGHT = 12.0），使得
+★ Go condition (frozen before the run) ★
+There exists a feasible Δ (≤ KNOWLEDGE_WEIGHT = 12.0) such that
 **responsive population ∈ [20%, 80%]**
-（responsive = 该 agent 至少 10% 的决策 tick 可被 Δ 翻转）。
-找不到 → **Probe D 直接不做，026 封存。**
+(responsive = at least 10% of that agent's decision ticks can be flipped by Δ)
+None found → **Probe D is simply not done and 026 is closed.**
 
-★ 排除 books ★（规则 67）书只在丰富世界 → 只统计 far_places / shelter / food。
-★ group-blind ★ 只输出 pooled 量。种子 `20000+`。**不碰 `60000–61499`。**
+★ Books excluded ★ (rule 67) books exist only in the rich world → count only far_places / shelter / food.
+★ group-blind ★ Only pooled quantities are printed. Seeds `20000+`. **Do not touch `60000–61499`.**
 """
 
 import argparse
@@ -34,13 +34,13 @@ import os
 import statistics
 from collections import Counter
 
-WA, WB, COMMON = "丰富世界", "贫瘠世界", "基准"
+WA, WB, COMMON = "rich world", "barren world", "baseline"
 DEV_DAYS, OBS_DAYS = 30, 30
 CHUNK = 25
-KEYS = ("far_places", "shelter", "food")      # ★ 排除 books ★
-DELTAS = (1.0, 3.0, 6.0, 12.0)                # 干预幅度候选，上限 = KNOWLEDGE_WEIGHT
-RESP_MIN_FRAC = 0.10                          # 一个 agent 至少这么多决策可翻转才算 responsive
-GATE_LO, GATE_HI = 0.20, 0.80                 # responsive population 的放行区间
+KEYS = ("far_places", "shelter", "food")      # ★ books excluded ★
+DELTAS = (1.0, 3.0, 6.0, 12.0)                # candidate intervention sizes, capped at KNOWLEDGE_WEIGHT
+RESP_MIN_FRAC = 0.10                          # an agent counts as responsive only if at least this share of its decisions can be flipped
+GATE_LO, GATE_HI = 0.20, 0.80                 # go range for the responsive population
 
 
 def task(job):
@@ -53,8 +53,8 @@ def task(job):
     sim.SLEEP_EFF_FLOOR = 0.35
     sim.KNOWLEDGE_WEIGHT, sim.KNOWLEDGE_GOAL_WEIGHT, sim.KNOWLEDGE_FORGET = 12.0, 0.25, 0.02
 
-    # ★ 只读探针：包住 score()，记录每次决策实际算出的分数 ★
-    #   不额外调用 score()（那可能扰动随机流），只把真实决策的分数抄下来。
+    # ★ Read-only probe: wrap score() and record the scores actually computed at each decision ★
+    #   score() is never called separately (that could perturb the random stream); the real decision's scores are simply copied out.
     if not hasattr(sim.Agent, "_score_patched"):
         _orig = sim.Agent.score
 
@@ -127,16 +127,16 @@ def main():
         for recs in p.imap_unordered(_dispatch, jobs):
             pool.extend(recs)
     if not pool:
-        raise SystemExit("✗ 池子为空 —— 故障")
+        raise SystemExit("✗ pool is empty — failure")
     n = len(pool)
 
     print("=" * 100)
-    print(f" knowledge effective-support audit（group-blind，已排除 books）"
-          f"  n={n}  存活 {sum(r['alive'] for r in pool)/n:.1%}")
+    print(f" knowledge effective-support audit (group-blind, books excluded)"
+          f"  n={n}  alive {sum(r['alive'] for r in pool)/n:.1%}")
     print("=" * 100)
 
-    print("\n  【1】knowledge_strength 分布（不是条数 —— 强度才是进 score() 的东西）")
-    print(f"  {'key':<14}{'持有该条的比例':>14}{'均值强度':>10}{'p10':>8}"
+    print("\n  [1] knowledge_strength distribution (not the count — strength is what enters score())")
+    print(f"  {'key':<14}{'share holding it':>18}{'mean strength':>15}{'p10':>8}"
           f"{'p50':>8}{'p90':>8}{'p90−p10':>10}")
     print("  " + "-" * 74)
     for k in KEYS:
@@ -146,15 +146,15 @@ def main():
               f"{v[n//10]:>8.3f}{v[n//2]:>8.3f}{v[9*n//10]:>8.3f}"
               f"{v[9*n//10]-v[n//10]:>10.3f}")
 
-    print("\n  【2】决策间距 margin = top1 − top2（决定干预翻不翻得动）")
+    print("\n  [2] decision margin = top1 − top2 (decides whether an intervention can move it)")
     allm = sorted(m for r in pool for m in r["margins"])
     q = lambda p: allm[int(p * len(allm))]
-    print(f"    全部决策 tick n={len(allm)}   "
-          f"p10 {q(.10):.2f}  p25 {q(.25):.2f}  中位 {q(.50):.2f}  "
+    print(f"    all decision ticks n={len(allm)}   "
+          f"p10 {q(.10):.2f}  p25 {q(.25):.2f}  median {q(.50):.2f}  "
           f"p75 {q(.75):.2f}  p90 {q(.90):.2f}")
 
-    print("\n  【3】★ 有效支撑 ★ 一个 Δ 大小的干预能翻转多少决策 / 覆盖多少 agent")
-    print(f"  {'Δ':>6}{'可翻转的决策占比':>16}{'responsive agent 占比':>22}{'判定':>10}")
+    print("\n  [3] ★ effective support ★ how many decisions an intervention of size Δ can flip / how many agents it reaches")
+    print(f"  {'Δ':>6}{'share of decisions flippable':>30}{'share of responsive agents':>30}{'verdict':>10}")
     print("  " + "-" * 60)
     ok_any = None
     for d in DELTAS:
@@ -164,24 +164,24 @@ def main():
         resp = sum(1 for x in per if x >= RESP_MIN_FRAC) / len(per)
         good = GATE_LO <= resp <= GATE_HI
         print(f"  {d:>6.1f}{flip_all:>15.1%}{resp:>21.1%}"
-              f"{'  ★合格' if good else '':>10}")
+              f"{'  ★pass' if good else '':>10}")
         if good and ok_any is None:
             ok_any = (d, resp)
 
     print("\n" + "=" * 100)
     if ok_any:
         d, resp = ok_any
-        print(f" ★ 放行 ★ 存在可行的 Δ = {d}（≤ KNOWLEDGE_WEIGHT=12.0），"
+        print(f" ★ Go ★ a feasible Δ = {d} exists (≤ KNOWLEDGE_WEIGHT=12.0), "
               f"responsive population = {resp:.1%} ∈ [20%, 80%]")
-        print(" → 允许设计**唯一一个** Probe D 设计族（closure rule 见记录）。")
+        print(" → **exactly one** Probe D design family may be designed (the closure rule is in the log).")
     else:
-        print(" ✗ 没有任何 Δ ≤ 12.0 能给出 20–80% 的 responsive population。")
+        print(" ✗ No Δ ≤ 12.0 yields a responsive population of 20–80%.")
         print("")
-        print(" → **Probe D 不做，026 正式封存。**")
-        print(" 结论不是'没想到好 probe'，而是：**当前架构的可用通路上，")
-        print("   不存在能够承载 clean graded novel contingency 的有效中间态。**")
-        print(" 这与规则 71（正反馈把每条轴塌成双峰/极端）高度吻合 ——")
-        print(" knowledge 的【条数】看起来是梯度的，但它进入决策后的【有效支撑】不是。")
+        print(" → **Probe D is not done, and 026 is formally closed.**")
+        print(" The conclusion is not 'we failed to think of a good probe' but: **on the usable channels of the")
+        print("   current architecture, there is no effective intermediate state able to carry a clean graded novel contingency.**")
+        print(" This agrees closely with rule 71 (positive feedback collapses every axis into a bimodal/extreme shape) —")
+        print(" the **count** of knowledge entries looks graded, but its **effective support** once it enters the decision is not.")
     print("=" * 100)
 
 

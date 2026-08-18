@@ -1,23 +1,23 @@
 """
-实验 028 执行器 —— 严格按 NOVEL_TASK028_PREREGISTRATION.md
-============================================================
+Experiment 028 runner — executed strictly according to NOVEL_TASK028_PREREGISTRATION.md
+=======================================================================================
 
-彩排（已烧种子，可随便跑）：
+Rehearsal (burned seeds, run freely):
     python final_028.py --check
     python final_028.py --seed0 10000 --n 300
-    python final_028.py --seed0 10000 --n 300 --workers 5     规则 55 自检
+    python final_028.py --seed0 10000 --n 300 --workers 5     rule 55 self-check
 
-正式（**只允许执行一次**）：
+Official run (**allowed exactly once**):
     python final_028.py --final
 
-★ 四条工程保护（预注册 §8）★
-    ① Seed guard          --final 只接受 seed0=70000, N=1500
-    ② One-shot lock       final_028_result.txt 已存在 → 拒绝
-    ③ Preflight ledger    开跑前打印并落盘完整种子账本
-    ④ 冻结校验            v3_frozen SHA + 任务指纹 + interface028 sha256
+★ Four engineering protections (preregistration §8) ★
+    ① Seed guard          --final accepts only seed0=70000, N=1500
+    ② One-shot lock       final_028_result.txt already exists → refuse
+    ③ Preflight ledger    print and persist the full seed ledger before starting
+    ④ Frozen verification v3_frozen SHA + task fingerprint + interface028 sha256
 
-★ 判读顺序 ★ **validity gates 先于 task outcome** —— 即使 outcome 已算出，
-  也先判 validity，避免看到结果后产生解释自由度。
+★ Reading order ★ **validity gates before the task outcome** — even once the outcome is computed,
+  validity is judged first, to avoid interpretive freedom after seeing the result.
 """
 
 import argparse
@@ -34,22 +34,22 @@ import stats028 as S
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V3DIR = os.path.join(HERE, "v3_frozen")
-WA, WB = "丰富世界", "贫瘠世界"
+WA, WB = "rich world", "barren world"
 FINAL_SEED0, FINAL_N = 70000, 1500
 CHUNK = 25
 ARMS = ("A", "Bp", "Bm", "Cp", "Cm")
 SESOI = 1.0
-# ⚠ 这【不是】binding gate：028 预注册与修订 01 都没有把 <90% 定义成 G 的判据，
-#   也不并入 primary_ok。五臂使用**完全相同**的 survivor intersection，
-#   所以 G 仍只由 C± 的 transport gates 裁决。
-#   它是 **pre-task attrition diagnostic**；A 作为 027 sampling replication
-#   时须与之一并报告。
+# ⚠ This is **not** a binding gate: neither the 028 preregistration nor amendment 01 defines <90% as a criterion for G,
+#   and it is not folded into primary_ok. The five arms use **exactly the same** survivor intersection,
+#   so G is still decided solely by the C± transport gates.
+#   It is a **pre-task attrition diagnostic**; it must be reported alongside A when A serves as the
+#   027 sampling replication.
 ATTRITION_REPORT_REF = 0.90
 
 LEDGER = [
     ("0–1499", "development"),
-    ("10000–11499", "021 留出集 / 028 transport rehearsal"),
-    ("20000–21499", "022 预注册段 / 027 + 028 group-blind calibration"),
+    ("10000–11499", "021 holdout set / 028 transport rehearsal"),
+    ("20000–21499", "022 preregistration block / 027 + 028 group-blind calibration"),
     ("50000–51499", "v3 persistence FINAL"),
     ("60000–61499", "027 novel-task FINAL"),
     ("70000–71499", "★028 breadth FINAL★"),
@@ -57,39 +57,39 @@ LEDGER = [
 
 
 def acquire_burn_lock(dirpath, result_name, lock_name, payload):
-    """★crash-safe burn lock★ 在生成【任何】trajectory 之前原子创建。
+    """★crash-safe burn lock★ created atomically before **any** trajectory is generated.
 
-    仅靠 result 文件是不够的：`--final` 跑到一半崩溃时 result 尚未写出，
-    但 70000 段的 trajectory 已经生成 —— 按预注册那已经算 burned。
-    所以用 `open(..., "x")` 独占创建一个 STARTED 锁，**崩溃也绝不删除**。
+    The result file alone is not enough: if `--final` crashes halfway the result has not been written,
+    yet the trajectories of the 70000 block have been generated — which by the preregistration already counts as burned.
+    So a STARTED lock is created exclusively with `open(..., "x")` and **never deleted, even on a crash**.
 
-        无 STARTED            → 从未烧过
-        有 STARTED 无 result  → 启动过但未正常完成；seed 已烧，禁止重跑
-        有 STARTED 有 result  → 正常完成；禁止重跑
+        no STARTED               → never burned
+        STARTED without result   → started but not completed normally; the seeds are burned, re-running is forbidden
+        STARTED with result      → completed normally; re-running is forbidden
     """
     res = os.path.join(dirpath, result_name)
     lock = os.path.join(dirpath, lock_name)
     if os.path.exists(res) or os.path.exists(lock):
         raise SystemExit(
-            "✗ 028 FINAL 已开始或已完成；70000–71499 已视为 burned，拒绝再次运行。"
-            f"（STARTED={os.path.exists(lock)}  result={os.path.exists(res)}）")
-    with open(lock, "x", encoding="utf-8") as f:      # 独占创建，已存在则抛错
+            "✗ 028 FINAL has started or completed; 70000–71499 is considered burned, refusing to run again."
+            f" (STARTED={os.path.exists(lock)}  result={os.path.exists(res)})")
+    with open(lock, "x", encoding="utf-8") as f:      # exclusive creation, raises if it already exists
         f.write(payload)
     return lock
 
 
 def _test_burn_lock():
-    """不触碰 final seeds 的单元测试"""
+    """Unit test that never touches the final seeds"""
     import tempfile
     with tempfile.TemporaryDirectory() as d:
-        acquire_burn_lock(d, "r.txt", "s.lock", "x")          # 第一次成功
+        acquire_burn_lock(d, "r.txt", "s.lock", "x")          # the first call succeeds
         try:
             acquire_burn_lock(d, "r.txt", "s.lock", "x")
         except SystemExit:
             pass
         else:
-            raise AssertionError("✗ 第二次创建竟然成功")
-        # crash 状态：有 STARTED、无 result → 必须拒绝
+            raise AssertionError("✗ the second creation somehow succeeded")
+        # crash state: STARTED present, result absent → must refuse
         assert os.path.exists(os.path.join(d, "s.lock"))
         assert not os.path.exists(os.path.join(d, "r.txt"))
         try:
@@ -97,16 +97,16 @@ def _test_burn_lock():
         except SystemExit:
             pass
         else:
-            raise AssertionError("✗ crash 状态下竟然允许重跑")
-    with tempfile.TemporaryDirectory() as d:              # 只有 result 也要拒绝
+            raise AssertionError("✗ a re-run was somehow allowed in the crash state")
+    with tempfile.TemporaryDirectory() as d:              # a result on its own must also refuse
         open(os.path.join(d, "r.txt"), "w").close()
         try:
             acquire_burn_lock(d, "r.txt", "s.lock", "x")
         except SystemExit:
             pass
         else:
-            raise AssertionError("✗ 已完成状态下竟然允许重跑")
-    print("  ✓ burn lock：首次成功；重复 / crash 状态 / 已完成 三种情形均拒绝")
+            raise AssertionError("✗ a re-run was somehow allowed in the completed state")
+    print("  ✓ burn lock: first call succeeds; repeat / crash state / completed state are all refused")
 
 
 def preflight():
@@ -120,13 +120,13 @@ def preflight():
             open(os.path.join(V3DIR, name), "rb").read()).hexdigest()
         bad += 0 if got.startswith(want) else 1
     if bad:
-        raise SystemExit(f"✗ v3_frozen 校验失败（{bad} 个文件）")
+        raise SystemExit(f"✗ v3_frozen verification failed ({bad} files)")
     fp = NT.assert_frozen()
-    print("✓ v3_frozen 校验通过")
-    print(f"✓ 任务参数冻结  α={NT.ALPHA} β={NT.BETA} τ={NT.TAU}  指纹 {fp}")
-    print(f"✓ 接口冻结  sha256 {IF.F['sha256'][:16]}…  n_cal={IF.F['n_cal']}"
-          f"  rank 冗余 {IF.F['rho_spearman_A_Bperp']:+.4f}")
-    print("\n  ── 种子账本（预注册 §7）──")
+    print("✓ v3_frozen verification passed")
+    print(f"✓ task parameters frozen  α={NT.ALPHA} β={NT.BETA} τ={NT.TAU}  fingerprint {fp}")
+    print(f"✓ interface frozen  sha256 {IF.F['sha256'][:16]}…  n_cal={IF.F['n_cal']}"
+          f"  rank redundancy {IF.F['rho_spearman_A_Bperp']:+.4f}")
+    print("\n  ── seed ledger (preregistration §7) ──")
     for seg, use in LEDGER:
         print(f"    {seg:<16}{use}")
     return fp
@@ -136,7 +136,7 @@ def task_sim(job):
     world, seed0, n = job
     import novel_situation as NS
     sim = NS.sim
-    sim.COND_RECOVER_AT = 65.0                     # ★规则 55★
+    sim.COND_RECOVER_AT = 65.0                     # ★rule 55★
     sim.COND_DEADZONE_RECOVER = sim.COND_SHELTER_RECOVER = 0.0
     sim.SLEEP_SUPPRESS = sim.HUNGER_URGENCY = 0.0
     sim.SLEEP_EFF_FLOOR = 0.35
@@ -146,7 +146,7 @@ def task_sim(job):
         life = NS.scenarios.make(s, world)
         ok, _ = NS.run_window(life, 0, 30)
         if ok:
-            w = sim.World(s, **NS.scenarios.WORLDS["基准"])
+            w = sim.World(s, **NS.scenarios.WORLDS["baseline"])
             ok, _ = NS.run_window(life, 30, 30, world=w)
         if not ok:
             out.append({"seed": s, "alive": False})
@@ -184,20 +184,20 @@ def main():
         # ★① seed guard★
         if (a.seed0 not in (10000, FINAL_SEED0)) or \
                 (a.n not in (300, FINAL_N)):
-            raise SystemExit("✗ --final 时不得同时指定非默认 seed0/n")
+            raise SystemExit("✗ a non-default seed0/n may not be given together with --final")
         print("\n" + "!" * 76)
-        print(f"!! 028 FINAL  seeds {seed0}–{seed0+N-1}  ——  只允许跑一次")
-        print("!! 看到结果后不允许再改任何关键设计（预注册 §9）")
+        print(f"!! 028 FINAL  seeds {seed0}–{seed0+N-1}  ——  may be run only once")
+        print("!! No key design may be changed after seeing the result (preregistration §9)")
         print("!" * 76)
     else:
         seed0, N = a.seed0, a.n
         if seed0 == FINAL_SEED0:
-            raise SystemExit("✗ 非 --final 模式不得触碰 70000 段")
-        print(f"\n[彩排] seeds {seed0}–{seed0+N-1}  N={N}"
-              f"  —— 只验代码路径 / n / gates / joint bootstrap / 确定性")
-        print("[彩排] ⛔ 不根据 breadth effect 改任何东西\n")
+            raise SystemExit("✗ the 70000 block must not be touched outside --final mode")
+        print(f"\n[rehearsal] seeds {seed0}–{seed0+N-1}  N={N}"
+              f"  —— verifies only the code path / n / gates / joint bootstrap / determinism")
+        print("[rehearsal] ⛔ nothing is changed on the basis of the breadth effect\n")
 
-    # ★② crash-safe burn lock —— 必须在生成任何 trajectory【之前】★
+    # ★② crash-safe burn lock — must come **before** any trajectory is generated★
     if a.final:
         nl = chr(10)
         payload = nl.join([
@@ -209,19 +209,19 @@ def main():
         ]) + nl
         lock = acquire_burn_lock(
             HERE, "final_028_result.txt", "final_028_STARTED.lock", payload)
-        print(nl + f"✓ burn lock 已创建（seed ledger + fingerprints 已固化）："
+        print(nl + f"✓ burn lock created (seed ledger + fingerprints persisted): "
               f"{os.path.basename(lock)}")
 
     jobs = [(task_sim, (w, s0, min(CHUNK, seed0 + N - s0)))
             for w in (WA, WB) for s0 in range(seed0, seed0 + N, CHUNK)]
-    assert sum(j[1][2] for j in jobs) == 2 * N, "✗ 分块覆盖不全"
+    assert sum(j[1][2] for j in jobs) == 2 * N, "✗ incomplete chunk coverage"
     store = {WA: [None] * N, WB: [None] * N}
     t0 = time.time()
     with mp.Pool(a.workers) as pool:
         for k, (w, s0, recs) in enumerate(pool.imap_unordered(_dispatch, jobs), 1):
             store[w][s0 - seed0:s0 - seed0 + len(recs)] = recs
             if k % 20 == 0 or k == len(jobs):
-                print(f"  {k}/{len(jobs)}  已用 {(time.time()-t0)/60:.1f}min",
+                print(f"  {k}/{len(jobs)}  elapsed {(time.time()-t0)/60:.1f}min",
                       flush=True)
 
     dead_a = sum(1 for r in store[WA] if not r["alive"]) / N
@@ -230,14 +230,14 @@ def main():
              if store[WA][i]["alive"] and store[WB][i]["alive"]]
     keep = len(pairs) / N
     print("\n" + "=" * 100)
-    print(f" pre-task attrition diagnostic（★非 binding gate★）：")
+    print(f" pre-task attrition diagnostic (★not a binding gate★):")
     print(f"   rich {dead_a:.2%} · poor {dead_b:.2%} · "
-          f"有效双胞胎 {len(pairs)}/{N} = {keep:.2%}"
-          f"   参考量级 {ATTRITION_REPORT_REF:.0%}"
-          f"{'' if keep >= ATTRITION_REPORT_REF else '  ⚠ 低于以往量级，须在报告中说明'}")
-    print(f"   五臂共用同一 survivor intersection；G 仅由 C± transport gates 裁决")
+          f"valid twins {len(pairs)}/{N} = {keep:.2%}"
+          f"   reference level {ATTRITION_REPORT_REF:.0%}"
+          f"{'' if keep >= ATTRITION_REPORT_REF else '  ⚠ below the historical level, must be noted in the report'}")
+    print(f"   the five arms share one survivor intersection; G is decided solely by the C± transport gates")
 
-    # ---- 逐臂：beta / 任务 / 配对差 ----
+    # ---- per arm: beta / task / paired difference ----
     allt = [store[w][i]["traits"] for i in pairs for w in (WA, WB)]
     d, betas = {}, {}
     for arm in ARMS:
@@ -250,7 +250,7 @@ def main():
                       - NT.switch_latency_restricted(rb))
         d[arm] = dv
 
-    # ---- ★ gates 先判、先打印 ★ ----
+    # ---- ★ gates judged and printed first ★ ----
     muA, sdA = st.mean(betas["A"]), st.stdev(betas["A"])
     diag = {}
     for arm, key in (("Bp", "B"), ("Bm", "B"), ("Cp", "Cp"), ("Cm", "Cm")):
@@ -265,10 +265,10 @@ def main():
     gates, primary_ok, secondary_ok = S.check_gates(diag, muA, sdA)
 
     print("\n" + "=" * 100)
-    print(" ★ VALIDITY GATES（先于 outcome 判读，预注册 §4）★")
+    print(" ★ VALIDITY GATES (read before the outcome, preregistration §4) ★")
     print("=" * 100)
     print(f"  contemporaneous A: μ={muA:.6f}  SD={sdA:.6f}")
-    print(f"  {'臂':<5}{'越界':>9}{'边界质量':>10}{'|Δμ|/SD_A':>12}"
+    print(f"  {'arm':<5}{'out of range':>14}{'boundary mass':>15}{'|Δμ|/SD_A':>12}"
           f"{'|ΔSD|/SD_A':>12}{'support':>9}{'budget':>8}")
     print("  " + "-" * 88)
     for arm in ("Bp", "Bm", "Cp", "Cm"):
@@ -279,12 +279,12 @@ def main():
     print(f"\n  primary  (C±)  {'✓ valid' if primary_ok else '✗ INVALID'}"
           f"      secondary (B±)  {'✓ valid' if secondary_ok else '✗ INVALID'}")
     if N < FINAL_N:
-        # ★修订 01 §A★ validity gates 以 N=1500 的 confirmatory run 为准
+        # ★Amendment 01 §A★ the validity gates are judged on the N=1500 confirmatory run
         se = (2.0 / (2 * len(pairs))) ** 0.5
-        print(f"  ⚠ NON-BINDING：N={N} < {FINAL_N}，本次 gate 结果【不构成】对"
-              f" frozen transform 的判定")
-        print(f"    （|Δμ|/SD_A 的抽样 SE ≈ {se:.1%}，10% 门槛仅约 "
-              f"{0.10/se:.1f} 个 SE）—— 仅验代码路径与量级")
+        print(f"  ⚠ NON-BINDING: N={N} < {FINAL_N}, so this run's gate results **do not constitute** a verdict on"
+              f" the frozen transform")
+        print(f"    (the sampling SE of |Δμ|/SD_A ≈ {se:.1%}, so the 10% threshold is only about "
+              f"{0.10/se:.1f} SEs) — it verifies only the code path and the order of magnitude")
     if not primary_ok:
         print(f"  ⚠ {S.CLOSURE_TEXT}")
 
@@ -296,10 +296,10 @@ def main():
     rlo, rhi = S.ci(boot["RB"])
 
     print("\n" + "=" * 100)
-    tag = "FINAL" if a.final else "彩排（非 final）"
+    tag = "FINAL" if a.final else "rehearsal (not final)"
     print(f" 028 {tag}   seeds {seed0}–{seed0+N-1}   n={len(pairs)}")
     print("=" * 100)
-    print(f"  {'臂':<5}{'E（配对差均值）':>16}{'95% CI':>28}")
+    print(f"  {'arm':<5}{'E (mean paired diff)':>24}{'95% CI':>28}")
     print("  " + "-" * 52)
     for arm in ARMS:
         e = st.mean(d[arm])
@@ -308,17 +308,17 @@ def main():
 
     print(f"\n  ★PRIMARY G = min(|E_C+|,|E_C−|) − |E_A|★")
     if not primary_ok:
-        print(f"    ✗ INVALID —— gates 未通过，既不许声称 breadth gain，"
-              f"也不许声称 no-gain")
+        print(f"    ✗ INVALID — the gates did not pass; neither a breadth gain nor a no-gain"
+              f" may be claimed")
     else:
         if glo <= 0 <= ghi:
-            v = "✗ 没有证据表明 broader readout 比 A 更强（CI 包含 0）"
+            v = "✗ no evidence that the broader readout beats A (the CI contains 0)"
         elif glo > SESOI:
             v = "★ functionally meaningful breadth gain established ★"
         elif glo > 0:
-            v = "◐ 检测到 breadth gain，但增益低于功能门槛（CI 与 [0,1] 重叠）"
+            v = "◐ a breadth gain is detected, but below the functional threshold (the CI overlaps [0,1])"
         else:
-            v = "◐ CI 完全 < 0：broader readout 反而更弱（见 §6 稀释判读）"
+            v = "◐ the CI lies entirely < 0: the broader readout is in fact weaker (see the dilution reading in §6)"
         print(f"    {v}")
     print(f"    G = {G:+.4f} trial   95% CI [{glo:+.4f}, {ghi:+.4f}]"
           f"   SESOI = {SESOI} trial")
@@ -326,21 +326,21 @@ def main():
     print(f"\n  secondary R_B = min(|E_B+|,|E_B−|)"
           f"{'' if secondary_ok else '  ✗ INVALID'}")
     print(f"    R_B = {rb:.4f}   95% CI [{rlo:+.4f}, {rhi:+.4f}]"
-          f"   （B+ {st.mean(d['Bp']):+.4f} · B− {st.mean(d['Bm']):+.4f}）")
+          f"   (B+ {st.mean(d['Bp']):+.4f} · B− {st.mean(d['Bm']):+.4f})")
 
-    print(f"\n  C± 各自对 ±{SESOI} 等价区间：")
+    print(f"\n  Each of C± against the ±{SESOI} equivalence region:")
     for arm in ("Cp", "Cm"):
         lo, hi = S.ci(boot["E"][arm])
-        s2 = ("整体越过 ±1" if lo > SESOI or hi < -SESOI
-              else ("与 ±1 重叠" if lo > 0 or hi < 0 else "含 0"))
+        s2 = ("entirely beyond ±1" if lo > SESOI or hi < -SESOI
+              else ("overlaps ±1" if lo > 0 or hi < 0 else "contains 0"))
         print(f"    {arm}  E={st.mean(d[arm]):+.4f}  [{lo:+.4f}, {hi:+.4f}]  {s2}")
 
     ea = st.mean(d["A"])
     alo, ahi = S.ci(boot["E"]["A"])
-    print(f"\n  ★A 臂 = 027 的 sampling-level replication（与 G 分开判）★")
+    print(f"\n  ★Arm A = the sampling-level replication of 027 (judged separately from G)★")
     print(f"    E_A = {ea:+.4f}  [{alo:+.4f}, {ahi:+.4f}]"
-          f"   027 原值 −0.0798 [−0.1632, −0.0035]")
-    print(f"    {'✓ 复制出同向可检出效应' if (alo>0 or ahi<0) and ea*(-0.0798)>0 else '⚠ 未复制 027 的窄接口效应 —— 论文须如实写明'}")
+          f"   027 original −0.0798 [−0.1632, −0.0035]")
+    print(f"    {'✓ reproduced a detectable effect in the same direction' if (alo>0 or ahi<0) and ea*(-0.0798)>0 else '⚠ did not reproduce the narrow-interface effect of 027 — the paper must say so plainly'}")
 
     txt = os.path.join(HERE, "final_028_result.txt" if a.final
                        else "final_028_rehearsal.txt")
@@ -359,7 +359,7 @@ def main():
         f.write(f"G\t{G:+.6f}\t{glo:+.6f}\t{ghi:+.6f}\n")
         f.write(f"RB\t{rb:.6f}\t{rlo:+.6f}\t{rhi:+.6f}\n")
         f.write("ledger " + " | ".join(f"{s}:{u}" for s, u in LEDGER) + "\n")
-    print(f"\n已写入 {txt}")
+    print(f"\nWritten to {txt}")
 
 
 if __name__ == "__main__":

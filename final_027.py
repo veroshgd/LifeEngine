@@ -1,30 +1,30 @@
 """
-实验 027 执行器 —— 严格按 NOVEL_TASK_PREREGISTRATION.md
-=========================================================
+Experiment 027 runner — executed strictly according to NOVEL_TASK_PREREGISTRATION.md
+====================================================================================
 
-彩排（已烧种子，可随便跑）：
-    python final_027.py --check                      只做冻结校验
-    python final_027.py --seed0 20000 --n 300        全流程彩排
-    python final_027.py --seed0 20000 --n 300 --workers 5   规则 55 自检
+Rehearsal (burned seeds, run freely):
+    python final_027.py --check                      frozen verification only
+    python final_027.py --seed0 20000 --n 300        full-pipeline rehearsal
+    python final_027.py --seed0 20000 --n 300 --workers 5   rule 55 self-check
 
-正式（**只允许执行一次**）：
+Official run (**allowed exactly once**):
     python final_027.py --final
 
-★ v4 = v3_frozen 核心（逐字节不动）+ novel_task.py ★
-启动时校验 `v3_frozen/SHA256SUMS.txt` 与任务配置指纹，任一不符即拒绝运行。
+★ v4 = the v3_frozen core (byte-for-byte untouched) + novel_task.py ★
+At startup `v3_frozen/SHA256SUMS.txt` and the task configuration fingerprint are verified; either mismatch refuses the run.
 
-★ 四个臂 ★
-    main            beta_i = β × novelty_style_i        主分析
-    hist_blind      beta_i = β × 0.5（对所有人相同）      控制三
-    trait_level     任务入口把 curiosity/caution 拉平     控制四
-    （控制一/二在 `novel_task.py` 自检里，pytest 也跑）
+★ The four arms ★
+    main            beta_i = β × novelty_style_i        main analysis
+    hist_blind      beta_i = β × 0.5 (identical for everyone)   control three
+    trait_level     curiosity/caution levelled at the task entrance   control four
+    (controls one/two live in the self-checks of `novel_task.py`, which pytest also runs)
 
-⚠ **控制三/四 = pathway-isolation / leakage controls（修订 01 已降格）**：
-  任务的输入面**只有** `novelty_style = f(curiosity, caution)`，
-  所以"固定 beta"与"拉平 curiosity/caution"都会让双胞胎在任务中完全相同。
-  两者因此是**两个实现层的泄漏检测器**（一个查 NovelTask 内部，
-  一个查 agent state 侧），**不能**算两个独立的 negative control，
-  更**不能**用来"发现另一条历史载体" —— 任务没给别的载体留输入口。
+⚠ **Controls three/four = pathway-isolation / leakage controls (downgraded in amendment 01)**:
+  the task's input surface is **only** `novelty_style = f(curiosity, caution)`,
+  so both "fix beta" and "level curiosity/caution" make the twins identical within the task.
+  They are therefore **two leakage detectors at two implementation layers** (one inside NovelTask,
+  one on the agent-state side); they **cannot** count as two independent negative controls,
+  and still less can they be used to "discover another carrier of history" — the task leaves no input port for one.
 """
 
 import argparse
@@ -40,14 +40,14 @@ import novel_task as NT
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 V3DIR = os.path.join(HERE, "v3_frozen")
-WA, WB = "丰富世界", "贫瘠世界"
+WA, WB = "rich world", "barren world"
 FINAL_SEED0, FINAL_N = 60000, 1500
 CHUNK = 25
 N_BOOT, N_PERM = 10000, 10000
 BOOT_SEED, PERM_SEED = 20260817, 777
-DIAG_SEEDS = [BOOT_SEED + 1000 * r for r in range(8)]   # 可判定性彩排
+DIAG_SEEDS = [BOOT_SEED + 1000 * r for r in range(8)]   # decidability rehearsal
 ATTRITION_GATE = 0.90
-SESOI = 1.0          # 修订 01：±1 trial 的 practical-equivalence region
+SESOI = 1.0          # amendment 01: a ±1 trial practical-equivalence region
 ARMS = ("main", "hist_blind", "trait_level")
 
 
@@ -62,23 +62,23 @@ def preflight(verbose=True):
         got = hashlib.sha256(open(os.path.join(V3DIR, name), "rb").read()).hexdigest()
         bad += 0 if got.startswith(want) else 1
     if bad:
-        raise SystemExit(f"✗ v3_frozen 校验失败（{bad} 个文件）—— 拒绝运行")
+        raise SystemExit(f"✗ v3_frozen verification failed ({bad} files) — refusing to run")
     fp = NT.assert_frozen()
     if verbose:
-        print(f"✓ v3_frozen 校验通过")
-        print(f"✓ 任务参数已冻结  α={NT.ALPHA} β={NT.BETA} τ={NT.TAU}"
-              f"  指纹 {fp}")
-        print(f"✓ 模型 {NT.sim.MODEL_VERSION} → {NT.MODEL_VERSION}"
+        print(f"✓ v3_frozen verification passed")
+        print(f"✓ task parameters frozen  α={NT.ALPHA} β={NT.BETA} τ={NT.TAU}"
+              f"  fingerprint {fp}")
+        print(f"✓ model {NT.sim.MODEL_VERSION} → {NT.MODEL_VERSION}"
               f"  COND_RECOVER_AT={NT.sim.COND_RECOVER_AT}")
     return fp
 
 
 def task_sim(job):
-    """跑 60 天 v3 核心 → 拉平 → 回传任务所需的最小状态"""
+    """Run the 60-day v3 core → level → return the minimal state the task needs"""
     world, seed0, n = job
     import novel_situation as NS
     sim = NS.sim
-    sim.COND_RECOVER_AT = 65.0                      # ★规则 55★ 显式设定
+    sim.COND_RECOVER_AT = 65.0                      # ★rule 55★ set explicitly
     sim.COND_DEADZONE_RECOVER = sim.COND_SHELTER_RECOVER = 0.0
     sim.SLEEP_SUPPRESS = sim.HUNGER_URGENCY = 0.0
     sim.SLEEP_EFF_FLOOR = 0.35
@@ -89,7 +89,7 @@ def task_sim(job):
         life = NS.scenarios.make(s, world)
         ok, _ = NS.run_window(life, 0, 30)
         if ok:
-            w = sim.World(s, **NS.scenarios.WORLDS["基准"])
+            w = sim.World(s, **NS.scenarios.WORLDS["baseline"])
             ok, _ = NS.run_window(life, 30, 30, world=w)
         if not ok:
             out.append({"seed": s, "alive": False})
@@ -111,12 +111,12 @@ class _Agent:
 
 
 def endpoints(rec):
-    """primary = restricted switch latency；secondary = trial 1–10 探索率"""
+    """primary = restricted switch latency; secondary = exploration rate on trials 1–10"""
     return NT.switch_latency_restricted(rec), NT.explore_rate(rec, 0, 10)
 
 
 def run_arm(arm, ra, rb, seed):
-    """返回 (rich 的 (L, E), poor 的 (L, E))"""
+    """Returns (rich's (L, E), poor's (L, E))"""
     if arm == "trait_level":
         m_cur = (ra["cur"] + rb["cur"]) / 2.0
         m_cau = (ra["cau"] + rb["cau"]) / 2.0
@@ -159,30 +159,30 @@ def main():
     if a.check:
         return
 
-    # ★★ closure rule 的机器强制执行 ★★
-    # 预注册 §8 写了"只允许执行一次"，但光靠打印约束不住 ——
-    # 再跑一次就会覆盖同一个结果文件。这里做成硬拦截。
+    # ★★ machine enforcement of the closure rule ★★
+    # Preregistration §8 says "allowed exactly once", but printing alone constrains nothing —
+    # running it again would overwrite the same result file. This is made a hard stop.
     final_out = os.path.join(HERE, "final_027_result.txt")
     if a.final and os.path.exists(final_out):
         raise SystemExit(
-            "✗ final_027_result.txt 已存在：027 FINAL 已执行过，拒绝再次运行。"
-            "（预注册 §8：seeds 60000–61499 只允许烧一次。）")
+            "✗ final_027_result.txt already exists: 027 FINAL has been run; refusing to run again."
+            " (Preregistration §8: seeds 60000–61499 may be burned only once.)")
 
     seed0, N = (FINAL_SEED0, FINAL_N) if a.final else (a.seed0, a.n)
     if a.final:
         print("\n" + "!" * 76)
-        print(f"!! 027 FINAL  seeds {seed0}–{seed0+N-1}  ——  这一段只允许跑一次")
-        print("!! 看到结果后不允许再改任何关键设计（预注册 §8）")
+        print(f"!! 027 FINAL  seeds {seed0}–{seed0+N-1}  ——  this block may be run only once")
+        print("!! No key design may be changed after seeing the result (preregistration §8)")
         print("!" * 76)
     else:
-        print(f"\n[彩排] seeds {seed0}–{seed0+N-1}  N={N} —— 不是 final，可随便重跑")
-        print("[彩排] 只检查代码路径 / n / 指标 / 控制 / 确定性 / 统计程序")
-        print("[彩排] ⛔ 不根据 rich/poor effect 改任何东西\n")
+        print(f"\n[rehearsal] seeds {seed0}–{seed0+N-1}  N={N} —— not the final run, re-run freely")
+        print("[rehearsal] only checks the code path / n / metrics / controls / determinism / statistical procedure")
+        print("[rehearsal] ⛔ nothing is changed on the basis of the rich/poor effect\n")
 
     jobs = [(task_sim, (w, s0, min(CHUNK, seed0 + N - s0)))
             for w in (WA, WB) for s0 in range(seed0, seed0 + N, CHUNK)]
     planned = sum(j[1][2] for j in jobs)
-    assert planned == 2 * N, f"✗ 分块覆盖不全 {planned} ≠ {2*N}"
+    assert planned == 2 * N, f"✗ incomplete chunk coverage {planned} ≠ {2*N}"
 
     store = {WA: [None] * N, WB: [None] * N}
     t0 = time.time()
@@ -191,25 +191,25 @@ def main():
             store[w][s0 - seed0:s0 - seed0 + len(recs)] = recs
             if k % 20 == 0 or k == len(jobs):
                 el = time.time() - t0
-                print(f"  {k}/{len(jobs)}  已用 {el/60:.1f}min", flush=True)
+                print(f"  {k}/{len(jobs)}  elapsed {el/60:.1f}min", flush=True)
 
-    # ---- 有效性闸（预注册 §6）----
+    # ---- validity gate (preregistration §6) ----
     dead_a = sum(1 for r in store[WA] if not r["alive"]) / N
     dead_b = sum(1 for r in store[WB] if not r["alive"]) / N
     pairs = [i for i in range(N) if store[WA][i]["alive"] and store[WB][i]["alive"]]
     keep = len(pairs) / N
     print("\n" + "=" * 96)
-    print(f" 有效性闸：rich pre-task mortality {dead_a:.2%} · "
-          f"poor {dead_b:.2%} · 有效双胞胎 {len(pairs)}/{N} = {keep:.2%}")
+    print(f" Validity gate: rich pre-task mortality {dead_a:.2%} · "
+          f"poor {dead_b:.2%} · valid twins {len(pairs)}/{N} = {keep:.2%}")
     if keep < ATTRITION_GATE:
-        print(f" ✗ 有效双胞胎 < {ATTRITION_GATE:.0%} → **validity compromised，"
-              f"不做强结论**（预注册 §6）")
+        print(f" ✗ valid twins < {ATTRITION_GATE:.0%} → **validity compromised;"
+              f" no strong conclusion is drawn** (preregistration §6)")
     else:
-        print(f" ✓ 通过（门槛 {ATTRITION_GATE:.0%}）")
+        print(f" ✓ passed (threshold {ATTRITION_GATE:.0%})")
     if not pairs:
-        raise SystemExit("✗ 无有效配对 —— 这是故障不是结果")
+        raise SystemExit("✗ no valid pairs — this is a failure, not a result")
 
-    # ---- 三个臂 ----
+    # ---- the three arms ----
     res = {}
     for arm in ARMS:
         dL, dE = [], []
@@ -221,10 +221,10 @@ def main():
         res[arm] = {"dL": dL, "dE": dE}
 
     print("\n" + "=" * 96)
-    tag = "FINAL" if a.final else "彩排（非 final）"
-    print(f" 027 {tag}   seeds {seed0}–{seed0+N-1}   n={len(pairs)}   指纹 {fp}")
+    tag = "FINAL" if a.final else "rehearsal (not final)"
+    print(f" 027 {tag}   seeds {seed0}–{seed0+N-1}   n={len(pairs)}   fingerprint {fp}")
     print("=" * 96)
-    print(f"  {'臂':<12}{'指标':<28}{'配对差均值':>12}{'95% CI':>26}{'p':>10}")
+    print(f"  {'arm':<14}{'metric':<34}{'mean paired diff':>18}{'95% CI':>26}{'p':>10}")
     print("  " + "-" * 92)
     verdict = {}
     for arm in ARMS:
@@ -239,49 +239,49 @@ def main():
                   f"   [{lo:>+8.4f}, {hi:>+8.4f}]{p:>10.4f}"
                   + ("  *" if sig else ""))
 
-    # ---- 可判定性彩排（规则 56）----
-    print("\n  可判定性诊断：换 8 个分析种子重跑 main 臂的 CI")
+    # ---- decidability rehearsal (rule 56) ----
+    print("\n  Decidability diagnostic: re-run the main arm's CI with 8 analysis seeds")
     for key, name in (("dL", "H2"), ("dE", "H1")):
         los = [boot_ci(res["main"][key], sd)[0] for sd in DIAG_SEEDS]
         his = [boot_ci(res["main"][key], sd)[1] for sd in DIAG_SEEDS]
         npass = sum(1 for lo, hi in zip(los, his) if lo > 0 or hi < 0)
         sd_lo = statistics.stdev(los)
-        print(f"    {name}  下界范围 [{min(los):+.4f}, {max(los):+.4f}]"
-              f"  MC SD {sd_lo:.4f}  判显著 {npass}/8"
-              + ("   ⚠ 被分析种子左右" if 0 < npass < 8 else ""))
+        print(f"    {name}  lower-bound range [{min(los):+.4f}, {max(los):+.4f}]"
+              f"  MC SD {sd_lo:.4f}  judged significant {npass}/8"
+              + ("   ⚠ decided by the analysis seed" if 0 < npass < 8 else ""))
 
     print("\n" + "=" * 96)
-    print(" 判读（预注册 §2/§3）")
+    print(" Reading (preregistration §2/§3)")
     print("=" * 96)
     o, lo, hi, p, sig = verdict[("main", "dL")]
-    # ★修订 01★ 三值判读：CI 含 0 / 排除 0 但与 ±1 重叠 / 整体越过 ±1
+    # ★Amendment 01★ three-valued reading: CI contains 0 / excludes 0 but overlaps ±1 / lies entirely beyond ±1
     if not sig:
-        h2 = "✗ H2 不获支持（95% CI 包含 0）"
+        h2 = "✗ H2 unsupported (the 95% CI contains 0)"
     elif lo > SESOI or hi < -SESOI:
         h2 = "★ functionally meaningful reversal-transfer established ★"
     else:
-        h2 = "◐ 统计上存在 history effect，但【功能意义未建立】（CI 与 ±1 重叠）"
+        h2 = "◐ a history effect exists statistically, but **functional significance is not established** (the CI overlaps ±1)"
     print(f"  ★PRIMARY H2★  {h2}")
     print(f"     Δ={o:+.4f} trial  95% CI [{lo:+.4f}, {hi:+.4f}]  p={p:.4f}"
           f"   SESOI = ±{SESOI} trial")
-    print(f"     正 = rich 切换更慢；负 = poor 切换更慢。**双侧，不预设方向。**")
-    print(f"     ⚠ 不采用\"点估计过线\"式判读：Δ=1.05 而 CI=[0.20,1.90] 时，")
-    print(f"       真值可能只有 0.2 trial，没有把握说它超过功能门槛。")
+    print(f"     positive = rich switches more slowly; negative = poor switches more slowly. **Two-sided, no direction assumed.**")
+    print(f"     ⚠ A \"point estimate crosses the line\" reading is not used: with Δ=1.05 and CI=[0.20,1.90],")
+    print(f"       the true value could be only 0.2 trials, so there is no confidence it exceeds the functional threshold.")
     o2, lo2, hi2, p2, sig2 = verdict[("main", "dE")]
     print(f"  secondary H1  {'✓' if sig2 else '✗'}   Δ={o2:+.4f}"
           f"  [{lo2:+.4f}, {hi2:+.4f}]  p={p2:.4f}")
-    print(f"     ⛔ H1 不得替代 primary：H2 不显著 → H1 显著 ≠ 027 成功")
+    print(f"     ⛔ H1 must not substitute for the primary: H2 not significant → H1 significant ≠ 027 succeeded")
 
-    print("\n  控制三/四（泄漏检测器）：")
+    print("\n  Controls three/four (leakage detectors):")
     for arm in ("hist_blind", "trait_level"):
         z = all(abs(x) < 1e-12 for x in res[arm]["dL"] + res[arm]["dE"])
-        print(f"    {arm:<12}{'✓ 逐位为零（无泄漏）' if z else '✗ 非零 —— 存在泄漏，整批作废'}")
-    print("    ⚠ 历史进任务的唯一路径是 history→curiosity/caution→novelty_style→β_i，")
-    print("      所以这两个控制在【构造上等价】，必然同时为零。")
-    print("      它们查的是两个不同实现层（NovelTask 内部 / agent state 侧），")
-    print("      工程上不重复，但**科学证据上不算两个独立 negative control**。")
-    print("      ✅ 可说：history effect 按设计经 novelty style 进入新任务")
-    print("      ⛔ 不可说：搜索了所有历史载体，发现只有 traits")
+        print(f"    {arm:<14}{'✓ exactly zero (no leakage)' if z else '✗ non-zero — there is leakage, the whole batch is void'}")
+    print("    ⚠ The only path by which history enters the task is history→curiosity/caution→novelty_style→β_i,")
+    print("      so these two controls are **equivalent by construction** and must both be zero.")
+    print("      They check two different implementation layers (inside NovelTask / on the agent-state side),")
+    print("      which is not redundant as engineering, but **does not count as two independent negative controls scientifically**.")
+    print("      ✅ May be said: the history effect enters the new task via novelty style, as designed")
+    print("      ⛔ May not be said: all carriers of history were searched and only traits were found")
 
     out = os.path.join(HERE, "final_027_result.txt" if a.final
                        else "final_027_rehearsal.txt")
@@ -290,7 +290,7 @@ def main():
         f.write(f"attrition rich={dead_a:.4f} poor={dead_b:.4f} keep={keep:.4f}\n")
         for (arm, key), v in verdict.items():
             f.write(f"{arm}\t{key}\t{v[0]:+.6f}\t{v[1]:+.6f}\t{v[2]:+.6f}\t{v[3]:.6f}\n")
-    print(f"\n已写入 {out}")
+    print(f"\nWritten to {out}")
 
 
 if __name__ == "__main__":
