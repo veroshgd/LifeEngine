@@ -2798,266 +2798,266 @@ and only the landmark falls (92.7% → 83.0%).
 |---|---|---|---|
 | 022 P1 | 1.058 ✓ | 1.090 ✓ | passes, more strongly |
 | 022 P2 | ✗ | ✗ | **the preregistered conclusion is unchanged** |
-| 021§3 无地板 | 1.032/1.034 n.s. | 1.036 n.s. / 1.057 ** | 降级站得住，⚠ 块间不一致 |
-| 情节记忆 | 逐位 no-op | 逐位 no-op | 规则 41 加强 |
-| flags vs knowledge | 等价 | flags 更重 | 规则 40 修正 |
-| 60 天死亡率 | 7.5–8.1% | 4.1–4.3% | 修正生效 |
+| 021§3 no floors | 1.032/1.034 n.s. | 1.036 n.s. / 1.057 ** | the downgrade stands, ⚠ inconsistent across blocks |
+| episodic memory | bit-identical no-op | bit-identical no-op | rule 41 strengthened |
+| flags vs knowledge | equivalent | flags weigh more | rule 40 revised |
+| 60-day mortality | 7.5–8.1% | 4.1–4.3% | the correction works |
 
-**主故事已经开始闭合**：
+**The main story is beginning to close**:
 
 > Experience-dependent differentiation can be enhanced by semantic knowledge,
 > but long-term persistence is primarily carried by a separate
 > event-triggered consolidation mechanism.
 
-## 8. 还没做的（023 之后）
+## 8. Still to do (after 023)
 
-1. **冻结全部模型 + 写下预测**，然后用**从未运行过的新种子块**做 final
-   confirmation。规则 52 那个悬案（无地板档）由它裁决。
-2. **anchor 时刻的因果检验**：人为把 `_hardship_anchor` 固定在第 10/20/30 天，
-   看 P1 比值怎么变。直接检验规则 50 的推论。
-3. **state transplant + novel-situation generalization** —— 这两刀决定这篇
-   东西是"一个不错的 ABM 实验"，还是真的回答了那个问题：
-   **相同的个体，因为经历了不同的过去，是否真的成为行为上不同的"个体"。**
-4. ⑤（三个全删）在 v3 抹掉 68% 的效应（v2 只有 31%），需要解释。
+1. **Freeze the whole model and write down the predictions**, then do the final confirmation on a **seed block that has never been run**.
+   The open case of rule 52 (the no-floor variant) is settled by it.
+2. **A causal test of the anchor moment**: pin `_hardship_anchor` artificially at day 10/20/30
+   and see how the P1 ratio moves. A direct test of the corollary of rule 50.
+3. **state transplant + novel-situation generalization** — these two decide whether this is
+   "a decent ABM experiment" or really answers the question:
+   **does an identical individual truly become a behaviourally different "individual" because it lived through a different past.**
+4. ⑤ (deleting all three) erases 68% of the effect under v3 (only 31% under v2) and needs explaining.
 
 ---
 
-# 实验 024 —— v3 冻结 + anchor 内容因果探针
+# Experiment 024 — v3 frozen + the anchor-content causal probe
 
-> **v3 已冻结**：`ai-sandbox/v3_frozen/`（32 文件 + 完整 sha256 + README）。
-> 从这一刻起 `sim.py` 的默认机制不再改动。后续实验只能是
-> **experiment-level intervention**（改 agent 实例状态或临时开关，跑完恢复）。
-> 若某实验暴露必须改模型的结构问题 → **分叉 v4，重走冻结流程**，不要就地改 v3。
+> **v3 is frozen**: `ai-sandbox/v3_frozen/` (32 files + full sha256 + README).
+> From this moment the default mechanisms of `sim.py` are not changed again. Later experiments may only be
+> **experiment-level interventions** (changing agent instance state or a temporary switch, restored afterwards).
+> If an experiment exposes a structural problem forcing a model change → **fork v4 and repeat the freezing procedure**; do not edit v3 in place.
 
-## 1. A 部分：证伪"v3 推迟了 consolidation"（`anchor_probe.py --verify`）
+## 1. Part A: falsifying "v3 postponed consolidation" (`anchor_probe.py --verify`)
 
-023 §7.5 那条推论是错的，本节把它钉死。
-
-```
-世界      架构        anchor日 v2  anchor日 v3   逐种子相同   fears日 v2  fears日 v3
-丰富     完整架构         6.0        6.0      1500/1500      19.0       24.0
-丰富     地板全关        14.0       14.0      1500/1500      24.0       27.0
-贫瘠     完整架构         6.0        6.0      1500/1500      22.0       24.0
-贫瘠     地板全关        11.0       11.0      1500/1500      25.0       23.0
-```
-
-**anchor 写入日 v2/v3 逐种子 1500/1500 完全相同。**
-机制上必然如此：anchor 写在首次 `condition < 100` 的 tick，
-而 condition 只能被 `COND_DRAIN`（饿>70）拉下 100；condition 仍等于 100 时
-`COND_RECOVER_AT` 带来的 gain 全被 `clamp` 吃掉 ——
-**anchor 写入之前两版逐位相同**。
-
-后移的是 `fears_hunger`（+2~5 天）。规则 50 / 50b 已按此改写（023 §3）。
-
-> ### ★ 规则 53：不要拿一个变量的时间戳去论证另一个变量的时间戳 ★
-> 023 §7.5 用 `fears_hunger` 的日期论证 `_hardship_anchor` 的日期，
-> 而脚本**根本没记录后者**。两个事件差 13–20 天，结论整个反了。
-> **报"某某什么时候发生"之前，先确认脚本记的就是那个量。**
-
-## 2. B 部分：anchor 内容因果探针 —— anchor-content transplant
-
-不用"第 N 天才开始写 anchor"（那会同时改①快照内容②floor 起效时间）。
-改成：正常跑完 development（0–29 天，途中存 day 5/10/20/29 的 trait 快照）→
-第 30 天 `deepcopy` 出**完全相同的状态（含 RNG）**→ **只改 `_hardship_anchor`**
-→ 所有分支从同一状态进入 common garden。唯一变量 = anchor 里装的历史切片。
-
-### ★ 阴性对照：完美通过 ★
+That inference in 023 §7.5 is wrong, and this section nails it down.
 
 ```
-−全部地板①② · N=1500 · n=1448
-分支          比值      Δ vs 自然      p
-自然 anchor  1.146        —          —
+world     architecture      anchor day v2  anchor day v3   identical per seed   fears day v2  fears day v3
+rich     full architecture       6.0            6.0           1500/1500             19.0          24.0
+rich     all floors off         14.0           14.0           1500/1500             24.0          27.0
+barren   full architecture       6.0            6.0           1500/1500             22.0          24.0
+barren   all floors off         11.0           11.0           1500/1500             25.0          23.0
+```
+
+**The anchor write day is identical on 1500/1500 seeds between v2 and v3.**
+It must be so mechanistically: the anchor is written on the tick of the first `condition < 100`,
+and condition can only be pulled below 100 by `COND_DRAIN` (hunger>70); while condition is still 100,
+the gain from `COND_RECOVER_AT` is entirely eaten by `clamp` —
+**before the anchor is written the two versions are bit-identical**.
+
+What moved later is `fears_hunger` (+2 to 5 days). Rules 50 / 50b have been rewritten accordingly (023 §3).
+
+> ### ★ Rule 53: do not use one variable's timestamp to argue about another variable's timestamp ★
+> 023 §7.5 used the date of `fears_hunger` to argue about the date of `_hardship_anchor`,
+> while the script **never recorded the latter at all**. The two events are 13–20 days apart and the conclusion was entirely inverted.
+> **Before reporting "when X happened", confirm that the script recorded that very quantity.**
+
+## 2. Part B: the anchor-content causal probe — an anchor-content transplant
+
+Not "only start writing the anchor on day N" (which would change both ① the snapshot content and ② when the floor takes effect).
+Instead: run development normally (days 0–29, saving trait snapshots at days 5/10/20/29) →
+on day 30 `deepcopy` an **exactly identical state (including RNG)** → **change only `_hardship_anchor`**
+→ every branch enters the common garden from the same state. The only variable = the history slice stored in the anchor.
+
+### ★ The negative control: passes perfectly ★
+
+```
+−all floors ①② · N=1500 · n=1448
+branch          ratio      Δ vs natural      p
+natural anchor  1.146        —              —
 Day 5        1.146     +0.0000    1.0000 n.s.
 Day 10       1.146     +0.0000    1.0000 n.s.
 Day 20       1.146     +0.0000    1.0000 n.s.
 Day 29       1.146     +0.0000    1.0000 n.s.
-无 anchor     1.146     +0.0000    1.0000 n.s.
+no anchor       1.146     +0.0000        1.0000 n.s.
 ```
 
-**六个分支逐位相同。** `_hardship_anchor` 的唯一作用路径确实是
-anchor → `trait_floor`（`sim.py:970`），地板一冻成 `FrozenZero`，
-anchor 里放什么都不影响任何一个 tick。**没有泄漏，没有第二条通路。**
+**All six branches are bit-identical.** The only route by which `_hardship_anchor` acts really is
+anchor → `trait_floor` (`sim.py:970`), and once the floor is frozen to `FrozenZero`,
+what is in the anchor affects not a single tick. **No leak, no second pathway.**
 
-### primary：通过，但效应极小
+### primary: passes, but the effect is tiny
 
 ```
-完整架构 · N=1500 · n=1446
-分支          比值      δ均值    Δ vs 自然     dz       p
-自然 anchor  1.150    0.0457       —        —        —
+full architecture · N=1500 · n=1446
+branch          ratio     mean δ    Δ vs natural     dz       p
+natural anchor  1.150    0.0457       —             —        —
 Day 5        1.150    0.0458    +0.0001   0.02   0.4287 n.s.
 Day 10       1.150    0.0457    +0.0000   0.00   0.9559 n.s.
 Day 20       1.153    0.0467    +0.0010   0.06   0.0255 *
 Day 29       1.156    0.0476    +0.0019   0.09   0.0004 ***
-无 anchor     1.155    0.0474    +0.0017   0.08   0.0029 **
+no anchor       1.155    0.0474    +0.0017        0.08   0.0029 **
 ```
 
-**primary 预测成立**：anchor 内容干预确实产生可检出的差异（Day20/Day29/无 anchor）。
-**但幅度极小**：最大的 Δ = +0.0019，相对于"超出 1 的部分"（0.150）只占 **1.3%**。
+**The primary prediction holds**: the anchor-content intervention really does produce a detectable difference (Day20/Day29/no anchor).
+**But the magnitude is tiny**: the largest Δ = +0.0019, which against "the part above 1" (0.150) is only **1.3%**.
 
-**secondary（未预注册）**：Day 5 ≈ Day 10 ≈ 自然 —— 意料之中，
-自然 anchor 中位就写在第 6 天，Day5/Day10 的快照和它几乎是同一张。
-真正有差别的是 Day 20 之后。方向是**越晚（或干脆没有）→ 比值越高**，
-即**早期 anchor 轻微压低了世界间差异**（把地板钉在尚未分化的性格上）。
+**secondary (not preregistered)**: Day 5 ≈ Day 10 ≈ natural — as expected,
+since the natural anchor's median write day is day 6, so the Day5/Day10 snapshots are essentially the same one.
+What really differs is from Day 20 onwards. The direction is **the later (or the absence of it) → the higher the ratio**,
+i.e. **an early anchor slightly suppresses the between-world difference** (pinning the floor to a personality that has not yet differentiated).
 
-> ### ★ 规则 54：起作用的是"地板存在过"，不是"地板锚在哪张快照上" ★
-> 把两个实验并排看：
-> - 021§3（地板消融）：完整 1.150 → 无地板 1.036，**地板一关塌掉 76%**
-> - 024 B（换 anchor 内容）：自然 → 无 anchor 只动 **1.3%**
+> ### ★ Rule 54: what matters is that a floor existed, not which snapshot the floor is anchored to ★
+> Placing the two experiments side by side:
+> - 021§3 (floor ablation): full 1.150 → no floors 1.036, **switching the floors off collapses it by 76%**
+> - 024 B (changing the anchor content): natural → no anchor moves it by only **1.3%**
 >
-> 所以 persistence 依赖的是 **floor 这条棘轮通道本身存在过**，
-> 而**不敏感于它锚定的是哪一张历史切片**。
-> 规则 50 那句"write-once 采样是持久性的载体"要**降级**：
-> 采样确实是 write-once、确实是因果的，但它**携带的个体信息几乎不进入结果**。
+> So persistence depends on **the floor ratchet channel itself having existed**,
+> and is **insensitive to which history slice it is anchored to**.
+> Rule 50's line "the write-once sample is the carrier of persistence" must be **downgraded**:
+> the sample really is write-once and really is causal, but **the individual information it carries barely enters the result**.
 
-⚠ **本实验的射程限制（必须写进论文）**：干预点在第 30 天，
-而 `trait_floor` 用 `max()` 累积 —— development 期间由自然 anchor 抬起来的地板
-**已经烙进去了，本实验没有拆掉它**。所以这里测的是
-**"anchor 在移植后还剩多少因果影响"**，不是"anchor 机制整体有多重要"。
-后者由 021§3 的地板消融回答（很大）。两个数字不矛盾，量的是不同的东西。
+⚠ **The scope limitation of this experiment (which must go into the paper)**: the intervention point is day 30,
+and `trait_floor` accumulates with `max()` — the floor raised by the natural anchor during development
+**is already burned in and this experiment did not dismantle it**. So what is measured here is
+**"how much causal influence the anchor still has after the transplant"**, not "how important the anchor mechanism is overall".
+The latter is answered by the floor ablation of 021§3 (a great deal). The two numbers do not contradict; they measure different things.
 
-## 3. ⚠ 本次实验自身的两个错误（记下来当反例）
+## 3. ⚠ Two errors in this experiment itself (recorded as counterexamples)
 
-**(a) mp.Pool 的 worker 复用造成版本污染。**
-A 部分的 `task_verify` 在 worker 进程里设 `sim.COND_RECOVER_AT = 30.0/65.0`，
-而 B 部分的 `_prep()` 没有显式设回来 —— **worker 进程是复用的**，
-于是 B 跑的是 v2 还是 v3 取决于任务调度顺序。同一条命令两次跑出完全不同的数
-（自然 anchor 1.260 vs 1.119）。第一版"阴性对照完美 + 完整架构全显著"的结果
-**是污染出来的，已作废**。
+**(a) mp.Pool worker reuse caused version contamination.**
+Part A's `task_verify` sets `sim.COND_RECOVER_AT = 30.0/65.0` inside the worker process,
+and part B's `_prep()` did not set it back explicitly — **worker processes are reused**,
+so whether B ran v2 or v3 depended on task scheduling order. The same command produced completely different numbers twice
+(natural anchor 1.260 vs 1.119). The first version's result of "a perfect negative control + everything significant under the full architecture"
+**was a product of contamination and is void**.
 
-> ### ★ 规则 55：子进程里改过的全局量，每个任务都要显式设定，不能靠继承 ★
-> `mp.Pool` 复用 worker。任何 `setattr(sim, ...)` 都会留在进程里影响后续任务。
-> **每个任务函数开头必须把它依赖的所有全局量显式写一遍**，
-> 哪怕看起来是默认值。
-> 自检方法：**同一条命令换一个 `--workers` 跑第二遍，结果必须逐位相同。**
-> （修好之后 workers=12 与 workers=5 已核对一致。）
+> ### ★ Rule 55: globals changed inside a subprocess must be set explicitly by every task and never inherited ★
+> `mp.Pool` reuses workers. Any `setattr(sim, ...)` stays in the process and affects later tasks.
+> **Every task function must write out every global it depends on at its start**,
+> even those that look like defaults.
+> The self-check: **run the same command a second time with a different `--workers`; the results must be bit-identical.**
+> (After the fix, workers=12 and workers=5 were verified identical.)
 
-**(b) `FrozenZero` 的 deepcopy 陷阱。**
-`FrozenZero(dict)` 的 `__setitem__` 是 no-op，而 `copy.deepcopy` 重建 dict 子类
-**正是通过 `__setitem__` 灌数据** → 复制出一个**空 dict** → 读 `trait_floor['industry']`
-直接 `KeyError`。v3 已冻结，所以在实验脚本里重建 `FrozenZero()` 补回
-（它不携带状态，读恒 0、写恒丢，重建等价）。
-**以后所有 state transplant 类实验都会踩到这个**，先记着。
+**(b) The deepcopy trap of `FrozenZero`.**
+`FrozenZero(dict)`'s `__setitem__` is a no-op, and `copy.deepcopy` rebuilds a dict subclass
+**precisely by feeding data through `__setitem__`** → it produces an **empty dict** → reading `trait_floor['industry']`
+raises `KeyError` outright. v3 is frozen, so `FrozenZero()` is rebuilt inside the experiment script to patch it
+(it carries no state, reads are always 0 and writes always dropped, so rebuilding is equivalent).
+**Every state-transplant experiment from now on will hit this**, so note it in advance.
 
-## 4. 状态
+## 4. Status
 
-| 问题 | 答案 |
+| Question | Answer |
 |---|---|
-| v3 推迟了 consolidation？ | ❌ 否，anchor 日 1500/1500 逐种子相同 |
-| anchor 只走 trait_floor？ | ✅ 是，阴性对照六分支逐位相同 |
-| anchor 内容是因果载体？ | ✅ 是（p=0.0004），但只解释 1.3% |
-| 持久性靠 anchor 的内容？ | ❌ 否，靠"地板存在过"（规则 54） |
+| did v3 postpone consolidation? | ❌ no, the anchor day is identical on 1500/1500 seeds |
+| does the anchor act only through trait_floor? | ✅ yes, the negative control's six branches are bit-identical |
+| is the anchor content a causal carrier? | ✅ yes (p=0.0004), but it explains only 1.3% |
+| does persistence rely on the anchor's content? | ❌ no, it relies on "a floor having existed" (rule 54) |
 
-**下一步：写死 FINAL PREREGISTRATION，然后才开全新种子块。**
-见 `ai-sandbox/FINAL_PREREGISTRATION.md`。
+**Next: fix the FINAL PREREGISTRATION in writing, and only then open the brand-new seed block.**
+See `ai-sandbox/FINAL_PREREGISTRATION.md`.
 
 ---
 
-# 实验 025 —— FINAL CONFIRMATION（预注册执行）
+# Experiment 025 — FINAL CONFIRMATION (executing the preregistration)
 
-> 预注册全文：`ai-sandbox/FINAL_PREREGISTRATION.md`（2026-08-15 写死，跑前未改）
-> 执行脚本：`ai-sandbox/final_confirm.py`（从 `v3_frozen/` 导入，启动即校验 sha256）
+> The full preregistration: `ai-sandbox/FINAL_PREREGISTRATION.md` (fixed 2026-08-15, unchanged before the run)
+> The execution script: `ai-sandbox/final_confirm.py` (imports from `v3_frozen/` and verifies the sha256 at startup)
 
-## 0. ⚠ 这次确认的射程（先写在最前面，防止日后误引）
+## 0. ⚠ The scope of this confirmation (written at the very top to prevent later misquotation)
 
-**这是「当前 persistence architecture 的最终确认」，不是整篇研究核心目标的
-最终确认。**
+**This is "the final confirmation of the current persistence architecture", not the final confirmation of the
+core goal of the whole research programme.**
 
-它确认的是：不同的过去，会不会在**同一个 common garden 里**留下持久的行为差异，
-以及这个差异由哪些机制携带。
+What it confirms: whether a different past leaves a persistent behavioural difference **within one common garden**,
+and which mechanisms carry that difference.
 
-它**没有测**：这些差异能不能在一个**双方都从未经历过的新情境**里
-泛化成不同的决策。
+What it **does not test**: whether those differences generalize into different decisions in a **situation
+neither side has ever experienced**.
 
-所以即使全部判据漂亮通过，能写的是
-**"persistent individuality / path dependence 的基础已经很稳"**，
-**不是** "generalized individuality 已经证明"。
-后者是下一阶段 **novel-situation generalization** 的事。**论文里这两句不能混。**
+So even if every criterion passes beautifully, what may be written is
+**"the foundation of persistent individuality / path dependence is now solid"**,
+**not** "generalized individuality has been demonstrated".
+The latter belongs to the next stage, **novel-situation generalization**. **The two must not be conflated in the paper.**
 
-## 1. persistence 这一层的收敛状态（跑 final 之前的盘点）
+## 1. The state of convergence at the persistence layer (a stocktake before the final run)
 
-| 命题 | 状态 | 依据 |
+| Proposition | Status | Basis |
 |---|---|---|
-| 不同经历 → 持久的行为差异 | ✓ | 018–022，023 v3 重验 1.124–1.172 |
-| 不是 mortality artifact | ✓ | 023：死亡率减半后效应**更强**不是更弱 |
-| episodic memory 不是载体 | ✓ 很强 | 删 memories 在 v2/v3 都**逐位** no-op（规则 41） |
-| semantic knowledge 不是主要载体 | ✓ 越来越强 | P2 在 v2/v3 都不过（023 §7.3） |
-| floor architecture 很重要 | ✓ | 021§3：1.150 → 1.036，塌 76% |
-| anchor 的具体 snapshot 在移植后几乎不重要 | ✓ 新 | 024：只解释 1.3%（规则 54） |
-| 无 floor 是否还有微弱 residual | **？** | 规则 52：两个种子块结论相反 → **R52 裁决** |
+| different experience → a persistent behavioural difference | ✓ | 018–022, and the 023 v3 revalidation at 1.124–1.172 |
+| not a mortality artifact | ✓ | 023: with mortality halved the effect is **stronger**, not weaker |
+| episodic memory is not the carrier | ✓ very strong | deleting memories is a **bit-identical** no-op in both v2/v3 (rule 41) |
+| semantic knowledge is not the main carrier | ✓ increasingly strong | P2 fails in both v2/v3 (023 §7.3) |
+| the floor architecture matters a great deal | ✓ | 021§3: 1.150 → 1.036, a 76% collapse |
+| the anchor's specific snapshot barely matters after the transplant | ✓ new | 024: explains only 1.3% (rule 54) |
+| is there still a faint residual with no floor | **?** | rule 52: the two seed blocks disagree → **R52 decides** |
 
-**只有最后一行是未知的。** 其余五项在 final 里是**复制，不是发现** ——
-论文里必须这样写，不能把复制说成确认。
+**Only the last row is unknown.** The other five are **replications, not discoveries** in the final run —
+the paper must say so and must not present a replication as a confirmation.
 
-## 2. 执行前的三道闸（全部通过）
+## 2. Three gates before execution (all passed)
 
-1. **冻结校验**：`v3_frozen/SHA256SUMS.txt` 32 个文件全部匹配 ✓
-   模型确认来自 `v3_frozen`，`MODEL_VERSION=v3`，`COND_RECOVER_AT=65.0` ✓
-2. **规则 55 自检**：`--workers 12` 与 `--workers 5` 输出**逐字节相同** ✓
-3. **全流程调通**：开发种子上走通五个条件 + 四条判据 + 阴性对照 ✓
-   （阴性对照 fingerprint：删 memories 与不删 **完全相同**）
+1. **Frozen verification**: all 32 files of `v3_frozen/SHA256SUMS.txt` match ✓
+   the model is confirmed to come from `v3_frozen`, with `MODEL_VERSION=v3` and `COND_RECOVER_AT=65.0` ✓
+2. **The rule 55 self-check**: the output of `--workers 12` and `--workers 5` is **byte-identical** ✓
+3. **The whole pipeline shaken down**: five conditions + four criteria + the negative control all run through on development seeds ✓
+   (negative-control fingerprint: deleting memories and deleting nothing are **exactly identical**)
 
-## 3. ⚠ 起飞前拦下：R52 判据不可判定（`r52_precision.py`）
+## 3. ⚠ Stopped before launch: the R52 criterion is undecidable (`r52_precision.py`)
 
-彩排（**开发种子** 0–1499，N=1500，非 final）：
-
-```
-条件                    n     死亡丰  死亡贫    比值   95% CI
-H1  完整架构           1447   0.0%   3.5%   1.153  [1.113, 1.196]  ✓
-P1  −全部地板①②        1448   0.0%   3.5%   1.139  [1.098, 1.183]  ✓
-P2② 删 knowledge     1449   0.1%   3.3%   1.102  [1.062, 1.144]  ✗（落差 .037，CI 重叠）
-NC③ 删 memories      1448   0.0%   3.5%   1.139  [1.098, 1.183]  ✓ 与 P1 逐位相同
-R52 −地板 · 022关     1430   1.5%   3.2%   1.037  [1.000, 1.084]  ⚠
-```
-
-R52 的 CI 下界打印出来正好是 **1.000**。判据是「下界 > 1.00」，
-于是"过/不过"取决于 bootstrap 分位数的第 4 位小数 —— 而那一位带蒙特卡洛误差。
-
-**只换分析层随机种子**（不换数据、不换模型、不换估计量），跑 8 次：
+The rehearsal (**development seeds** 0–1499, N=1500, not final):
 
 ```
-分析种子    CI 下界    判据          分析种子    CI 下界    判据
-777       1.00054    ✓ 过         4777      1.00011    ✓ 过
-1777      0.99875    ✗ 不过        5777      0.99938    ✗ 不过
-2777      1.00118    ✓ 过         6777      1.00121    ✓ 过
-3777      1.00145    ✓ 过         7777      0.99972    ✗ 不过
-
-下界范围 [0.99875, 1.00145]   抖动 0.00271
-|中位下界 − 1.00| = 0.00032   vs 抖动 0.00271      → 5/8 判「过」
+condition                  n     dead rich  dead barren   ratio   95% CI
+H1  full architecture     1447    0.0%       3.5%       1.153  [1.113, 1.196]  ✓
+P1  −all floors ①②        1448    0.0%       3.5%       1.139  [1.098, 1.183]  ✓
+P2② delete knowledge      1449    0.1%       3.3%       1.102  [1.062, 1.144]  ✗ (drop .037, CIs overlap)
+NC③ delete memories       1448    0.0%       3.5%       1.139  [1.098, 1.183]  ✓ bit-identical to P1
+R52 −floors · 022 off     1430    1.5%       3.2%       1.037  [1.000, 1.084]  ⚠
 ```
 
-> ### ★ 规则 56：bright-line 判据必须先证明它在预期效应量上可判定 ★
-> 「CI 下界 > 1.00」写起来很干净，但当真值就压在 1.00 上时，
-> 它把科学结论交给了**分析层随机种子**。5/8 vs 3/8 = 掷硬币。
-> **预注册写判据时，要同时预注册"这个判据在预期效应量下的可判定性"** ——
-> 或者干脆允许第三种结局「落在检出边界，判据无法裁决」。
+R52's printed CI lower bound is exactly **1.000**. The criterion is "lower bound > 1.00",
+so "pass/fail" turns on the fourth decimal of a bootstrap quantile — and that digit carries Monte Carlo error.
+
+**Changing only the analysis-layer random seed** (same data, same model, same estimator), run 8 times:
+
+```
+analysis seed  CI lower   verdict      analysis seed  CI lower   verdict
+777           1.00054    ✓ pass       4777          1.00011    ✓ pass
+1777          0.99875    ✗ fail       5777          0.99938    ✗ fail
+2777          1.00118    ✓ pass       6777          1.00121    ✓ pass
+3777          1.00145    ✓ pass       7777          0.99972    ✗ fail
+
+lower-bound range [0.99875, 1.00145]   jitter 0.00271
+|median lower bound − 1.00| = 0.00032   vs jitter 0.00271      → 5/8 judge "pass"
+```
+
+> ### ★ Rule 56: a bright-line criterion must first be shown to be decidable at the expected effect size ★
+> "CI lower bound > 1.00" is clean to write, but when the true value sits right on 1.00
+> it hands the scientific conclusion to the **analysis-layer random seed**. 5/8 vs 3/8 = a coin flip.
+> **When a preregistration states a criterion, it must also preregister "whether this criterion is decidable at the expected effect size"** —
+> or simply allow a third outcome, "on the detection boundary, the criterion cannot decide".
 >
-> 这条是在**烧掉 final block 之前**抓到的，靠的是一次只用已烧种子的彩排。
-> **一次性资源，必须先彩排。**
+> This was caught **before the final block was burned**, thanks to a rehearsal using only already-burned seeds.
+> **A one-shot resource must be rehearsed first.**
 
-### ⚠ 加 bootstrap 次数救不了
+### ⚠ More bootstrap iterations cannot save it
 
-抬 `N_BOOT` 只压缩蒙特卡洛误差，不改变 bootstrap 分位数的**极限值**。
-`N_BOOT → ∞` 时下界收敛到 ≈ **1.0003** —— 判读会从"随机的过/不过"
-变成"稳定地判过，但只赢了万分之三"。
-**那是把随机的任意变成确定的任意，不是把它变成有意义。**
+Raising `N_BOOT` only compresses the Monte Carlo error; it does not change the **limiting value** of the bootstrap quantile.
+As `N_BOOT → ∞` the lower bound converges to ≈ **1.0003** — the verdict would go from "randomly pass/fail"
+to "stably pass, but winning by three parts in ten thousand".
+**That turns random arbitrariness into deterministic arbitrariness; it does not turn it into meaning.**
 
-真正的问题不是精度，是 **R52 的真值就坐在检出限上**：
-021 开发块 1.036 n.s. / 留出块 1.057 **，现在开发块 N=1500 下界 ≈ 1.0003。
-规则 52 说的"两个种子块结论相反"，本质就是这个。
+The real problem is not precision but that **R52's true value sits on the detection limit**:
+021 gives 1.036 n.s. on the development block and 1.057 ** on the holdout block, and now the development block at N=1500 has a lower bound ≈ 1.0003.
+Rule 52's "the two seed blocks give opposite conclusions" is exactly this.
 
-**决策权交回，final block 未动。** 50000–51499 仍然完好未使用。
+**The decision is handed back, and the final block is untouched.** 50000–51499 remains intact and unused.
 
-## 4. ⚠ 第一次 `--final` 是空跑 —— 事故记录
+## 4. ⚠ The first `--final` was an empty run — an incident record
 
-首次执行 `--final` 输出全部条件 `n = 0`。**这不是结果，是分块索引 bug。**
+The first execution of `--final` output `n = 0` for every condition. **That is not a result, it is a chunk-indexing bug.**
 
 ```python
-jobs = [... (ci, w, s0, min(CHUNK, N - s0)) ...          # 应为 seed0 + N - s0
+jobs = [... (ci, w, s0, min(CHUNK, N - s0)) ...          # should be seed0 + N - s0
         for s0 in range(seed0, seed0 + N, CHUNK)]
 ```
 
-`seed0 = 0` 时两者恰好相等；`seed0 = 50000` 时 `N − s0 = 1500 − 50000` 为**负数**
-→ `range(s0, s0 + 负数)` 为空 → 每个任务模拟 0 颗种子。
+At `seed0 = 0` the two happen to be equal; at `seed0 = 50000`, `N − s0 = 1500 − 50000` is **negative**
+→ `range(s0, s0 + negative)` is empty → every task simulates 0 seeds.
 
 **关键：`scenarios.make` 对 50000–51499 一次都没被调用，没跑过任何一个 tick，
 没有产生任何观测。** 所以 final block **未被烧掉**，修复后重跑不构成
