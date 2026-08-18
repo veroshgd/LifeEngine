@@ -2539,265 +2539,265 @@ which is equivalent to running `v2_frozen/` — and that is exactly what the rev
 
 ### Why 65 (this sentence has to withstand a reviewer)
 
-**不是"扫参数发现 65 死亡率最低"**，而是有完整的闭环机制解释（3h 节 / 规则 49）：
+**It was not "a parameter sweep found 65 gives the lowest mortality"** but a complete closed-loop mechanistic account (§3h / rule 49):
 
 ```
-提高恢复阈值 → condition 改善 → survival urgency 减弱
-             → 富养 agent 减少觅食 → 饥饿反升 → 死亡率【上升】= 怠惰谷
-             → 到 65，condition 的余量足以跨过这段负反馈区 → 死亡率重新下降
+raise the recovery threshold → condition improves → survival urgency weakens
+             → well-fed agents forage less → hunger rises → mortality **goes up** = the sloth valley
+             → by 65 the condition margin suffices to cross that negative-feedback stretch → mortality falls again
 
-死亡率
+mortality
   ^
   |        _
-  |      _/ \_          ← 怠惰谷（T=55 时丰富世界 36.3%）
+  |      _/ \_          ← the sloth valley (36.3% in the rich world at T=55)
   |  ___/     \
-  |            \______  ← T=65，2.0%
+  |            \______  ← T=65, 2.0%
   +---------------------> COND_RECOVER_AT
      30   55  60  65
 ```
 
-**65 是越过怠惰谷之后的第一个整十值。**
-余量方向也因此明确：**危险的是下调（掉回谷里），上调是安全的。**
+**65 is the first round ten past the sloth valley.**
+That also settles the margin direction: **the danger is lowering it (falling back into the valley); raising it is safe.**
 
-> ### ★ 规则 51：闭环系统里"更健康的局部规则"不一定单调提高适应度 ★
-> agent 是 behavior–physiology 闭环：`condition ↑ → urgency ↓ → 觅食 ↓ →
-> 饥饿 ↑ → 死亡 ↑`。局部直觉（"让身体恢复得更快当然更好"）在闭环里可能反号。
-> **ABM / Artificial Life 的参数不能靠局部直觉调**，必须测端到端。
-> 这条不是论文主结论，但很适合做 supplementary figure / 模型审计那一节。
+> ### ★ Rule 51: in a closed loop, a "locally healthier rule" does not necessarily raise fitness monotonically ★
+> The agent is a behaviour–physiology closed loop: `condition ↑ → urgency ↓ → foraging ↓ →
+> hunger ↑ → death ↑`. Local intuition ("surely faster physical recovery is better") can flip sign inside a loop.
+> **ABM / Artificial Life parameters cannot be tuned by local intuition**; they must be measured end to end.
+> This is not a main conclusion of the paper, but it suits a supplementary figure or the model-audit section well.
 
-## 3. 规则 50 的最终措辞
+## 3. The final wording of rule 50
 
-3h 节测到 `HARDSHIP_SCALE = 1.5` 让 `hardship_norm` 迅速饱和
-（实测 hardship 23–48，约 5 天就顶到 1.0），**所有球、所有档位都在天花板上**。
-所以机制不是"越饿 → hardship 越强 → 性格变化越多"，而是：
+§3h measured that `HARDSHIP_SCALE = 1.5` saturates `hardship_norm` rapidly
+(measured hardship 23–48, pinned at 1.0 after about 5 days), so **every ball in every variant is at the ceiling**.
+So the mechanism is not "hungrier → stronger hardship → more personality change" but:
 
 ```
-首次 condition < 100（sim.py:965）—— 早，且近乎全员
-        ↓ 一次性写入
-_hardship_anchor = 当时的 trait 快照        ← write-once，此后不再改写
+the first condition < 100 (sim.py:965) — early, and for nearly everyone
+        ↓ written once
+_hardship_anchor = the trait snapshot at that moment        ← write-once, never rewritten afterwards
         ↓
-trait_floor ← min(anchor[t] + w×22×hnorm, 90)（sim.py:970）
+trait_floor ← min(anchor[t] + w×22×hnorm, 90) (sim.py:970)
 ```
 
-> ### ★ 规则 50（终稿 · 已按实验 024 修订）★
+> ### ★ Rule 50 (final draft · revised per experiment 024) ★
 > **Hardship consolidation is initiated by an early, near-universal,
 > write-once capture of the agent's trait state. The v3 condition
 > correction does not alter the timing of this capture; instead, it alters
 > the subsequent accumulation and behavioral expression of hardship.**
 >
-> hardship 机制通过一次**早期、近乎普遍发生的 write-once 性格快照**启动。
-> v3 的体质修正**并没有改变快照写入时间**，而是改变了快照写入之后
-> hardship 的累积及其行为表达。
+> The hardship mechanism is started by a single **early, nearly universal write-once personality snapshot**.
+> The v3 condition correction **did not change when the snapshot is written**; it changed the accumulation of hardship
+> after the snapshot and its behavioural expression.
 >
-> 证据：实验 024 A 部分，anchor 首次写入日 v2/v3 **300/300 逐种子相同**
-> （中位第 6 天 / 第 12–14 天，取决于架构）。机制上也必然如此 ——
-> anchor 写入之前两版逐位相同。
+> Evidence: in part A of experiment 024, the first anchor-write day is **identical on 300/300 seeds** between v2/v3
+> (median day 6 / days 12–14, depending on architecture). It must also be so mechanistically —
+> before the anchor is written the two versions are bit-identical.
 
-> ### ★ 规则 50b：`fears_hunger` 是 narrative marker，不是固化时刻 ★
-> 它只在 `hardship_norm ≥ 0.5`（`HARDSHIP_STORY_AT`）时才记，
-> 比 anchor 晚 13–20 天。它最多告诉你
-> **"agent 什么时候积累到了足够强的 hardship，可以在叙事层面称为'怕挨饿'"**，
-> **不是**"人格什么时候被固化"。
-> ⚠ 以后**不许**再用 `fears_hunger` 的日期或触发率去论证 consolidation ——
-> 023 §7.5 就是这么翻车的。
+> ### ★ Rule 50b: `fears_hunger` is a narrative marker, not the moment of consolidation ★
+> It is recorded only once `hardship_norm ≥ 0.5` (`HARDSHIP_STORY_AT`),
+> 13–20 days after the anchor. At most it tells you
+> **"when the agent accumulated enough hardship to be called 'afraid of hunger' at the narrative level"**,
+> and **not** "when the personality was consolidated".
+> ⚠ In future the date or trigger rate of `fears_hunger` **must not** be used to argue about consolidation —
+> that is exactly how 023 §7.5 came off the rails.
 
-**这条已经开始回答论文那个大问题："历史到底是怎么被保存的？"**
-答案看起来不是传统 episodic memory，不是 semantic knowledge，
-也不是连续累积的 hardship 标量，而是 **event-triggered consolidation**。
-—— 这正好接得上后面要做的 state transplant。
+**This has already begun to answer the paper's big question: "how exactly is history preserved?"**
+The answer appears to be neither traditional episodic memory, nor semantic knowledge,
+nor a continuously accumulating hardship scalar, but **event-triggered consolidation**.
+— which connects neatly to the state transplant to come.
 
-## 4. 重验的性质（必须写清楚，否则会被当成 confirmatory）
+## 4. The nature of the revalidation (which must be stated clearly, or it will be taken as confirmatory)
 
-我们已经看过数据、改了模型，而且 65 本身是诊断实验选出来的。
-所以接下来这一步的正确名字是：
+We have already seen the data, changed the model, and 65 was itself picked by a diagnostic experiment.
+So the correct name for this next step is:
 
 > **v3 mechanistic revalidation / robustness reanalysis** ——
-> 不是新的 confirmatory experiment。
+> not a new confirmatory experiment.
 
-用**原来的种子**重跑是优势不是问题：唯一变量是 `COND_RECOVER_AT 30 → 65`，
-同种子对照能干净地把"结论变了"归因到这一个数，而不是归因到"换了一批球"。
-**但它不能承担最终确认。** 最终确认要等模型完全冻结后，
-用一段**从未运行过的新种子块**做。
+Re-running on **the original seeds** is an advantage, not a problem: the only variable is `COND_RECOVER_AT 30 → 65`,
+and a same-seed comparison attributes "the conclusion changed" cleanly to that one number rather than to "a different batch of balls".
+**But it cannot carry the final confirmation.** Final confirmation waits until the model is fully frozen and
+uses a block of seeds **that has never been run**.
 
-### 不重跑 011–020
+### 011–020 are not re-run
 
-011–020 是建立模型、发现问题的 development history，任务已经完成。
-需要重新验证的只有**依赖 survival confound 的因果主张**：
+011–020 are the development history of building the model and finding problems; their job is done.
+What needs revalidating is only the **causal claims that depended on the survival confound**:
 
-| 重验项 | 问题 |
+| Item revalidated | Question |
 |---|---|
-| 021 §3 | 地板消融：`−全部地板①②` 还站不站得住 |
-| 022 P1 | 接线后无地板档比值 > 1 |
-| 022 P2 | 删掉 knowledge 后 persistence 是否消失 |
-| 规则 50 诊断 | fears_hunger 触发率 / 首次触发日 / anchor 存在率 |
+| 021 §3 | floor ablation: does `−all floors ①②` still stand |
+| 022 P1 | is the no-floor ratio > 1 after wiring |
+| 022 P2 | does persistence disappear once knowledge is deleted |
+| rule 50 diagnosis | fears_hunger trigger rate / first-trigger day / anchor presence rate |
 
-Methods 里的说法：*模型发现结构性 survival confound 后完成修正，
-然后重新验证所有依赖该 confound 的核心结论。*
+The wording for Methods: *once a structural survival confound was found in the model it was corrected,
+and every core conclusion that depended on that confound was then revalidated.*
 
-### 整条路线
-
-```
-v2 → 发现 mortality / survivor confound → 机制诊断 → 发现怠惰谷
-   → v3 (COND_RECOVER_AT 65) → 旧种子 mechanistic revalidation
-   → 冻结全部模型 + 预测 → 全新 seeds final confirmation
-```
-
-**这比"第一次什么都设计对了"更可信。**
-
-## 5. 原始结果的版本标记（`resultmeta.py`）
-
-v2 → v3 从 CSV 内容上完全看不出来。所以约定：任何写盘的原始结果，
-前五列固定是 `model_version / experiment / condition / seed / cond_recover_at`
-（最后一项冗余但值得 —— 出问题时不用翻代码）。`param_sweep.py` 已接入。
-
-⚠ 已有的 `sweep_results.csv` / `holdout.csv` 是 v2 的，表头没有这几列。
-v3 要重扫的话换个 `--out`，**不要混进同一个文件**。
-
-## 6. ⚠ fears_hunger 触发率下降怎么处理
-
-3h 测到完整架构下触发率 100%（v2）→ 86%（v3）。这必须认真处理：
-
-- **主效应一律报全部预定义种子**，不能为了让效应好看只分析触发者。
-  "有没有触发 fears_hunger"**本身就是模拟过程产生的结果**，
-  事后只取触发者会重新制造 selection 问题 —— 和我们刚修掉的是同一类错误。
-- 正确写法：`86% triggered the hardship mechanism.`
-  然后把触发者内部的结果作为 **secondary descriptive analysis**。
-- 021§3 重跑时同时报告：
-  `floor ON` → 触发率 / 首次触发日 / anchor 存在率 / 存活率；
-  `floor OFF` → 存活率。
-
-
-## 7. ★ v3 机制重验结果 ★（`v3_revalidate.py`，N=1500，同种子）
-
-74 个任务 / 10 进程 / 约 40 分钟。唯一变量 `COND_RECOVER_AT: 30 → 65`。
-
-**先验证流水线**：v2 臂跑出 022 P1 = **1.058 [1.029, 1.102] p=0.0001**，
-与 022 正文发表的数字**逐位一致** ✓。所以下面的 v2/v3 差是真的差，不是实现差。
-
-### 7.1 修正确实生效（死亡率）
+### The whole route
 
 ```
-                        v2 死亡    v3 死亡
-022 P1 完整架构           8.1%      4.3%
-022 P1 −全部地板①②        7.5%      4.1%
-021§3 有效 n（/1500）    1411       1430
+v2 → find the mortality / survivor confound → mechanistic diagnosis → find the sloth valley
+   → v3 (COND_RECOVER_AT 65) → mechanistic revalidation on the old seeds
+   → freeze the whole model + predictions → final confirmation on brand-new seeds
 ```
 
-60 天窗口上死亡率**减半**。（120 天上的效果见 3h：40.7% → 7.2%。）
+**That is more credible than "everything was designed right the first time".**
 
-### 7.2 022 P1：过，而且更强
+## 5. Version marking of raw results (`resultmeta.py`)
+
+v2 → v3 is completely invisible from the contents of a CSV. So the convention: for any raw result written to disk,
+the first five columns are fixed as `model_version / experiment / condition / seed / cond_recover_at`
+(the last is redundant but worth it — no digging through code when something goes wrong). `param_sweep.py` is already wired in.
+
+⚠ The existing `sweep_results.csv` / `holdout.csv` are from v2 and their headers lack these columns.
+To re-sweep under v3, use a different `--out` and **do not mix them into the same file**.
+
+## 6. ⚠ How to handle the falling fears_hunger trigger rate
+
+§3h measured a trigger rate of 100% (v2) → 86% (v3) under the full architecture. This must be handled carefully:
+
+- **Main effects are always reported on all predefined seeds**; analysing only triggerers to make the effect look better is not allowed.
+  "Whether fears_hunger fired" **is itself a result produced by the simulation**,
+  and selecting triggerers afterwards re-creates the selection problem — the same class of error we just fixed.
+- The correct wording: `86% triggered the hardship mechanism.`
+  Then results within the triggerers are reported as a **secondary descriptive analysis**.
+- When re-running 021§3, report alongside it:
+  `floor ON` → trigger rate / first-trigger day / anchor presence rate / survival rate;
+  `floor OFF` → survival rate.
+
+
+## 7. ★ v3 mechanistic revalidation results ★ (`v3_revalidate.py`, N=1500, same seeds)
+
+74 tasks / 10 processes / about 40 minutes. The only variable is `COND_RECOVER_AT: 30 → 65`.
+
+**First, validating the pipeline**: the v2 arm produces 022 P1 = **1.058 [1.029, 1.102] p=0.0001**,
+**bit-identical** to the number published in the body of 022 ✓. So the v2/v3 differences below are real differences, not implementation differences.
+
+### 7.1 The correction really works (mortality)
 
 ```
-条件                        v2                          v3
-022关闭 −全部地板①②  1.007 [0.969,1.043] n.s. ✗   1.013 [0.971,1.049] n.s. ✗
-022关闭 完整架构      1.106 [1.068,1.135] ***  ✓   1.124 [1.090,1.166] ***  ✓
-022打开 −全部地板①②  1.058 [1.029,1.102] ***  ✓   1.090 [1.047,1.128] ***  ✓  ← P1 判据
-022打开 完整架构      1.066 [1.035,1.101] ***  ✓   1.124 [1.077,1.161] ***  ✓
+                          v2 dead   v3 dead
+022 P1 full architecture     8.1%     4.3%
+022 P1 −all floors ①②        7.5%     4.1%
+021§3 effective n (/1500)   1411      1430
 ```
 
-**P1 在 v3 下依然通过，且从 1.058 抬到 1.090。** 与 3h 规则 48 的方向一致
-（修掉 survival confound 之后效应**略微变大**），幅度也相称。
+Mortality **halves** in the 60-day window. (For the effect at 120 days see §3h: 40.7% → 7.2%.)
 
-### 7.3 022 P2：仍然不过 —— 预注册的结论不变
+### 7.2 022 P1: passes, and more strongly
 
 ```
-移植那刻删掉什么          v2 比值   落差      v3 比值   落差
-① 什么都不删（=P1）        1.058     —        1.090     —
-② 只删语义 knowledge       1.047   −0.011     1.057   −0.033
-③ 只删情节 memories        1.058    0.000     1.090    0.000   ← 仍是逐位 no-op
-④ 只删 flags               1.047   −0.011     1.038   −0.052
-⑤ 删语义+情节+flags        1.040   −0.018     1.029   −0.061
+condition                       v2                            v3
+022 off −all floors ①②  1.007 [0.969,1.043] n.s. ✗   1.013 [0.971,1.049] n.s. ✗
+022 off full architecture 1.106 [1.068,1.135] ***  ✓   1.124 [1.090,1.166] ***  ✓
+022 on  −all floors ①②  1.058 [1.029,1.102] ***  ✓   1.090 [1.047,1.128] ***  ✓  ← the P1 criterion
+022 on  full architecture 1.066 [1.035,1.101] ***  ✓   1.124 [1.077,1.161] ***  ✓
 ```
 
-**P2 判据（②比①低 ≥0.05 且 CI 不重叠）：v2 ✗，v3 仍 ✗**
-（落差 0.033 < 0.05，CI [1.047,1.128] 与 [1.015,1.095] 重叠）。
+**P1 still passes under v3, rising from 1.058 to 1.090.** Consistent in direction with rule 48 of §3h
+(the effect grows **slightly** once the survival confound is fixed), and of a commensurate magnitude.
 
-> ### ★ 预注册结论在 v3 下原样成立 ★
-> "接到行为上的离散结构不足以维持移植后的个体差异" —— 这句**不是**
-> survival confound 的产物。修掉 confound 之后 P2 依然不过。
-> 这是今天最值钱的一条：**它把主结论从"可能是伪影"升级成"经过修正后仍成立"。**
+### 7.3 022 P2: still fails — the preregistered conclusion is unchanged
 
-但有两处必须改动已有规则：
+```
+what is deleted at transplant   v2 ratio   drop      v3 ratio   drop
+① delete nothing (=P1)           1.058      —         1.090      —
+② delete semantic knowledge      1.047   −0.011       1.057    −0.033
+③ delete episodic memories       1.058    0.000       1.090     0.000   ← still a bit-identical no-op
+④ delete flags only              1.047   −0.011       1.038    −0.052
+⑤ delete semantic+episodic+flags 1.040   −0.018       1.029    −0.061
+```
 
-> ### ★ 规则 40（修正）：在 v3 下，flags 掉得比 knowledge 多 ★
-> v2 里删 knowledge 和删 flags **掉得一样多**（各 −0.011），
-> 据此说"语义记忆不是特殊载体，只是又一个等价的离散标记"。
-> v3 下两者分开了：**flags −0.052 > knowledge −0.033**。
-> "等价"那半句要撤回；"knowledge 不是特殊载体"那半句仍然成立
-> （它反而是三者里较弱的一个）。
+**The P2 criterion (② at least 0.05 below ① with non-overlapping CIs): v2 ✗, v3 still ✗**
+(a drop of 0.033 < 0.05, and [1.047,1.128] overlaps [1.015,1.095]).
 
-> ### ★ 规则 41 加强：情节记忆在 v3 下仍是**逐位** no-op ★
-> ③ 与 ① 在两个版本上都完全相同（1.058 / 1.090，一位不差）。
-> 跨越一次模型修正还能逐位相同，这条可以写死了。
+> ### ★ The preregistered conclusion holds unchanged under v3 ★
+> "Discrete structures wired into behaviour are not sufficient to maintain individual differences after a transplant" — this is **not**
+> a product of the survival confound. With the confound fixed, P2 still fails.
+> This is today's most valuable line: **it upgrades the main conclusion from "possibly an artefact" to "still holds after correction".**
 
-⚠ 一个要留意的量：⑤（三个全删）在 v2 只抹掉超出 1 的部分的
-**31%**（0.018/0.058），在 v3 抹掉 **68%**（0.061/0.090）。
-也就是说 v3 下离散存储承担的份额**变大**了 —— 但 ⑤ 的 CI 仍含 1.0
-（1.029 [0.983,1.062] p=0.217），所以还不能反过来说"离散结构其实是载体"。
-**这是留给 final confirmation 的问题。**
+But two existing rules must be amended:
 
-### 7.4 021 §3 地板消融：诚实降级站得住，但两个种子块不一致 ⚠
+> ### ★ Rule 40 (revised): under v3, flags cost more than knowledge ★
+> In v2, deleting knowledge and deleting flags cost **the same** (−0.011 each),
+> which was the basis for "semantic memory is not a special carrier, merely one more equivalent discrete marker".
+> Under v3 they separate: **flags −0.052 > knowledge −0.033**.
+> The "equivalent" half must be withdrawn; the "knowledge is not a special carrier" half still holds
+> (it is in fact the weaker of the three).
+
+> ### ★ Rule 41 strengthened: episodic memory is still a **bit-identical** no-op under v3 ★
+> ③ and ① are exactly equal in both versions (1.058 / 1.090, not one digit off).
+> Staying bit-identical across a model correction makes this one settled.
+
+⚠ One quantity to watch: ⑤ (deleting all three) erases only **31%** of the excess above 1 in v2
+(0.018/0.058) and **68%** in v3 (0.061/0.090).
+So the share carried by discrete storage has **grown** under v3 — but ⑤'s CI still contains 1.0
+(1.029 [0.983,1.062] p=0.217), so it cannot be turned round into "discrete structures are the carrier after all".
+**This is a question left for the final confirmation.**
+
+### 7.4 021 §3 floor ablation: the honest downgrade stands, but the two seed blocks disagree ⚠
 
 ```
                           v2                       v3
-seeds 0+     完整架构    1.132 p=.0001 ***       1.172 p=.0001 ***
-seeds 0+     −全部地板   1.032 p=.078  n.s.      1.036 p=.057  n.s.
-seeds 10000+ 完整架构    1.127 p=.0001 ***       1.148 p=.0001 ***
-seeds 10000+ −全部地板   1.034 p=.064  n.s.      1.057 p=.0029 **   ← ⚠
+seeds 0+     full architecture  1.132 p=.0001 ***       1.172 p=.0001 ***
+seeds 0+     −all floors        1.032 p=.078  n.s.      1.036 p=.057  n.s.
+seeds 10000+ full architecture  1.127 p=.0001 ***       1.148 p=.0001 ***
+seeds 10000+ −all floors        1.034 p=.064  n.s.      1.057 p=.0029 **   ← ⚠
 ```
 
-**主结论：规则 33 的撤回仍然正确。** 地板一关，比值掉到 1.03–1.06，
-而且**这次不能再用"死亡率污染"解释了** —— 021 第 3 节末尾那两条路
-（诚实降级 / 修机制再测）现在有了答案：**机制修了，效应还是没回来。**
+**Main conclusion: the withdrawal of rule 33 remains correct.** With the floors off, the ratio falls to 1.03–1.06,
+and **"mortality contamination" can no longer explain it this time** — the two routes at the end of 021 §3
+(honest downgrade / fix the mechanism and re-measure) now have their answer: **the mechanism was fixed and the effect still did not come back.**
 
-> ### ★ 规则 52 ⚠：无地板档在两个种子块上给出不一致的显著性 ★
-> v3 下 seeds 0+ 是 1.036 n.s.，seeds 10000+ 是 1.057 p=.003。
-> **同一个模型、同样 N=1500、只换种子块，结论就翻。**
-> 说明真值就在检出限附近，单个种子块的显著性**不可信**。
-> 论文里报这一档必须**同时报两个块**，不能只挑显著的那个。
-> 这个悬案交给 final confirmation（全新种子块）去定。
+> ### ★ Rule 52 ⚠: the no-floor variant gives inconsistent significance across two seed blocks ★
+> Under v3, seeds 0+ give 1.036 n.s. while seeds 10000+ give 1.057 p=.003.
+> **The same model, the same N=1500, only a different seed block, and the conclusion flips.**
+> That means the true value sits near the detection limit and the significance of any single seed block is **untrustworthy**.
+> Reporting this variant in the paper requires **reporting both blocks**, not picking the significant one.
+> This open case is left for the final confirmation (a brand-new seed block) to settle.
 
-### 7.5 规则 50 的诊断 ⚠ 本节的解释已被实验 024 推翻，表本身有效
+### 7.5 The rule 50 diagnosis ⚠ the interpretation in this section was overturned by experiment 024; the table itself is valid
 
 ```
-版本  世界    架构      存活%   fears_hunger%  anchor%  fears_hunger日中位
-                                                       ↑ 这一列不是 anchor 日
-v2   丰富   完整架构   100.0%     95.1%       98.5%        20
-v3   丰富   完整架构   100.0%     94.3%       98.5%        27
-v2   贫瘠   完整架构    91.9%     92.7%       98.2%        23
-v3   贫瘠   完整架构    95.7%     83.0%       98.2%        31
-v2   贫瘠   地板全关    92.5%     92.5%       97.5%        26
-v3   贫瘠   地板全关    95.9%     85.9%       97.5%        33
+version world   architecture   alive%   fears_hunger%  anchor%  median fears_hunger day
+                                                       ↑ this column is not the anchor day
+v2   rich    full architecture 100.0%     95.1%       98.5%        20
+v3   rich    full architecture 100.0%     94.3%       98.5%        27
+v2   barren  full architecture  91.9%     92.7%       98.2%        23
+v3   barren  full architecture  95.7%     83.0%       98.2%        31
+v2   barren  all floors off     92.5%     92.5%       97.5%        26
+v3   barren  all floors off     95.9%     85.9%       97.5%        33
 ```
 
-**★ 更正 3h ★** 我在 3h 写过"①65 让 14% 的球从不进入棘轮"，**这是错的**。
-`_hardship_anchor` 和 `fears_hunger` 是两个不同的事件：
+**★ Correcting §3h ★** I wrote in §3h that "①65 means 14% of balls never enter the ratchet", and **that is wrong**.
+`_hardship_anchor` and `fears_hunger` are two different events:
 
-- `_hardship_anchor`（`sim.py:965`）：首次 `condition < 100` 就写入 → **近乎全员**
-- `fears_hunger`（`HARDSHIP_STORY_AT = 0.5`）：要累积约 1 天满赤字 → **叙事路标**
+- `_hardship_anchor` (`sim.py:965`): written the first time `condition < 100` → **nearly everyone**
+- `fears_hunger` (`HARDSHIP_STORY_AT = 0.5`): needs about a day of full deficit accumulated → **a narrative landmark**
 
-实测 **anchor 存在率 v2/v3 逐位相同**（96.5% / 97.5% / 98.5% / 98.2%），
-掉的只有路标（92.7% → 83.0%）。
+Measured, the **anchor presence rate is bit-identical in v2/v3** (96.5% / 97.5% / 98.5% / 98.2%),
+and only the landmark falls (92.7% → 83.0%).
 
-> ### ~~★ 规则 50 的推论：v3 移动的是 consolidation 的**时刻** ★~~ ⚠ 撤回
-> ~~首次触发日中位 20–26 天 → 27–33 天……采得更晚 → 采到更成熟的性格。~~
+> ### ~~★ A corollary of rule 50: what v3 moves is the **moment** of consolidation ★~~ ⚠ withdrawn
+> ~~The median first-trigger day goes 20–26 days → 27–33 days… sampled later → sampling a more mature personality.~~
 >
-> **⚠ 这条整段撤回，见实验 024 A 部分。** 上表那一列 `首次触发日` 记的是
-> **`fears_hunger`**，`v3_revalidate.py` 根本没有记录 `_hardship_anchor`
-> 的首次写入日 —— 我拿路标的日期去论证快照的日期，是张冠李戴。
+> **⚠ This whole paragraph is withdrawn; see part A of experiment 024.** The `first-trigger day` column in the table above records
+> **`fears_hunger`**, and `v3_revalidate.py` never recorded the first write day of `_hardship_anchor` at all —
+> using the landmark's date to argue about the snapshot's date was a straight mix-up.
 >
-> 而且从代码上这个推论**本来就不可能成立**：anchor 写在首次
-> `condition < 100` 的那个 tick，condition 只能被 `COND_DRAIN`（饿>70）
-> 拉下 100；在 condition 仍等于 100 时，抬高 `COND_RECOVER_AT` 带来的
-> gain 全被 `clamp` 吃掉。**anchor 写入之前 v2/v3 逐位相同**，
-> 所以 anchor 日必然相同。实验 024 实测：**300/300 逐种子相同**。
+> And from the code the inference **could never have held**: the anchor is written on the tick of the first
+> `condition < 100`; condition can only be
+> pulled below 100 by `COND_DRAIN` (hunger>70), and while condition
+> is still 100 the gain from raising `COND_RECOVER_AT` is entirely eaten by `clamp`. **Before the anchor is written, v2/v3 are bit-identical**,
+> so the anchor day must be the same. Measured in experiment 024: **identical on 300/300 seeds**.
 
-### 7.6 状态小结
+### 7.6 Status summary
 
-| | v2 | v3 | 结论 |
+| | v2 | v3 | Conclusion |
 |---|---|---|---|
-| 022 P1 | 1.058 ✓ | 1.090 ✓ | 通过，更强 |
-| 022 P2 | ✗ | ✗ | **预注册结论不变** |
+| 022 P1 | 1.058 ✓ | 1.090 ✓ | passes, more strongly |
+| 022 P2 | ✗ | ✗ | **the preregistered conclusion is unchanged** |
 | 021§3 无地板 | 1.032/1.034 n.s. | 1.036 n.s. / 1.057 ** | 降级站得住，⚠ 块间不一致 |
 | 情节记忆 | 逐位 no-op | 逐位 no-op | 规则 41 加强 |
 | flags vs knowledge | 等价 | flags 更重 | 规则 40 修正 |
