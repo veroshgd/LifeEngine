@@ -1,14 +1,14 @@
 """
-读 param_sweep.py 的结果，出论文能直接引的那几句话。
+Read the results of param_sweep.py and produce the sentences the paper can quote directly.
 
-运行：  python sweep_report.py [sweep_results.csv]
+Run:  python sweep_report.py [sweep_results.csv]
 """
 
 import csv
 import statistics
 import sys
 
-DEAD_MAX = 0.40      # 死亡率超过这个的配置剔掉（团灭时比值没有意义）
+DEAD_MAX = 0.40      # configurations above this mortality are dropped (a ratio is meaningless after a wipeout)
 PARAMS = ["PERSONALITY_WEIGHT", "TRAIT_DRIFT", "TRAIT_SATURATION",
           "LANDMARK_BONUS", "HARDSHIP_MAX_BOOST", "FLOOR_DECAY_PER_DAY",
           "LANDMARK_PERMANENT", "GOAL_BONUS", "GOAL_OFF_TASK",
@@ -46,7 +46,7 @@ def main(path="sweep_results.csv"):
     with open(path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
     if not rows:
-        print("空文件")
+        print("empty file")
         return
 
     kept = [r for r in rows if float(r["dead_move"]) <= DEAD_MAX]
@@ -55,22 +55,22 @@ def main(path="sweep_results.csv"):
     lr = [float(r["logratio_move"]) for r in kept]
 
     print("=" * 78)
-    print(f" 参数随机化集合   共 {len(rows)} 组，剔除团灭后 {len(kept)} 组"
-          f"（死亡率 > {DEAD_MAX:.0%}）")
+    print(f" Parameter-randomisation set   {len(rows)} configurations, {len(kept)} after dropping wipeouts"
+          f" (mortality > {DEAD_MAX:.0%})")
     print("=" * 78)
 
-    for label, vals, thresh in [("移植比值（作息）", rm, 1.0),
-                                ("移植比值（目标）", gm, 1.0),
-                                ("对数比值（作息）", lr, 0.0)]:
+    for label, vals, thresh in [("transplant ratio (routine)", rm, 1.0),
+                                ("transplant ratio (goal)", gm, 1.0),
+                                ("log ratio (routine)", lr, 0.0)]:
         above = sum(1 for v in vals if v > thresh) / len(vals)
         print(f"\n  {label}")
-        print(f"    中位数 {statistics.median(vals):.3f}   "
+        print(f"    median {statistics.median(vals):.3f}   "
               f"IQR [{pct(vals, .25):.3f}, {pct(vals, .75):.3f}]   "
-              f"90%区间 [{pct(vals, .05):.3f}, {pct(vals, .95):.3f}]")
-        print(f"    > {thresh:g} 的比例：{above:.1%}   ← 论文里报这个数")
+              f"90% interval [{pct(vals, .05):.3f}, {pct(vals, .95):.3f}]")
+        print(f"    share > {thresh:g}: {above:.1%}   ← report this number in the paper")
 
     print("\n" + "=" * 78)
-    print(" 参数敏感度（Spearman，|ρ| 大 = 结论依赖这个旋钮）")
+    print(" Parameter sensitivity (Spearman; large |ρ| = the conclusion depends on this knob)")
     print("=" * 78)
     corr = sorted(((abs(spearman([float(r[p]) for r in kept], rm)), p,
                     spearman([float(r[p]) for r in kept], rm))
@@ -79,8 +79,8 @@ def main(path="sweep_results.csv"):
         bar = "#" * int(mag * 40)
         print(f"  {name:<22}{rho:+.3f}  {bar}")
 
-    print("\n  读法：|ρ| < 0.2 = 结论对这个参数不敏感（好）")
-    print("        |ρ| > 0.4 = 效应主要由这个旋钮决定，必须在论文里讨论")
+    print("\n  How to read: |ρ| < 0.2 = the conclusion is insensitive to this parameter (good)")
+    print("               |ρ| > 0.4 = the effect is mainly decided by this knob and must be discussed in the paper")
 
 
 if __name__ == "__main__":

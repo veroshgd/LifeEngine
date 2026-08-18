@@ -1,24 +1,24 @@
 """
-持久性消融 —— 移植后留下来的东西,有多少是"写死的"?
-=========================================================
+Persistence ablation — of what survives the transplant, how much is "hardcoded"?
+================================================================================
 
-运行：  python persistence_ablation.py
+Run:  python persistence_ablation.py
 
-`transplant.py` 显示移植后差异保留 90%+。但架构里有**三个**只会让差异
-变得更持久的机制，全都是手写的：
+`transplant.py` shows the difference retains 90%+ after a transplant. But the architecture contains
+**three** mechanisms whose only job is to make a difference more persistent, and all three are hand-written:
 
-    ① trait_identity   永久地板，只增不减（sim.py:463 的 max()）
-    ② trait_floor      软地板，每天只退 0.35，且不低于 ①
-    ③ TRAIT_SATURATION 越极端越难改变（pull 最低 0.12 = 慢 8.3 倍）
+    ① trait_identity   permanent floor, monotonically increasing (the max() at sim.py:463)
+    ② trait_floor      soft floor, retreating only 0.35 per day and never below ①
+    ③ TRAIT_SATURATION the more extreme, the harder to change (pull as low as 0.12 = 8.3× slower)
 
-③ 是这一版新加的，用来治 60 天团灭。但它顺手也是一个**持久性机制**：
-一个被推到 caution=90 的球，extremity=0.8 → pull=0.28，漂回去的速度只有
-中间值的三分之一。这不是巩固，这是乘数。
+③ was added in this version to cure the 60-day wipeout. But it doubles as a **persistence mechanism**:
+a ball pushed to caution=90 has extremity=0.8 → pull=0.28, so it drifts back at only a third of the
+speed of a mid-range ball. That is not consolidation, that is a multiplier.
 
-审稿人会问的那句话：
-    "你不是发现了不可逆性，你是把不可逆性写进去了。"
+The sentence a reviewer will say:
+    "you did not discover irreversibility, you wrote irreversibility in."
 
-这个脚本回答它。同时补上缺失的零假设对照（两个分身走同一个世界）。
+This script answers it. It also supplies the missing null control (both twins walk the same world).
 """
 
 import statistics
@@ -29,12 +29,12 @@ from transplant import run_phased, window_tv, SPLIT, TOTAL
 from behavior import GLANCE
 
 SEEDS = 150
-WA, WB = "丰富世界", "贫瘠世界"
-COMMON = "基准"
+WA, WB = "rich world", "barren world"
+COMMON = "baseline"
 
 
 class FrozenZero(dict):
-    """写不进去的地板：读永远是 0"""
+    """A floor that cannot be written: it always reads 0"""
     def __init__(self):
         super().__init__({t: 0.0 for t in sim.TRAITS})
 
@@ -57,16 +57,16 @@ def patched_make(kill_identity=False, kill_floor=False):
 
 
 CONDITIONS = [
-    ("完整架构",              dict()),
-    ("− 饱和(③)",            dict(sat=0.0)),
-    ("− 永久身份(①)",         dict(ident=True)),
-    ("− 全部地板(①②)",       dict(floor=True)),
-    ("− 三个全关",            dict(sat=0.0, floor=True)),
+    ("full architecture",       dict()),
+    ("− saturation (③)",        dict(sat=0.0)),
+    ("− permanent identity (①)", dict(ident=True)),
+    ("− all floors (①②)",       dict(floor=True)),
+    ("− all three off",         dict(sat=0.0, floor=True)),
 ]
 
 
 def run_condition(cfg, first_a, first_b):
-    """跑一个消融条件下的移植实验，返回保留率等指标"""
+    """Run the transplant experiment under one ablation condition and return the retention and other metrics"""
     sat_backup = sim.TRAIT_SATURATION
     if "sat" in cfg:
         sim.TRAIT_SATURATION = cfg["sat"]
@@ -103,40 +103,40 @@ def run_condition(cfg, first_a, first_b):
 
 def main():
     print("=" * 104)
-    print(f" 持久性消融   {SEEDS} 颗种子   {WA} ↔ {WB} → {COMMON}")
+    print(f" Persistence ablation   {SEEDS} seeds   {WA} ↔ {WB} → {COMMON}")
     print("=" * 104)
-    print(f"  {'条件':<16}{'持续比值':>10}{'移植比值':>10}{'保留':>8}"
-          f"{'一眼可辨':>10}{'死亡':>8}   移植后性格差")
+    print(f"  {'condition':<26}{'stay ratio':>12}{'move ratio':>12}{'retained':>10}"
+          f"{'visibly distinct':>18}{'dead':>8}   personality diff after move")
     print("  " + "-" * 100)
 
     for label, cfg in CONDITIONS:
         stay, move = run_condition(cfg, WA, WB)
         if stay is None or move is None:
-            print(f"  {label:<16}  —— 样本不足（死太多）")
+            print(f"  {label:<26}  — not enough samples (too many died)")
             continue
         keep = move["r"] / stay["r"] if stay["r"] else 0
         tr = "  ".join(f"{t[:2]} {move['traits'][t]:+5.1f}" for t in sim.TRAITS)
         print(f"  {label:<16}{stay['r']:>10.2f}{move['r']:>10.2f}{keep:>7.0%}"
               f"{move['eye']:>10.1%}{move['dead']:>8.1%}   {tr}")
 
-    # ---- 零假设：两个分身走同一个世界 ----
+    # ---- Null hypothesis: both twins walk the same world ----
     print("\n" + "=" * 104)
-    print(" 零假设对照：两个分身前 30 天走【同一个】世界，后 30 天也都进基准")
-    print(" （测的是\"跑两遍本来就会差多少\"。这一档不应该有信号。）")
+    print(" Null control: both twins spend the first 30 days in **the same** world, then both enter baseline")
+    print(" (this measures \"how far two runs differ anyway\". This variant should carry no signal.)")
     print("=" * 104)
     for w in (WA, WB):
         stay, move = run_condition(dict(), w, w)
         if move:
-            print(f"  双方都在「{w}」   移植比值 {move['r']:.2f}   "
-                  f"一眼可辨 {move['eye']:.1%}   "
+            print(f"  both sides in \"{w}\"   move ratio {move['r']:.2f}   "
+                  f"visibly distinct {move['eye']:.1%}   "
                   + "  ".join(f"{t[:2]} {move['traits'][t]:+5.1f}"
                               for t in sim.TRAITS))
 
-    print("\n  读法：")
-    print("    移植比值 ≥ 1  →  把因去掉后差异仍大于两只球本来的差异")
-    print("    关掉地板后仍 ≥ 1  →  持久性来自动力学，是发现")
-    print("    关掉地板后塌掉    →  持久性来自那几个 max()，是假设")
-    print("    零假设那两行必须接近 0，否则测量管道有泄漏")
+    print("\n  How to read:")
+    print("    move ratio ≥ 1        →  with the cause removed, the difference still exceeds the balls' innate difference")
+    print("    still ≥ 1 with floors off  →  the persistence comes from the dynamics; it is a discovery")
+    print("    collapses with floors off  →  the persistence comes from those max() calls; it is an assumption")
+    print("    the two null rows must be close to 0, otherwise the measurement pipeline leaks")
 
 
 if __name__ == "__main__":

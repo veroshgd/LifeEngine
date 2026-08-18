@@ -1,12 +1,13 @@
 """
-spread 这个指标到底有没有意义？—— 置换检验
+Does the spread metric mean anything at all? — a permutation test
 
-问题：spread 取的是"三种用户类型 × 三个性格维度里的最大均值差"。
-      取最大值本身就会放大噪声。性格的标准差约 34，每组 n 只球时
-      均值的标准误 ≈ 34/√n；在 9 个组合里取最大，纯随机也能刷出可观的数字。
+Problem: spread takes "the largest mean difference across three user types × three personality
+         dimensions". Taking a maximum inflates noise by itself. The standard deviation of
+         personality is about 34, so with n balls per group the standard error of the mean is
+         ≈ 34/√n; taking the max over 9 combinations yields a sizeable number from pure chance.
 
-做法：把用户类型标签随机打乱 N 次，重算 spread，得到"零假设分布"。
-      如果真实 spread 落在这个分布里面，那它就是噪声。
+Method: shuffle the user-type labels N times, recompute spread, and obtain the "null distribution".
+        If the real spread falls inside that distribution, it is noise.
 """
 
 import random
@@ -17,7 +18,7 @@ import scenarios
 
 
 def spread_of(alive, labels):
-    """给定一组标签，算 spread"""
+    """Compute spread for a given set of labels"""
     names = list(scenarios.FEEDING)
     best = 0.0
     for t in sim.TRAITS:
@@ -39,7 +40,7 @@ def main(pop=999, days=30, n_perm=400):
     real_labels = [a.scenario for a in alive]
     observed = spread_of(alive, real_labels)
 
-    # 零假设：打乱标签
+    # Null hypothesis: shuffle the labels
     null = []
     shuffled = list(real_labels)
     rng = random.Random(0)
@@ -53,33 +54,33 @@ def main(pop=999, days=30, n_perm=400):
     p_value = sum(1 for v in null if v >= observed) / len(null)
 
     print("=" * 66)
-    print(f" spread 显著性检验   存活 {len(alive)} 只，置换 {n_perm} 次")
+    print(f" spread significance test   {len(alive)} alive, {n_perm} permutations")
     print("=" * 66)
-    print(f"  实测 spread            : {observed:6.2f}")
-    print(f"  零假设中位数（纯噪声）  : {statistics.median(null):6.2f}")
-    print(f"  零假设 95 分位          : {p95:6.2f}   ← 要超过这条线才算有信号")
-    print(f"  零假设 99 分位          : {p99:6.2f}")
-    print(f"  p 值                   : {p_value:6.3f}")
+    print(f"  observed spread          : {observed:6.2f}")
+    print(f"  null median (pure noise)  : {statistics.median(null):6.2f}")
+    print(f"  null 95th percentile      : {p95:6.2f}   ← must clear this line to count as signal")
+    print(f"  null 99th percentile      : {p99:6.2f}")
+    print(f"  p value                  : {p_value:6.3f}")
     print()
     if p_value < 0.05:
-        print("  ✓ 用户类型确实解释了性格差异（信号真实）")
+        print("  ✓ user type really does explain the personality difference (the signal is real)")
     else:
-        print("  ✗ 实测值落在噪声范围内 —— 这个 spread 是取最大值刷出来的假象。")
-        print("    结论：目前用户行为对性格【没有可测量的影响】。")
+        print("  ✗ the observed value falls inside the noise range — this spread is an artefact of taking a maximum.")
+        print("    Conclusion: user behaviour currently has **no measurable effect** on personality.")
 
-    # 顺便给一个不受"取最大值"污染的指标
+    # Also give a metric that is not contaminated by taking a maximum
     print()
-    print("  各维度单独看（不取最大值）：")
+    print("  Each dimension on its own (no maximum taken):")
     for t in sim.TRAITS:
         by = {}
         for n in names:
             vals = [a.traits[t] for a in alive if a.scenario == n]
             by[n] = (statistics.mean(vals), statistics.pstdev(vals), len(vals))
         rng_span = max(m for m, _, _ in by.values()) - min(m for m, _, _ in by.values())
-        # 组间差 / 合并标准误
+        # between-group difference / pooled standard error
         se = max((s / (c ** 0.5)) for _, s, c in by.values())
-        print(f"    {t:<10} 组间最大差 {rng_span:5.2f}   "
-              f"单组标准误 {se:4.2f}   差/标准误 = {rng_span / se:4.1f}")
+        print(f"    {t:<10} largest between-group diff {rng_span:5.2f}   "
+              f"single-group SE {se:4.2f}   diff/SE = {rng_span / se:4.1f}")
 
 
 if __name__ == "__main__":
