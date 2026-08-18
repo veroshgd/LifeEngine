@@ -4890,37 +4890,37 @@ base p(switch) at firing   median 0.208   IQR [0.179,0.245]   ≥0.9 in 0.0%
 ### Candidates for the next step (★ not chosen today, awaiting a decision ★)
 
 ```
-(a) evidence 在情境持续期间保持在决策里，而不是触发一次就清零
-(b) 放宽 SURPRISE_RUN_MIN，让检索更早、更常触发
-(c) 重新定义 SWAP 判读：|memory|>|body| 是不是过严？等 exposure 才是正确口径
-(d) 底座换成多 change point 的任务 —— 一次反转只给记忆一次机会
+(a) keep the evidence in the decision while the situation lasts, instead of clearing it after a single trigger
+(b) relax SURPRISE_RUN_MIN so retrieval fires earlier and more often
+(c) redefine the SWAP reading: is |memory|>|body| too strict? equal exposure is the correct convention
+(d) replace the base with a multi-change-point task — a single reversal gives memory only one chance
 ```
 
-⚠ (c) 是**判读口径**，(a)(b)(d) 是**设计改动**。
-**先定 (c)**，否则会变成"改设计直到指标好看"。
+⚠ (c) is a **reading convention**, whereas (a)(b)(d) are **design changes**.
+**Settle (c) first**, or this turns into "change the design until the metric looks good".
 
-### 今天故意没做
+### Deliberately not done today
 
 ```
-⛔ Stable vs Volatile 正式比较   ⛔ 029 final seeds   ⛔ preregistration
-⛔ SESOI                         ⛔ λ 最终值          ⛔ 把 memory 加进 sim.py
-⛔ LLM / embedding               ⛔ episodic+semantic+abstraction 三套同时上
+⛔ formal Stable vs Volatile comparison   ⛔ 029 final seeds   ⛔ preregistration
+⛔ SESOI                                  ⛔ final λ value     ⛔ adding memory into sim.py
+⛔ LLM / embedding                        ⛔ running episodic+semantic+abstraction all at once
 ```
 
-### 复现方式（新增）
+### How to reproduce (new)
 
-- `memory_transfer_probe.py` —— 029 识别性探针（正控制 + SWAP + 诊断）
-  → `memory_transfer_probe_result.txt`、`memory_transfer_probe_console.txt`
-- `AI SANDBOX/MEMORY_TRANSFER_DESIGN.md` v2 —— 029 设计草案（活文档）
+- `memory_transfer_probe.py` — the 029 identifiability probe (positive control + SWAP + diagnostics)
+  → `memory_transfer_probe_result.txt`, `memory_transfer_probe_console.txt`
+- `AI SANDBOX/MEMORY_TRANSFER_DESIGN.md` v2 — the 029 design draft (a living document)
 
 ---
 
-## ★ (c) 判据修正 + 探针 v2：stateful retrieval（2026-08-18，同日晚些）★
+## ★ (c) criterion revision + probe v2: stateful retrieval (2026-08-18, later the same day) ★
 
-### ⛔ SWAP dominance criterion 正式撤回 ⛔
+### ⛔ The SWAP dominance criterion is formally withdrawn ⛔
 
-> **原文保留，不删**（见上一节）：
-> `|memory 效应| > |body 效应|`，五个 λ 全部未通过。
+> **The original text is kept, not deleted** (see the previous section):
+> `|memory effect| > |body effect|`, which failed at all five λ values.
 
 > Original SWAP dominance criterion failed at all tested λ, after which
 > inspection showed that the criterion compared an event-triggered channel
@@ -4928,116 +4928,116 @@ base p(switch) at firing   median 0.208   IQR [0.179,0.245]   ≥0.9 in 0.0%
 > criterion was therefore **retired before any Stable/Volatile outcome was
 > observed**.
 
-**撤回理由不是"它没通过"，而是它测的不是我们想知道的东西。**
-它回答"memory 的终点效应是否比 body 还大"；
-SWAP 该回答的是"**body 完全固定时，只换 memory，未来行为是否随记忆内容发生
-预测方向的改变**"。两个完全不同的 estimand。
+**The reason for withdrawal is not "it failed" but that it measures something other than what we want to know.**
+It answers "is memory's endpoint effect larger than the body's";
+what SWAP should answer is "**with the body held completely fixed and only the memory swapped, does future behaviour
+change in the predicted direction with the memory content**". Two entirely different estimands.
 
-> ### ★ 规则 87：event-triggered 机制不能直接与 always-on 机制比终点效应 ★
-> **修正规则 86 的方向。** 规则 86 说"该修的是 exposure"是对的，
-> 但它暗示的"比较前必须 equal exposure"是**错的**：
-> memory 与 personality 本来就不该有相同 exposure —— 人格是一直存在的 prior，
-> 记忆应该**遇到相关情况时才被调用**。强行让 memory 80/80 trial 在线，
-> 会毁掉本设计最重要的理论特征：**context-dependent retrieval**。
+> ### ★ Rule 87: an event-triggered mechanism cannot be compared with an always-on one on endpoint effect ★
+> **This corrects the direction of rule 86.** Rule 86 was right that "exposure is what needs fixing",
+> but the "comparison requires equal exposure" it implied is **wrong**:
+> memory and personality should never have the same exposure — personality is an ever-present prior,
+> while memory should be **invoked only when a relevant situation arises**. Forcing memory online on 80/80 trials
+> would destroy this design's most important theoretical feature: **context-dependent retrieval**.
 >
-> 正确做法：把 **exposure** 与 **per-opportunity influence** 分开报告。
+> The right approach: report **exposure** and **per-opportunity influence** separately.
 > ```
 > A. Exposure   E_i = #{retrieval-eligible trials}
-> B. Potency    Δp_t = p_switch(M_V) − p_switch(M_S)，在完全相同的 decision state 上算
+> B. Potency    Δp_t = p_switch(M_V) − p_switch(M_S), computed on exactly the same decision state
 > ```
-> potency 用 **λ=0 的 memory-blind 轨迹冻结 decision state** 再反事实换记忆。
+> Potency freezes the decision state on the **memory-blind (λ=0) trajectory** and then swaps the memory counterfactually.
 
-> ### ★ 规则 88：retrieval 的 potential 与 realized 必须分开 ★
-> `fired` 本身受前面 choice sequence 影响（cautious body 更容易连续 stay 三次，
-> 于是更容易触发检索）—— **触发次数本身就是 task dynamics 的产物**。
+> ### ★ Rule 88: potential and realized retrieval must be reported apart ★
+> `fired` is itself shaped by the preceding choice sequence (a cautious body stays three times in a row more easily
+> and so triggers retrieval more readily) — **the firing count is itself a product of the task dynamics**.
 > ```
-> potential retrieval opportunity   在 memory-blind（λ=0）轨迹上定义 → 查机制 exposure
-> realized retrieval                memory-enabled 轨迹上实际发生   → 是结果的一部分
+> potential retrieval opportunity   defined on the memory-blind (λ=0) trajectory → measures mechanism exposure
+> realized retrieval                what actually happens on the memory-enabled trajectory → part of the outcome
 > ```
-> ⛔ **绝对不许**只分析"成功想起了记忆"的 agent —— 那是 survivor conditioning。
-> 已写成断言：所有汇总必须用全部 400 个种子。
+> ⛔ It is **absolutely forbidden** to analyse only the agents that "successfully recalled" — that is survivor conditioning.
+> Written as an assertion: every aggregate must use all 400 seeds.
 
-### 新 SWAP estimand
+### The new SWAP estimand
 
 ```
 M_C = L(Body C, Mem V) − L(Body C, Mem S)
 M_K = L(Body K, Mem V) − L(Body K, Mem S)
-M   = (M_C + M_K)/2          body effect 仅作 robustness diagnostic
+M   = (M_C + M_K)/2          the body effect serves only as a robustness diagnostic
 ```
-关心：方向一致性 / pooled M / Body×Memory interaction / （将来）SESOI。
+Of interest: directional consistency / pooled M / Body×Memory interaction / (later) a SESOI.
 
-### 机制改动：(a) one-shot → stateful（**不是**"固定保持 N trial"）
+### Mechanism change: (a) one-shot → stateful (**not** "hold for a fixed N trials")
 
-固定 N 会新增一个任意参数。改成状态机，**两个 resolution 条件都只用已有量**：
+A fixed N would add an arbitrary parameter. It became a state machine instead, with **both resolution conditions using only quantities that already exist**:
 
 ```
-NORMAL →（连续 persistent surprise ≥3 且手上策略过去很好）→ RETRIEVE
-      记下 suspect strategy → ACTIVE：m 持续进入 working decision state
-ACTIVE →① Q[另一个] > Q[suspect]        "哦，看来真的变了"      → RESOLVED
-       →② 在 suspect 上连续 3 次不再意外 "刚才只是偶然"        → RESOLVED
+NORMAL →(persistent surprise ≥3 in a row and the strategy in hand used to be good)→ RETRIEVE
+      record the suspect strategy → ACTIVE: m keeps entering the working decision state
+ACTIVE →① Q[the other] > Q[suspect]     "ah, it really did change"    → RESOLVED
+       →② 3 consecutive non-surprises on suspect  "that was just chance"  → RESOLVED
 ```
 
-★ **ACTIVE 期间 m 作用于 suspect，不是作用于"switch 这个动作"** ★
-v1 每 trial 都把 `+λm` 加在 switch 上，推成一次切换后下一 trial 就变成"再换回去"，
-语义错误、会来回抖。改为 `logit(switch) += λ·m·s`，
-`s=+1` 若 switch 是**离开** suspect，`s=−1` 若是**回到** suspect。
-这才是"我怀疑规则变了"，而这个怀疑会持续到被确认或被打消。
-（`suspect` 是决策时的工作变量，**不是** Episode 字段 —— 规则 85 不变。）
+★ **During ACTIVE, m acts on the suspect, not on "the switch action"** ★
+v1 added `+λm` to switch on every trial, so once it pushed one switch through, the next trial became "switch back again" —
+semantically wrong and prone to oscillation. It is now `logit(switch) += λ·m·s`, with
+`s=+1` if the switch **leaves** the suspect and `s=−1` if it **returns** to it.
+That is what "I suspect the rule has changed" means, and the suspicion lasts until it is confirmed or dispelled.
+(`suspect` is a working variable at decision time, **not** an Episode field — rule 85 is unchanged.)
 
-**其余一律不动**：三个阈值、单次 reversal、种子 0–399、λ 只扫不选。
-v1 文件原封保留，且有断言硬保证它仍逐位复现原结果（λ=1：71/400，−0.125）。
+**Everything else is untouched**: the three thresholds, the single reversal, seeds 0–399, and λ is swept but not chosen.
+The v1 file is kept intact, with an assertion guaranteeing it still reproduces the original result bit for bit (λ=1: 71/400, −0.125).
 
 ### ① ② EXPOSURE
 
 ```
-机制            eligible 种子   potential trial   realized trial(λ=1)
+mechanism   eligible seedspotential trialsrealized trials(λ=1)
 v1 one-shot        45.0%           0.75              0.69
 v2 stateful        45.0%           7.18              6.96
 ```
-exposure 0.75 → 7.18（9.6×）。**仍然是 event-triggered（7.2/80），
-没有、也不该被拉成与 body 一样的 80/80。**
+Exposure goes 0.75 → 7.18 (9.6×). **It is still event-triggered (7.2/80),
+and it has not been — and should not be — stretched to the body's 80/80.**
 
-### ③ POTENCY（λ=0 冻结 decision state 上反事实换记忆）
+### ③ POTENCY (counterfactual memory swap on the λ=0 frozen decision state)
 
 ```
-              机会数    base p(switch) 中位数   饱和比例   mean|Δp| (λ=1)
+mechanism      opps base p(sw) med          saturatedmean|Δp| (λ=1)
 v1 one-shot     300          0.208               0.0%        0.2205
 v2 stateful    2873          0.400               0.0%        0.2807
 ```
 
-> **v1 的 per-opportunity potency 本来就不低（λ=1 时 0.22）。
-> v1 缺的是 exposure，不是 potency。** 这直接证实了规则 86 的诊断。
+> **v1's per-opportunity potency was never low to begin with (0.22 at λ=1).
+> What v1 lacked was exposure, not potency.** This directly confirms rule 86's diagnosis.
 
-### ④ 新 SWAP —— Directional check: **PASS**
-
-```
-机制         λ       M_C      M_K   pooled M      95% CI（描述性）    方向一致  interaction
-v1 one-shot 1.00   -0.125   -0.083    -0.104   [-0.410, +0.215]      是      -0.042
-v2 stateful 0.25   -0.875   -0.900    -0.887   [-1.343, -0.471]      是      +0.025
-v2 stateful 1.00   -4.058   -3.920    -3.989   [-4.785, -3.231]      是      -0.138
-v2 stateful 4.00   -9.607   -9.710    -9.659   [-10.815, -8.549]     是      +0.103
-```
-
-- **M_C 与 M_K 在两套机制、所有 λ 上全部同号** → Directional SWAP check: **PASS**
-- Body×Memory interaction 相对 M 极小（λ=1 时 −0.138 vs −3.99）
-  → **memory 不依赖某一种特定 body 才能工作**
-- CI 是**描述性**的（seed cluster bootstrap，n_boot=10000，分析种子 8181）。
-  **今天不定 SESOI，所以不做功能意义判读。**
-
-### ⑤ DOWNSTREAM（只作 consequence，不作判据）
+### ④ The new SWAP — directional check: **PASS**
 
 ```
-机制         λ      轨迹改变   Δlatency(V−S)   Δ反转后正确率
+mechanism   λ          M_C      M_K  pooled M     95% CI (descr.) same sign interact.
+v1 one-shot 1.00    -0.125   -0.083    -0.104    [-0.410, +0.215]       yes    -0.042
+v2 stateful 0.25    -0.875   -0.900    -0.887    [-1.343, -0.471]       yes    +0.025
+v2 stateful 1.00    -4.058   -3.920    -3.989    [-4.785, -3.231]       yes    -0.138
+v2 stateful 4.00    -9.607   -9.710    -9.659   [-10.815, -8.549]       yes    +0.103
+```
+
+- **M_C and M_K share a sign across both mechanisms and every λ** → directional SWAP check: **PASS**
+- The Body×Memory interaction is tiny relative to M (−0.138 vs −3.99 at λ=1)
+  → **memory does not depend on one particular body in order to work**
+- The CIs are **descriptive** (seed-cluster bootstrap, n_boot=10000, analysis seed 8181).
+  **No SESOI is set today, so no functional-significance reading is made.**
+
+### ⑤ DOWNSTREAM (a consequence only, not a criterion)
+
+```
+mechanism   λ     traj chgΔlatency(V−S)   Δpost-rev acc
 v1 one-shot 1.00     17.8%       -0.125         +0.0029
 v2 stateful 0.25     30.8%       -0.875         +0.0115
 v2 stateful 1.00     43.2%       -4.058         +0.0535
 v2 stateful 4.00     45.0%       -9.607         +0.1688
 ```
 
-⚑ λ=4 时轨迹改变 **45.0%，恰好等于 eligible 种子比例** ——
-上限是 eligibility，符合构造：没触发过检索的种子按定义完全不受影响。
+⚑ At λ=4 the trajectory-change rate is **45.0%, exactly the eligible-seed share** —
+the ceiling is eligibility, as constructed: seeds that never trigger retrieval are by definition entirely unaffected.
 
-### ★ 探针阶段的结论 ★
+### ★ Conclusion of the probe phase ★
 
 > **v1 的问题确实是"retrieved evidence 没有形成持续的 decision state"，
 > 而不是 λ 不够。**
