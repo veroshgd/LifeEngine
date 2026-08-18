@@ -1059,173 +1059,173 @@ at caution=100, **bounded by no measure of how far the need is satisfied**.
 So a gate was added: `shelter > 90 and material ≥ 6 → this action is illegal`.
 Result: 60-day mortality 60.4% → 57.6%, **almost no effect**.
 
-原因：房子每天衰减 8.4，shelter 很少能待在 90 以上 —— 球不是在囤积，
-**是在一条跑步机上不停修房子**。猜想被证伪。
+The cause: the house decays by 8.4 a day, so shelter can rarely stay above 90 — the ball is not hoarding,
+**it is on a treadmill endlessly repairing its house**. The conjecture is falsified.
 
-### 处置：退回 0.6
+### Disposition: revert to 0.6
 
 ```
-天数    一眼可辨   cond dz   作息比   溺爱死亡   放养死亡   caution饱和
+days    visibly distinct   cond dz   routine ratio   doting dead   hands-off dead   caution saturated
  15      50.7%    -0.78     0.80      0.0%      0.0%       0.0%
  30      66.0%    -0.91     0.78      0.0%      0.0%       2.0%
  60      73.1%    -1.05     0.70      0.0%     15.7%      78.1%
  90      86.3%    -1.21     0.68      0.0%     27.0%      75.6%
 ```
 
-- ✓ 团灭解决了（溺爱型 90 天 0% 死亡）
-- ✗ **倒挂回来了**（有家 溺/放 = 1/18，还是只有放养型有家）
-- ✗ 30 天一眼可辨 82.9% → 66.0%（仍在 60% 目标之上，但明显变差）
-- ⚠ **新问题：60 天时 78.1% 的球 caution 顶死在 100**（旧配置是 57.3%）
+- ✓ the wipeout is solved (doting: 0% mortality at 90 days)
+- ✗ **the inversion is back** (has a home, doting/hands-off = 1/18; still only hands-off balls have homes)
+- ✗ 30-day visibly distinct 82.9% → 66.0% (still above the 60% target, but clearly worse)
+- ⚠ **a new problem: at 60 days, 78.1% of balls have caution pinned at 100** (the old configuration gave 57.3%)
 
-> **倒挂是叙事问题，团灭是有效性问题，先保后者。**
+> **The inversion is a narrative problem and the wipeout is a validity problem; protect the latter first.**
 
-## 17c 鲁棒性（30 天，±7%）
+## 17c Robustness (30 days, ±7%)
 
 ```
-                        一眼可辨   cond dz   作息比   放养死亡
-基准                     82.9%     -1.02     0.69      0.3%
+                        visibly distinct   cond dz   routine ratio   hands-off dead
+baseline                     82.9%          -1.02        0.69            0.3%
 LOCAL_FOOD_REGEN -7%     90.3%     -1.55     0.67     11.0%   ⚠
 LOCAL_FOOD_REGEN +7%     74.2%     -0.70     0.69      0.3%
 HUNGER_RATE      +7%     89.3%     -1.70     0.70      9.7%   ⚠
 PERSONALITY_W    ±7%     76-79%    -0.8~-1.0 0.70    0~1.7%
-caution(材料)    -7%     74.2%     -0.97     0.70      0.3%   ← 有家方向 32/38，方向没了
-caution(材料)    +7%     72.1%     -0.95     0.68      1.0%
+caution(material)    -7%     74.2%          -0.97        0.70            0.3%   ← has-a-home direction 32/38, the direction is gone
+caution(material)    +7%     72.1%          -0.95        0.68            1.0%
 ```
 
-- **一眼可辨在 71.7%–90.3% 之间，没有掉出目标。** 这个指标是稳的。
-- **作息比在 0.62–0.80 之间，纹丝不动。** 行为层的结论对参数完全不敏感。
-- ⚠ 食物供给 −7% 或饥饿速度 +7% 都会把放养型死亡率推到 10% 左右。
-- ⚠ **`caution(材料)` 权重 ±7% 就能让"有家"的方向消失** —— 016 修的那个东西
-  本来就坐在刀尖上，这一点在退回 0.6 之前就该看出来。
+- **visibly distinct stays between 71.7% and 90.3% and never falls below target.** That metric is stable.
+- **the routine ratio stays between 0.62 and 0.80, completely unmoved.** The behaviour-layer conclusion is entirely insensitive to parameters.
+- ⚠ either −7% food supply or +7% hunger rate pushes hands-off mortality to around 10%.
+- ⚠ **a ±7% change in the `caution(material)` weight is enough to make the "has a home" direction vanish** — what 016 fixed
+  was sitting on a knife edge all along, and this should have been seen before reverting to 0.6.
 
 ---
 
-## ★ 实验 017 得到的规则
+## ★ The rules from experiment 017
 
-19. **指标打架时，先查那个更容易被噪声推动的，不要挑对自己有利的。**
+19. **When metrics disagree, check the one more easily pushed by noise first, and do not pick whichever favours you.**
 
-20. **只在一个时间尺度上调参，等于没调。**
-    实验 016 的每一个 30 天指标都变好了，60 天却团灭。
-    **任何参数改动都要至少看两个时间尺度。**
+20. **Tuning at only one time scale is the same as not tuning.**
+    Every 30-day metric of experiment 016 improved, and at 60 days the population was wiped out.
+    **Any parameter change must be looked at on at least two time scales.**
 
-21. **"团灭"和"叙事不对"不是同一量级的问题。**
-    前者让工具失效，后者只是产品讲法不好听。冲突时先保工具的有效性。
-
----
-
-## 还没做的
-
-- ✗ **shelter 倒挂仍未解决**（实验 016 的修法被 017 否掉了）。
-  下次要从**结构**上改：让"想要安全"以不占用长期行动预算的方式驱动建造，
-  而不是再调一次权重。
-- ⚠ **caution 在 60 天时 78% 顶到 100**，性格系统的天花板问题比以前更严重
-- ⚠ 食物供给和饥饿速度对死亡率仍然敏感（±7% → 10%）
-- `curiosity` 的配对中位数仍然是 0
-- `sweep.py` / `food_sweep.py` 已被取代，建议标记废弃
+21. **"Wipeout" and "the narrative is wrong" are not problems of the same order.**
+    The first invalidates the instrument; the second only makes the product story less appealing. When they conflict, protect the instrument's validity first.
 
 ---
 
+## Still to do
+
+- ✗ **The shelter inversion is still unsolved** (experiment 016's fix was rejected by 017).
+  Next time it must be changed **structurally**: let "wanting safety" drive building in a way that does not consume the long-term action budget,
+  rather than tuning a weight yet again.
+- ⚠ **78% of balls have caution pinned at 100 at 60 days**; the ceiling problem of the personality system is worse than before
+- ⚠ mortality is still sensitive to food supply and hunger rate (±7% → 10%)
+- the paired median of `curiosity` is still 0
+- `sweep.py` / `food_sweep.py` have been superseded and should be marked deprecated
+
+---
+
 ---
 
 ---
 
-# 实验 018 —— v2 重构：把"用户"从模型里拿出去
+# Experiment 018 — the v2 refactor: taking the "user" out of the model
 
-> 日期：2026-08-10
-> ⚠ **数值分界线**：v2 把世界和个体拆成两条独立的随机流，
-> 消费顺序变了，所以 018 之后的数字**不能和 011–017 直接比较**。
+> Date: 2026-08-10
+> ⚠ **A numeric dividing line**: v2 splits the world and the individual into two independent random streams,
+> changing the consumption order, so numbers after 018 **cannot be compared directly with 011–017**.
 
-## 0. 先查了一条被指出的 bug —— 不存在
+## 0. First, a reported bug was checked — it does not exist
 
-有人指出 `gather_food` 里 `s += max(0.0, self.hunger - 35) * 0.85` 写了两遍，
-实际跑的是 ×1.7 的模型。**查过了：`grep -c` = 1，只出现一次（sim.py:220）。**
-不需要重跑任何东西。记在这里免得以后再被同一件事绊住。
+Someone pointed out that `s += max(0.0, self.hunger - 35) * 0.85` appears twice inside `gather_food`,
+so the model actually run would be ×1.7. **Checked: `grep -c` = 1, it appears once (sim.py:220).**
+Nothing needs re-running. Recorded here so the same thing does not trip anyone up again.
 
-## 1. 结构：Agent / World / Influence 三层
+## 1. Structure: the three layers Agent / World / Influence
 
-以前模型里写着：
+The model used to contain:
 
 ```python
-USER_ARCHETYPES = {"溺爱型": {"feed_every_days": 1.0}, ...}   # 差异来源 #3
+USER_ARCHETYPES = {"doting": {"feed_every_days": 1.0}, ...}   # difference source #3
 ```
 
-Agent 的构造函数直接吃 `archetype`。这等于把产品哲学写反了：
+and the Agent constructor took `archetype` directly. That writes the product philosophy backwards:
 
 ```
-User type → Feeding → Personality        （以前）
-World → Experience → Memory → Personality → Goals → Behavior   （现在）
+User type → Feeding → Personality        (before)
+World → Experience → Memory → Personality → Goals → Behavior   (now)
 ```
 
-拆成：
+Split into:
 
 ```
 sim.py                          scenarios.py
-├─ World      资源/天气/物件/事件      FEEDING  三种投喂频率（老对照组）
-├─ Influence  give_food / add_book     WORLDS   11 个世界（新主线）
+├─ World      resources/weather/objects/events   FEEDING  three feeding frequencies (the old control arm)
+├─ Influence  give_food / add_book               WORLDS   11 worlds (the new main line)
 │             play_music / change_env
-├─ Agent      性格/需求/记忆/目标
-└─ Life       把三者绑在一起跑
+├─ Agent      personality/needs/memory/goals
+└─ Life       binds the three together and runs them
 ```
 
-**`sim.py` 里现在没有"用户"这个词。** Agent 只会看到"今天世界里多了两份食物"，
-不知道是谁给的。三个 archetype 作为实验组保留，但搬到了 `scenarios.py`。
+**The word "user" no longer appears in `sim.py`.** The Agent only sees "two extra portions of food in the world today"
+and does not know who gave them. The three archetypes are kept as experiment groups but moved to `scenarios.py`.
 
-`scenarios.run()` 会在返回的 agent 上挂一个 `.scenario` 标签 ——
-那是**实验台账**，给分析脚本分组用，模型跑的时候不读它。
+`scenarios.run()` attaches a `.scenario` label to the agent it returns —
+that is the **experiment ledger**, used by analysis scripts for grouping, and the model never reads it while running.
 
-## 2. 性格的时间结构（笔记 ⑤）：快形成，慢消退
+## 2. The temporal structure of personality (note ⑤): forms fast, fades slow
 
-原来的 `trait_floor` 是永久单向阀。改成两层：
+The old `trait_floor` was a permanent one-way valve. It becomes two layers:
 
 ```
-soft floor  每天消退 0.35，是"中期习惯"
-perm floor  landmark 抬升的 40% 变成永久 bias，是"身份"
-                soft 永远不低于 perm
+soft floor  fades by 0.35 a day; a "medium-term habit"
+perm floor  40% of what a landmark raises becomes a permanent bias; an "identity"
+                soft is never below perm
 ```
 
-外加：吃饱穿暖的日子里 `hardship` 每天淡忘 0.015。
+Plus: on well-fed, sheltered days `hardship` fades by 0.015 a day.
 
-## 3. Goal 层（笔记 ③）：从反应式代理到自主生命
+## 3. The Goal layer (note ③): from a reactive agent to an autonomous life
 
-以前是 `tick → 打分 → 选最高`，一个很好的 **Reactive Agent**。
-用户看到的是"这个 tick 恰好 build 分最高"，不是"它这几天正在盖家"。
+It used to be `tick → score → take the highest`, a perfectly good **Reactive Agent**.
+What the user saw was "this tick, build happens to score highest", not "it has been building a home these last few days".
 
 ```python
 goal = {"type": "improve_home", "priority": 0.72,
         "created_from": "storm_memory", "progress": 0.35}
 ```
 
-每天早上想一次（不是每 tick，那样就没有连续性了），目标偏置行动打分。
+It thinks once every morning (not every tick, which would destroy continuity), and the goal biases the action scores.
 
-### ★ 踩了四个坑，每个都值得记 ★
+### ★ Four traps hit, each worth recording ★
 
-**坑 1：计数型进度没存基线。**
-`see_the_world` 的进度用累计 explore 次数算，一立就已经"完成"→
-每天完成、每天重立 → 重立刷新 `created_day` → 永远在最短坚持期内
-→ **球被锁死在这个目标上活活饿死。**
-和实验 009 是同一类错误：**计数型指标必须存基线。**
+**Trap 1: a count-based progress measure with no baseline stored.**
+The progress of `see_the_world` was computed from the cumulative explore count, so it was "complete" the moment it was raised →
+completed daily, re-raised daily → re-raising refreshes `created_day` → permanently inside the minimum commitment period
+→ **the ball is locked onto this goal and starves to death.**
+The same class of error as experiment 009: **a count-based metric must store a baseline.**
 
-**坑 2：意图会压过生存。**
-第一版 goal 加成无条件生效，球追着"去远处看看"饿死。
-加了抑制项：饥饿/体质告急时 goal 加成按比例衰减到 0。
-→ 这就是规则"人格需要余裕才能表达"在意图层的翻版。
+**Trap 2: intention overrides survival.**
+In the first version the goal bonus applied unconditionally, and the ball starved chasing "go and see distant places".
+A suppression term was added: when hunger/condition are critical, the goal bonus decays proportionally to 0.
+→ This is the rule "personality needs slack to express itself" restated at the intention layer.
 
-**坑 3：只加分不够，还得会分心。**
-一只漂到好奇 100 / 谨慎 18 的球，explore 的性格加成有 +44，
-光靠 +22 的目标加成盖不住 —— 实测它连着 13 天"想修房子"却一直在外面跑，
-房子烂到 0。加了 `GOAL_OFF_TASK`：消遣类行动（explore/read）在有目标时被压低。
-> **专注不只是"更想做 A"，还包括"暂时没那么想做 B"。**
+**Trap 3: adding a bonus is not enough; it must also become distractible.**
+A ball drifted to curiosity 100 / caution 18 has a +44 personality bonus on explore,
+which a +22 goal bonus alone cannot cover — measured, it "wanted to fix its house" for 13 days straight while running around outside,
+and the house rotted to 0. `GOAL_OFF_TASK` was added: pastime actions (explore/read) are suppressed while a goal is active.
+> **Focus is not only "wanting A more", it is also "wanting B less for now".**
 
-**坑 4：不应期会逼出做不到的念头。**
-刚完成 see_the_world → 不应期压低它 → improve_home 被顶上来 →
-但性格根本不支持 → 连着 8 天想修房子、一根木头没捡。
-加了停滞放弃（4 天没进展就放弃，并留下一条"想做但没做成"的记忆）。
-> 人也一样："我一直想修屋顶，但一直没修"，那个念头最终会自己消失。
+**Trap 4: a refractory period forces out intentions it cannot act on.**
+Just after completing see_the_world → the refractory period suppresses it → improve_home is pushed up →
+but its personality does not support it at all → it wanted to fix the house for 8 days straight and never picked up a single log.
+A stall-abandon rule was added (abandon after 4 days without progress, leaving a memory of "wanted to but never did").
+> People are the same: "I have been meaning to fix the roof but never have" — that intention eventually fades by itself.
 
-结果：**每个目标平均坚持 3.7 天，一生完成 8 件事**，
-来源里出现了 `storm_memory` 和 `hunger_memory` —— 记忆真的在生成意图。
+Result: **each goal is held for 3.7 days on average and 8 things are completed in a lifetime**,
+and `storm_memory` and `hunger_memory` appear among the sources — memory really is generating intentions.
 
-## 4. Memory（笔记 ④）：从 flags+landmarks 到结构化对象
+## 4. Memory (note ④): from flags+landmarks to structured objects
 
 ```python
 {"event": "storm_destroyed_roof", "day": 12, "importance": 0.9,
@@ -1233,309 +1233,309 @@ goal = {"type": "improve_home", "priority": 0.72,
  "related_traits": ("caution",), "tags": (...)}
 ```
 
-分成两种：
+Split into two kinds:
 
 ```
-情节 Episodic   第 12 天下暴雨，屋顶坏了       无限增长，需要遗忘
-语义 Semantic   没有坚固住所，下雨很危险       几十条封顶，行为真正依赖的
+episodic   on day 12 there was a storm and the roof broke       grows without bound, needs forgetting
+semantic   without solid shelter, rain is dangerous              capped at a few dozen, what behaviour really depends on
 ```
 
-`recall(tags, k)` 用**结构化标签**检索，不用向量相似度
-（[[设计要点与风险]] §3.4；[[Generative Agents 笔记]] §6.5.2 里最常见的失败
-就是向量检索捞错东西）。
+`recall(tags, k)` retrieves by **structured tags**, not vector similarity
+([[Design points and risks]] §3.4; the most common failure in [[Generative Agents notes]] §6.5.2
+is vector retrieval fetching the wrong thing).
 
-`context_packet(day)` 就是以后喂给 LLM 的那一包：
-**当前状态 + 当前目标 + 相关记忆 + 世界知识 + 性格**。
-实测能拿到「goal: stock_food, created_from: hunger_memory」+
-「第 25 天，熬过了一段吃不饱的日子」—— 语言和行为可以对上了。
-注意 traits 只读不写：LLM 永远不拥有人格。
+`context_packet(day)` is the bundle that will later be fed to an LLM:
+**current state + current goal + relevant memories + world knowledge + personality**.
+Measured, it produces "goal: stock_food, created_from: hunger_memory" +
+"day 25, lived through a stretch of not having enough to eat" — language and behaviour now line up.
+Note that traits are read-only: the LLM never owns the personality.
 
 ---
 
-## 5. ★ 实验 018 的主结果：环境跑赢了种子，投喂从来没赢过 ★
+## 5. ★ The main result of experiment 018: the environment beat the seed, and feeding never did ★
 
-> ### ⚠ 下表的基线有 bug，已在实验 019 修正，正确数字见那里
-> 基线是在各自 cohort 内部挑存活者配对的。贫瘠世界的存活者被筛选过
-> （弱的都死了）→ 组内方差偏小 → 基线偏小 → **比值虚高**。
-> 修正后：丰富↔贫瘠 1.56 → **1.51**（结论不变），
-> 有书 1.02 → **0.87（★ 没了）**。
-> **"有书单独就能越过 1"是假象。**
+> ### ⚠ The baseline of the table below has a bug, corrected in experiment 019; the right numbers are there
+> The baseline paired survivors within each cohort. The survivors of the barren world are filtered
+> (the weak all died) → within-group variance too small → baseline too small → **the ratio is inflated**.
+> After correction: rich↔barren 1.56 → **1.51** (conclusion unchanged),
+> has-books 1.02 → **0.87 (★ gone)**.
+> **"Books alone can clear 1" was an illusion.**
 
-同一颗种子、同样的初始性格、同样的投喂频率，只换世界：
-
-```
-对比                     作息 TV  基线  比值   目标 TV  基线  比值   一眼可辨   死亡
-丰富世界↔贫瘠世界          0.381  0.245  1.56    0.416  0.247  1.68    68.5%   6.0% ★
-有书↔基准                  0.266  0.260  1.02    0.311  0.211  1.47    56.4%   0.0% ★
-有音乐↔基准                0.203  0.322  0.63    0.099  0.257  0.39    38.0%   0.0%
-食物丰富↔食物贫瘠          0.162  0.286  0.57    0.182  0.292  0.62    41.7%   3.2%
-材料丰富↔材料稀缺          0.205  0.285  0.72    0.127  0.240  0.53    41.2%   0.0%
-常下雨↔天气稳定            0.253  0.273  0.93    0.228  0.245  0.93    68.4%   0.0%
-溺爱型↔放养型              0.195  0.279  0.70    0.349  0.228  1.53    71.6%   0.0%  ← 老轴
-```
-
-**比值 1.56 是这个项目第一次在行为层超过 1。**
-011–017 全部实验的投喂轴上限是 0.80，从来没到过 1。
-
-三个观察：
-
-1. **单因素基本都赢不了，组合能赢。** 音乐 0.63、食物 0.57、材料 0.72、
-   下雨 0.93 单独都低于基线；四个叠在一起是 1.56。
-   环境的作用是**累积**的，不是某一个开关。
-
-2. **Goal 是个强载体。** 目标 TV 的比值普遍高于作息 TV
-   （世界对 1.68 vs 1.56；连老的投喂轴都有 1.53 vs 0.70）。
-   **加 goal 层顺手开出了一条比动作分布更强的归因通路。**
-
-3. **天气单独能大幅改性格但改不了作息**（caution 差 27.3 分，作息比值 0.93）。
-   性格和行为可以脱节，这是消融实验（014）那条发现的又一个例子。
-
-### demo 素材（同一颗种子，两个世界；这是 TV 最大的一对，属于挑出来的）
+Same seed, same initial personality, same feeding frequency; only the world differs:
 
 ```
-▸ 丰富世界   谨慎 28 | 好奇 100 | 勤劳  70   冒险家
-             住所  0   体质 53   存粮 2
-             一生在追求：去远处看看(40%)、多读一点(23%)
-             完成 14 件事，放弃 1 件
-             学到：书里有我没见过的世界；远处有食物更多的地方
-
-▸ 贫瘠世界   谨慎 80 | 好奇  45 | 勤劳 100   筑巢者
-             住所 99   体质 76   存粮 4
-             一生在追求：多存点吃的(90%)、把家弄得更结实(10%)
-             完成 0 件事，放弃 4 件
-             学到：没有坚固的住所，下雨很危险
-             第 2 天，一场暴雨掀翻了屋顶
+comparison                    routine TV  base  ratio   goal TV  base  ratio   visibly distinct   dead
+rich world↔barren world           0.381  0.245  1.56     0.416  0.247  1.68        68.5%          6.0% ★
+has books↔baseline                0.266  0.260  1.02     0.311  0.211  1.47        56.4%          0.0% ★
+has music↔baseline                0.203  0.322  0.63     0.099  0.257  0.39        38.0%          0.0%
+food-rich↔food-poor               0.162  0.286  0.57     0.182  0.292  0.62        41.7%          3.2%
+material-rich↔material-scarce     0.205  0.285  0.72     0.127  0.240  0.53        41.2%          0.0%
+rainy↔stable weather              0.253  0.273  0.93     0.228  0.245  0.93        68.4%          0.0%
+doting↔hands-off                  0.195  0.279  0.70     0.349  0.228  1.53        71.6%          0.0%  ← the old axis
 ```
 
-> **同一颗种子。同样的初始性格。只有世界不同。**
-> 这才是"用户像上帝一样改变世界，生命自己长成不同的样子"的直接证据。
+**A ratio of 1.56 is the first time this project has exceeded 1 at the behaviour layer.**
+The ceiling on the feeding axis across every experiment from 011–017 was 0.80, and it never reached 1.
 
-⚠ 「丰富世界 vs 贫瘠世界」同时改了四个变量，**不是单因素归因**，
-只能说"环境整体能造出不同的生命"，不能说是哪一条造成的。
+Three observations:
+
+1. **Single factors mostly cannot win; the combination can.** Music 0.63, food 0.57, material 0.72
+   and rain 0.93 are each below baseline; stacked together they give 1.56.
+   The environment's effect is **cumulative**, not one switch.
+
+2. **Goal is a strong carrier.** The goal-TV ratio is generally higher than the routine-TV ratio
+   (1.68 vs 1.56 for the world pair; even the old feeding axis gives 1.53 vs 0.70).
+   **Adding the goal layer incidentally opened an attribution channel stronger than the action distribution.**
+
+3. **Weather alone changes personality a great deal but not the routine** (caution differs by 27.3 points, routine ratio 0.93).
+   Personality and behaviour can decouple — another instance of the finding from the ablation experiment (014).
+
+### Demo material (same seed, two worlds; this is the pair with the largest TV, so it is cherry-picked)
+
+```
+▸ rich world   caution 28 | curiosity 100 | industry  70   adventurer
+             shelter  0   condition 53   food store 2
+             spent its life pursuing: see the world (40%), read a little more (23%)
+             completed 14 things, abandoned 1
+             learned: books hold worlds I have not seen; there are places with more food far away
+
+▸ barren world   caution 80 | curiosity  45 | industry 100   nest-builder
+             shelter 99   condition 76   food store 4
+             spent its life pursuing: store more food (90%), make the home sturdier (10%)
+             completed 0 things, abandoned 4
+             learned: without solid shelter, rain is dangerous
+             day 2, a storm tore the roof off
+```
+
+> **The same seed. The same initial personality. Only the world differs.**
+> This is the direct evidence for "the user changes the world like a god, and life grows into different shapes by itself".
+
+⚠ "rich world vs barren world" changes four variables at once and is **not single-factor attribution**;
+all that can be said is "the environment as a whole can produce different lives", not which factor did it.
 
 ---
 
-## ★ 实验 018 得到的规则
+## ★ The rules from experiment 018
 
-22. **计数型进度必须存基线。** 和规则 5 同源：任何"累计量"当指标之前，
-    先想清楚它的零点在哪。
+22. **Count-based progress must store a baseline.** Same root as rule 5: before using any "cumulative quantity" as a metric,
+    be clear about where its zero is.
 
-23. **意图层也需要"余裕"。** 生存告急时目标必须让路，否则 agent 会
-    追着理想饿死。这是"人格需要余裕"在 goal 层的翻版。
+23. **The intention layer needs slack too.** When survival is critical the goal must give way, or the agent will
+    starve chasing an ideal. This is "personality needs slack" restated at the goal layer.
 
-24. **专注 = 加分 + 分心的代价。** 只给目标行动加分，盖不住已经跑偏的性格。
+24. **Focus = a bonus + a cost to distraction.** Bonusing the goal action alone cannot cover a personality that has already drifted.
 
-25. **产生不了行动的意图必须会消失。** 否则"想做"和"在做"脱节，goal 层白加。
+25. **An intention that cannot produce action must be able to fade.** Otherwise "wanting to" and "doing" decouple and the goal layer was added for nothing.
 
-26. **环境的作用是累积的。** 单因素基本都低于基线，组合起来才越过 1。
-    → 产品含义：**给用户一个道具没用，要给一整套可改造的世界。**
-
----
-
-## 还没做的（v2 之后）
-
-- ⚠ **v2 的所有配置都没做 60/90 天 durability**（实验 017 的教训：只在一个
-  时间尺度上调参等于没调）。goal 层是新的，长期行为完全未知。
-- ⚠ **没做 ±7% 鲁棒性**，goal 的四个新参数（BONUS / OFF_TASK / REFRACTORY /
-  STALL_DAYS）都是手调出来的，一次都没扫过。
-- **shelter 倒挂**在 v2 里还没重测。
-- 「丰富世界 vs 贫瘠世界」需要拆成单因素，才知道到底是谁的功劳。
-- `paired.py` / `ablation.py` / `behavior.py` 的结论都要在 v2 上重跑一遍
-  （目前只做了冒烟测试，确认能跑、零假设仍为 0）。
+26. **The environment's effect is cumulative.** Single factors are mostly below baseline, and only the combination clears 1.
+    → Product implication: **giving the user one prop achieves nothing; give them a whole modifiable world.**
 
 ---
 
+## Still to do (after v2)
+
+- ⚠ **No v2 configuration has had a 60/90-day durability test** (the lesson of experiment 017: tuning at one
+  time scale is the same as not tuning). The goal layer is new and its long-term behaviour is entirely unknown.
+- ⚠ **No ±7% robustness test**; the four new goal parameters (BONUS / OFF_TASK / REFRACTORY /
+  STALL_DAYS) were all hand-tuned and have never been swept once.
+- **The shelter inversion** has not been re-tested under v2.
+- "rich world vs barren world" needs splitting into single factors before we know which one deserves the credit.
+- The conclusions of `paired.py` / `ablation.py` / `behavior.py` all need re-running under v2
+  (so far only a smoke test has been done, confirming they run and that the null is still 0).
+
+---
+
 ---
 
 ---
 
-# 实验 019 —— 持久性成为主指标
+# Experiment 019 — persistence becomes the main metric
 
-> 日期：2026-08-10
+> Date: 2026-08-10
 
-四件事：修工具有效性、修基线、把「持久性」立为主指标、把 Goal 提为主载体。
+Four things: fixing the instrument's validity, fixing the baseline, establishing "persistence" as the main metric, and promoting Goal to the main carrier.
 
-## 1. 先修有效性（规则 21：团灭 > 叙事）
+## 1. Fixing validity first (rule 21: a wipeout beats a narrative)
 
-v2 的 60/90 天死亡率：
+The 60/90-day mortality of v2:
 
 ```
              30d     60d     90d
-基准        0.0%   11.5%   43.0%
-贫瘠世界    5.5%   27.5%   54.0%
+baseline        0.0%   11.5%   43.0%
+barren world    5.5%   27.5%   54.0%
 ```
 
-诊断（90 天，基准）—— 死掉的球是同一个画像：
+Diagnosis (90 days, baseline) — the balls that died all fit one profile:
 
 ```
-          eat  sleep  采食  拾材  建  探索     谨慎  好奇  勤劳
+          eat  sleep  gather food  gather material  build  explore     caution  curiosity  industry
 muertos   11%   40%    2%    1%   0%  46%       18   100    78
 vivos     11%   41%    6%   13%   4%  25%       59    83    88
 ```
 
-**跑掉的球漂到「谨慎 18 / 好奇 100」，46% 的时间在外面跑，只有 2% 在采食。**
-关掉 goal 层，基准 90 天死亡率从 43.0% 掉到 7.0% —— **是那个念头在杀它们**。
+**The balls that ran off drifted to "caution 18 / curiosity 100", spending 46% of their time outside and only 2% gathering food.**
+Switching the goal layer off takes 90-day baseline mortality from 43.0% down to 7.0% — **it is that intention that kills them**.
 
-### 根因：笔记 ⑤ 顺手拆掉了唯一的刹车
+### Root cause: note ⑤ incidentally removed the only brake
 
-正反馈本身没有刹车（探索 → 好奇↑谨慎↓ → 更想探索）。
-v1 里**永久 trait_floor 恰好当了刹车**；v2 让地板会消退，刹车就没了。
+Positive feedback has no brake of its own (explore → curiosity↑ caution↓ → wants to explore more).
+In v1 the **permanent trait_floor happened to serve as the brake**; v2 lets the floor fade, and the brake is gone.
 
-### 两个修复
+### Two fixes
 
-**修复 A：`TRAIT_SATURATION = 0.90`** —— 性格越极端越难继续极端化。
+**Fix A: `TRAIT_SATURATION = 0.90`** — the more extreme the personality, the harder it is to grow more extreme.
 
 ```
- SAT     30d    60d    90d   caution顶死  环境比值  一眼可辨
+ SAT     30d    60d    90d   caution pinned   environment ratio   visibly distinct
 0.00    0.0%  11.5%  43.0%      44.6%      1.56     68.3%
 0.90    0.0%   0.0%  28.5%       0.0%      1.55     79.9%
 ```
 
-**每一条都变好，环境信号一点没损失。** 顺手治好了实验 017 那个
-"60 天 78% 的球 caution 顶到 100"的天花板问题。
+**Everything improves and not a scrap of the environment signal is lost.** It also incidentally cures the ceiling problem of
+experiment 017, "78% of balls have caution pinned at 100 at 60 days".
 
-**修复 B：消遣类目标要先有余裕才立得起来。**
-`goal_bonus` 里的抑制是**执行时**的，太晚了。真正的问题是
-**在没饭吃的时候还立"去远处看看"这个志向**。
-把 `see_the_world` / `learn` 的优先级乘上
-`slack = f(存粮) × f(体质)`。
+**Fix B: pastime goals must have slack before they can be raised at all.**
+The suppression inside `goal_bonus` acts **at execution time**, which is too late. The real problem is
+**raising the ambition of "go and see distant places" while there is nothing to eat**.
+The priority of `see_the_world` / `learn` is multiplied by
+`slack = f(food store) × f(condition)`.
 
 ```
              30d    60d    90d
-基准        0.0%   0.0%   2.5%      （原 0.0 / 11.5 / 43.0）
-丰富世界    0.0%   0.0%   4.5%
-平衡型      0.0%   0.0%   2.5%
-放养型      0.0%   3.0%   6.0%
-溺爱型      0.0%   0.0%   0.0%
-贫瘠世界    6.0%  23.0%  37.5%      ← 这个是故意设成极端的世界
+baseline        0.0%   0.0%   2.5%      (was 0.0 / 11.5 / 43.0)
+rich world      0.0%   0.0%   4.5%
+balanced        0.0%   0.0%   2.5%
+hands-off       0.0%   3.0%   6.0%
+doting          0.0%   0.0%   0.0%
+barren world    6.0%  23.0%  37.5%      ← this world is deliberately extreme
 ```
 
-> ### ★ 规则 27：需求的抑制要作用在【意图形成】，不是【意图执行】
-> 等到体质掉下来才压制目标，亏空已经造成了。
-> "余裕"必须在立志的那一刻就参与判断。
+> ### ★ Rule 27: the suppression of needs must act on **intention formation**, not **intention execution**
+> Waiting until condition has fallen before suppressing the goal means the deficit is already done.
+> "Slack" must take part in the judgement at the moment the ambition is raised.
 
-## 2. 修基线（survivorship）
+## 2. Fixing the baseline (survivorship)
 
-`environment.py` 的基线是在各自 cohort 内部挑存活者配对。
-贫瘠世界的存活者是被筛选过的一批 → 组内方差偏小 → 基线偏小 → **比值虚高**。
-处理组用的是"两边都活"的交集，基线也必须用同一批种子。
+`environment.py` built its baseline by pairing survivors within each cohort.
+The survivors of the barren world are a filtered batch → within-group variance too small → baseline too small → **the ratio is inflated**.
+The treatment group uses the intersection of "alive on both sides", so the baseline must use the same batch of seeds.
 
-### 修正后的 018 全表（含有效性修复）
-
-```
-对比                     作息TV  基线  比值   目标TV  基线  比值   一眼可辨   死亡
-丰富世界↔贫瘠世界         0.361  0.239  1.51    0.355  0.274  1.30    82.9%   6.4% ★
-有书↔基准                 0.225  0.258  0.87    0.276  0.256  1.08    63.6%   0.0%
-有音乐↔基准               0.197  0.310  0.64    0.116  0.296  0.39    46.4%   0.0%
-食物丰富↔食物贫瘠         0.156  0.281  0.56    0.171  0.332  0.51    51.7%   3.2%
-材料丰富↔材料稀缺         0.207  0.276  0.75    0.137  0.285  0.48    53.2%   0.0%
-常下雨↔天气稳定           0.255  0.273  0.94    0.277  0.269  1.03    78.0%   0.0%
-溺爱型↔放养型             0.190  0.265  0.72    0.417  0.233  1.79    82.4%   0.0% ← 老轴
-```
-
-**「有书单独越过 1」是基线 bug 造出来的假象**（1.02 → 0.87）。
-组合世界的结论不变（1.56 → 1.51）。
-
-## 3. ★ 移植实验：差异是性格，不是温度计 ★（`transplant.py`）
-
-018 那个 1.51 有个致命的歧义：**当时两只球还待在不同的世界里。**
-所以它分不清：
+### The corrected full 018 table (including the validity fix)
 
 ```
-(A) 经历塑造了它    → 换回同一个世界也还在
-(B) 只是当前条件不同 → 环境一样就消失
+comparison                    routine TV  base  ratio   goal TV  base  ratio   visibly distinct   dead
+rich world↔barren world          0.361  0.239  1.51     0.355  0.274  1.30        82.9%          6.4% ★
+has books↔baseline               0.225  0.258  0.87     0.276  0.256  1.08        63.6%          0.0%
+has music↔baseline               0.197  0.310  0.64     0.116  0.296  0.39        46.4%          0.0%
+food-rich↔food-poor              0.156  0.281  0.56     0.171  0.332  0.51        51.7%          3.2%
+material-rich↔material-scarce    0.207  0.276  0.75     0.137  0.285  0.48        53.2%          0.0%
+rainy↔stable weather             0.255  0.273  0.94     0.277  0.269  1.03        78.0%          0.0%
+doting↔hands-off                 0.190  0.265  0.72     0.417  0.233  1.79        82.4%          0.0% ← the old axis
 ```
 
-做法：前 30 天分化，**后 30 天两边都换成「基准」世界**，只在后 30 天测量。
+**"Books alone clear 1" was an illusion created by the baseline bug** (1.02 → 0.87).
+The conclusion about the combined world is unchanged (1.56 → 1.51).
+
+## 3. ★ The transplant experiment: the difference is personality, not a thermometer ★ (`transplant.py`)
+
+That 1.51 from 018 carries a fatal ambiguity: **at the time the two balls were still in different worlds.**
+So it cannot distinguish:
 
 ```
-条件      窗口TV   基线   比值   一眼可辨   死亡    性格差
-持续      0.303  0.238   1.27     74.6%   24.4%   ca +23.9
-移植      0.300  0.259   1.16     76.8%    6.8%   ca +27.4
-
-持续 1.27 → 移植 1.16   保留 91%
-★ 移植后比值仍 > 1
+(A) experience shaped it    → it survives a return to the same world
+(B) only the current conditions differ → it vanishes once the environment matches
 ```
 
-**把因去掉之后，差异还在，而且保留了 91%。是 (A)。**
-产品文档里那句「以前有一次下很大的雨…从那以后我就不太喜欢没有准备」
-现在有实证支撑了。
-
-## 4. 单因素持久性（`persistence.py`）—— 猜想只对了一半
+Method: 30 days of divergence, then **both sides switched to the "baseline" world for the second 30 days**, with measurement only in that second half.
 
 ```
-因素        持续作息  移植作息  保留   持续目标  移植目标  保留
-书              0.92     0.87   94%      1.04     0.80    76%
-音乐            0.64     0.62   97%      0.52     0.53   103%
-天气            1.00     0.88   88%      0.97     0.94    97%
-材料            0.67     0.57   85%      0.58     0.53    91%
-食物速率        0.67     0.58   87%      0.55     0.57   103%
-组合（参照）    1.27     1.18   93%      1.16     1.07    92% ★
+condition   window TV   base   ratio   visibly distinct   dead    personality diff
+stay          0.303    0.238   1.27         74.6%        24.4%    ca +23.9
+move          0.300    0.259   1.16         76.8%         6.8%    ca +27.4
+
+stay 1.27 → move 1.16   retained 91%
+★ the ratio is still > 1 after the transplant
 ```
 
-### ⚠ 发现一：保留率区分不了任何东西
+**With the cause removed the difference remains, and 91% of it is retained. It is (A).**
+The product-document line "there was a heavy rain once… ever since then I have not liked being unprepared"
+now has empirical support.
 
-**所有因素的保留率都在 85–103%。** 食物速率保留 87%，书保留 94% —— 差不多。
+## 4. Single-factor persistence (`persistence.py`) — the conjecture was only half right
 
-> ### ★ 规则 28：持久性不是"保留了多少"，是"当初造出了多少"
-> 凡是造出来的差异，几乎都留得住。真正的差别在**量级**，不在保留率。
-> 所以主指标应该是**移植后的绝对比值**，不是保留百分比。
+```
+factor          stay routine  move routine  retained   stay goal  move goal  retained
+books                0.92          0.87        94%        1.04       0.80       76%
+music                0.64          0.62        97%        0.52       0.53      103%
+weather              1.00          0.88        88%        0.97       0.94       97%
+material             0.67          0.57        85%        0.58       0.53       91%
+food rate            0.67          0.58        87%        0.55       0.57      103%
+combination (ref)    1.27          1.18        93%        1.16       1.07       92% ★
+```
 
-### 发现二：猜想对了一半
+### ⚠ Finding one: the retention rate distinguishes nothing
 
-| 猜想 | 结果 |
+**Every factor's retention rate is between 85% and 103%.** Food rate retains 87%, books retain 94% — much the same.
+
+> ### ★ Rule 28: persistence is not "how much was retained" but "how much was created in the first place"
+> Practically any difference that gets created survives. The real difference is in **magnitude**, not in retention.
+> So the main metric should be **the absolute post-transplant ratio**, not the retention percentage.
+
+### Finding two: the conjecture was half right
+
+| Conjecture | Result |
 |---|---|
-| 食物速率最弱（不写进任何持久结构） | ✓ **确认**。移植后 0.58，最低；性格残留只有 +3.0 |
-| 书最强（写进 knowledge 和 goal） | ✗ **只是并列**。书 0.87，**天气 0.88** |
+| food rate is weakest (written into no persistent structure) | ✓ **confirmed**. 0.58 after the transplant, the lowest; the personality residue is only +3.0 |
+| books are strongest (written into knowledge and goal) | ✗ **merely tied**. Books 0.87, **weather 0.88** |
 
-机制列（差值 = 后者 − 前者，负号代表前者更多）：
-
-```
-因素        移植后作息  语义记忆差  永久身份差  移植后性格残留
-书                0.87      -1.01       +0.04   谨慎 +9.2
-天气              0.88      -0.06       -0.28   谨慎 -26.8  ← 九倍
-食物速率          0.58      +0.08       -0.05   谨慎  +3.0
-```
-
-**机制方向是对的，但最强的持久写入通路是天气，不是书。**
-天气通过暴雨 → landmark → `trait_identity` 写进**永久身份**，
-移植 30 天后还留着 26.8 分的谨慎差。书只写进 `knowledge`，留下 9.2 分。
-
-### ★ 发现三：`knowledge` 是只写不读的 —— 这才是书弱的原因
-
-查了代码：`self.knowledge` 只有 `learn()` 在写、`context_packet()` 在读，
-**`score()` 里从来没读过它。**
-
-> **语义记忆目前是装饰品。** 它能被讲出来，但不改变任何行为。
-> 书之所以打不过天气，不是因为它写得少，而是因为它写进去的那个抽屉
-> 没有接到行为上。
-
-这解释了另一个数字：**书的目标保留率只有 76%，全表最低** ——
-`learn` 目标需要世界里有书，移植到基准世界后书没了，这条通路直接断掉。
-天气不一样：它写进的是球自己身上的东西，搬到哪里都带着。
-
-> ### ★ 规则 29：能留下来的，只有写进【个体】的东西
-> 写进世界的（书、音乐）会随环境消失；
-> 写进 `trait_identity` / `flags` 的才跟着球走。
-> **产品含义：给它一本书，不如让它经历一件事。**
-
-## 5. ★ Goal 提为主载体 ★
+The mechanism columns (a difference = the second minus the first; a negative sign means the first has more):
 
 ```
-                   作息比值   目标比值
-溺爱型 ↔ 放养型      0.72      1.79   ← 老轴，作息上一直不及格
-丰富世界 ↔ 贫瘠世界   1.51      1.30
+factor        routine after move   semantic memory diff   permanent identity diff   personality residue after move
+books                0.87                -1.01                    +0.04               caution +9.2
+weather              0.88                -0.06                    -0.28               caution -26.8  ← nine times
+food rate            0.58                +0.08                    -0.05               caution  +3.0
 ```
 
-**投喂轴在作息上从来没到过 1（017 之前上限 0.80），在目标层是 1.79。**
+**The mechanistic direction is right, but the strongest persistent-write channel is weather, not books.**
+Weather writes through storm → landmark → `trait_identity` into a **permanent identity**,
+leaving a 26.8-point caution difference 30 days after the transplant. Books write only into `knowledge` and leave 9.2 points.
 
-而且它能讲成一句话：
+### ★ Finding three: `knowledge` is write-only — that is why books are weak
+
+Checked the code: `self.knowledge` is written only by `learn()` and read only by `context_packet()`,
+and **`score()` has never read it.**
+
+> **Semantic memory is currently an ornament.** It can be recited but changes no behaviour.
+> Books lose to weather not because they write less, but because the drawer they write into
+> is not wired to behaviour.
+
+That explains another number: **books' goal retention is only 76%, the lowest in the table** —
+the `learn` goal needs books in the world, and once transplanted to the baseline world the books are gone and that channel is cut.
+Weather is different: what it writes is on the ball itself, and travels wherever the ball goes.
+
+> ### ★ Rule 29: only what is written into the **individual** can persist
+> What is written into the world (books, music) vanishes with the environment;
+> only what is written into `trait_identity` / `flags` travels with the ball.
+> **Product implication: giving it a book is worth less than letting it live through an event.**
+
+## 5. ★ Goal promoted to the main carrier ★
 
 ```
-目标            溺爱型   放养型     差
-把家弄得更结实   39.5%   29.2%   -10.3%
-多存点吃的       12.3%   54.0%   +41.7%
-去远处看看       48.2%   16.7%   -31.5%
+                     routine ratio   goal ratio
+doting ↔ hands-off        0.72          1.79   ← the old axis, never passing on routine
+rich world ↔ barren world  1.51          1.30
+```
+
+**The feeding axis never reached 1 on routine (a ceiling of 0.80 before 017), and reaches 1.79 at the goal layer.**
+
+And it can be stated in one sentence:
+
+```
+goal                    doting   hands-off     diff
+make the home sturdier   39.5%     29.2%     -10.3%
+store more food          12.3%     54.0%     +41.7%
+see the world            48.2%     16.7%     -31.5%
 ```
 
 > 被宠的球把一半人生花在往远处跑，被放养的球把一半人生花在囤粮。
