@@ -5639,165 +5639,165 @@ if the primary is detectable but R is not satisfied → no claim that the relati
 
 ### ⑤ FINAL block frozen: `80000–81499, N=1500`
 
-已核实：整个仓库与实验记录中 `80000` 只出现在"untouched / 不碰 / 预留"这类说明里，
-**没有任何 simulation 路径使用过这一段**。沿用 028 的工程保护：
-`final_029_STARTED.lock` 一旦创建，**哪怕崩溃该 block 永久 burned**；
-seed guard 只接受 `seed0=80000, N=1500`；指纹 + 常量 + sha256 校验。
+Verified: throughout the repository and this log, `80000` appears only in notes of the "untouched / do not touch / reserved" kind,
+**no simulation path has ever used this block**. The engineering protection from 028 carries over:
+once `final_029_STARTED.lock` exists, **the block is permanently burned even if the run crashes**;
+the seed guard accepts only `seed0=80000, N=1500`; fingerprint + constants + sha256 are all checked.
 
 ---
 
-## ★ 预注册已写：`MEMORY_TRANSFER029_PREREGISTRATION.md` ★
+## ★ The preregistration is written: `MEMORY_TRANSFER029_PREREGISTRATION.md` ★
 
-冻结状态一览：
+Freeze status at a glance:
 
 ```
 architecture      memory-only / NeutralBody              FROZEN
 acquisition       36 + 8 + 22                            FROZEN
 retrieval         stateful + post-Q resolution           FROZEN
 λ                 1.00                                   FROZEN
-capacity gates    5% / .02 / 25% / 20-of-80（取 max）     FROZEN
+capacity gates    5% / .02 / 25% / 20-of-80 (max)        FROZEN
 primary           ΔC post-change errors                  FROZEN
 SESOI             1.0 error                              FROZEN
 extensive margin  P(memory complete) 65.75% / 73.25%     FROZEN
-scientific control SHUFFLE（判据 §6.3 待拍板 A/B）        待拍板
+scientific control SHUFFLE (criterion §6.3 awaiting A/B) PENDING
 seed-coupling     XSEED-DONOR                            FROZEN
-integrity         DELETE / within-seed SWAP（非科学结果） FROZEN
+integrity         DELETE / within-seed SWAP (not a result) FROZEN
 FINAL             80000–81499, N=1500                    FROZEN
 ```
 
-新增 validity gate **G2 interface capacity transport**：
-在 FINAL 块上用 **group-blind（pooled、含 m=0、排序）** 的 empirical m
-重算四个 capacity 读数，**先于 outcome 判读**；失败的固定措辞：
+A new validity gate, **G2 interface capacity transport**:
+on the FINAL block the four capacity readings are recomputed from the **group-blind (pooled, including m=0, sorted)**
+empirical m, **before any outcome is read**; the fixed failure wording:
 
 > Interface capacity calibrated on the development block did not transport to
 > the confirmatory population; the memory channel is not cleanly interpretable
 > under the preregistered capacity constraints.
 
-⛔ gate 失败**不许重估 λ**。
+⛔ A gate failure **does not permit re-estimating λ**.
 
-### 复现方式（新增）
+### How to reproduce (new)
 
-- `AI SANDBOX/MEMORY_TRANSFER029_PREREGISTRATION.md` —— 029 预注册（一次性文件）
-- `memory_transfer_rehearsal.py` 已更新：`XSEED-DONOR` 改名、
-  extensive margin 口径改为 completeness、新增 retention ratio 的 joint bootstrap
+- `AI SANDBOX/MEMORY_TRANSFER029_PREREGISTRATION.md` — the 029 preregistration (a write-once file)
+- `memory_transfer_rehearsal.py` updated: `XSEED-DONOR` renamed,
+  the extensive-margin convention switched to completeness, and a joint bootstrap for the retention ratio added
 
 ---
 
-## ★★ §6.3 拍板 B + `final_029.py` 全尺寸彩排（2026-08-18）★★
+## ★★ §6.3 decided as B + a full-size rehearsal of `final_029.py` (2026-08-18) ★★
 
-### ① SHUFFLE 判据选 **B**：`CI_97.5%(R) < 0.25`
+### ① The SHUFFLE criterion is **B**: `CI_97.5%(R) < 0.25`
 
-只要求点估计，会让"**至少 75% 的 transfer 被摧毁**"这句话说得**比证据强**。
-既然要声称"relational structure 被破坏后大部分 transfer 消失"，
-**不确定性本身也必须支持这句话**。
+Requiring only the point estimate would state "**at least 75% of the transfer is destroyed**" **more strongly than the evidence allows**.
+If the claim is that "most of the transfer disappears once the relational structure is destroyed",
+**the uncertainty itself must support that sentence too**.
 
-开发 rehearsal（n=400）`R = 0.094, CI [0.005, 0.261]` 的诚实写法是：
+The honest way to write the development rehearsal (n=400) `R = 0.094, CI [0.005, 0.261]` is:
 
 > **point estimate strongly supports collapse, but the rehearsal sample is
 > insufficient to establish ≥75% attenuation with 95% confidence.**
 
-**不是**"差一点所以改成 A"。
+It is **not** "it only just missed, so switch to A".
 
-必须随结果写明的披露（已写进预注册 §6.3.1 与 runner 输出）：
+The disclosure that must accompany the results (already written into §6.3.1 of the preregistration and into the runner output):
 
-> §6.3 的 CI-upper interpretation was finalized after observing the development
+> The §6.3 CI-upper interpretation was finalized after observing the development
 > rehearsal retention estimate R=0.094, 95%CI[0.005,0.261], **but before any
 > observation from the confirmatory seed block.**
 
-> ### ★ 规则 95：比值型判据必须写"分母不可辨识时怎么办" ★
-> 若 `ΔC_OWN ≈ 0`，`R` 的分母接近 0 → 比值不稳定甚至爆炸。
-> **这时不能说 "SHUFFLE control failed"** —— 根本没有 transfer 可供"保留多少"。
+> ### ★ Rule 95: a ratio criterion must state what to do when the denominator is unidentifiable ★
+> If `ΔC_OWN ≈ 0`, the denominator of `R` approaches 0 → the ratio becomes unstable or explodes.
+> **One cannot then say "the SHUFFLE control failed"** — there is no transfer for anything to be "retained" from.
 >
 > **The SHUFFLE retention criterion is interpreted only if the OWN primary
 > effect shows evidence of transfer (its 95% CI excludes 0 in the preregistered
 > direction). If OWN does not establish transfer, the retention ratio is
 > reported descriptively but no relational-mediation claim is evaluated.**
 
-### ② G2 保留，且失败语义写死
+### ② G2 is kept, and its failure semantics are frozen
 
 > G2 failure does **not** mean "no memory transfer". It means the confirmatory
 > contrast is **not cleanly interpretable under the preregistered
 > calibrated-interface regime.**
 
-λ=1 的正当性来自开发块上的承诺（event-triggered、有实际影响、不饱和、不接管
-policy）。若 FINAL 的自然 m 分布漂移，虽然 λ 没改，**测的已经不是原本校准出的
-接口性质**。与 028 transport gate 同逻辑：**失败后不许重估 λ**。
+The justification for λ=1 comes from promises made on the development block (event-triggered, genuinely influential, unsaturated, not taking
+over the policy). If the natural m distribution drifts on FINAL then, even with λ unchanged, **what is being measured is no longer the
+interface property that was calibrated**. Same logic as 028's transport gate: **after a failure λ may not be re-estimated**.
 
-### ③ 两个实现细节已在预注册里冻结
+### ③ Two implementation details are frozen in the preregistration
 
 ```
 XSEED donor mapping   donor_index(i) = (i + N//2) % N
-                      FINAL N=1500 → (i+750)%1500；rehearsal N=400 → (i+200)%400
-                      无 self-donor / 一一映射 / 两 condition 共用同一 permutation /
-                      ⛔ 不许依据任何 memory 或 outcome 选 donor
+                      FINAL N=1500 → (i+750)%1500; rehearsal N=400 → (i+200)%400
+                      no self-donor / one-to-one / both conditions share the same permutation /
+                      ⛔ donors may not be chosen on the basis of any memory or outcome
 SHUFFLE permutation   rng = Random(SHUFFLE_SALT ^ seed ^ (len(episodes)<<8))
-                      SHUFFLE_SALT = 0x29C10；⛔ 不许运行时现场生成新方案
+                      SHUFFLE_SALT = 0x29C10; ⛔ no new scheme may be generated at run time
 ```
 
 ---
 
-## ★ `final_029.py` —— 全尺寸彩排全过（种子 10000–11499，N=1500）★
+## ★ `final_029.py` — the full-size rehearsal passes completely (seeds 10000–11499, N=1500) ★
 
-**80000–81499 一颗未碰，未创建 FINAL lock**（已核验：仓库里 `80000` 只出现在
-"不碰/预留"说明和 runner 的 `FINAL_SEED0` 常量里）。
+**Not one seed of 80000–81499 was touched and no FINAL lock was created** (verified: in the repository `80000` appears only in
+"do not touch / reserved" notes and in the runner's `FINAL_SEED0` constant).
 
-### preflight（全过）
+### Preflight (all passed)
 
-任务指纹 + 五个模块 sha256 + 15 个冻结常量 + donor mapping + **预注册 sha256**
-`29e45930a07f2649…`。任一不符直接 `SystemExit`，并提示"必须先写 AMENDMENT
-再重新冻结，不许直接改常量后开跑"。
+Task fingerprint + the sha256 of five modules + 15 frozen constants + the donor mapping + the **preregistration sha256**
+`29e45930a07f2649…`. Any mismatch raises `SystemExit` with the message "an AMENDMENT must be written and the constants
+re-frozen first; you may not simply edit a constant and start the run".
 
-### 自检（全过）
+### Self-checks (all passed)
 
 ```
-lock helper        O_CREAT|O_EXCL 原子独占，二次创建被拒
-worker determinism acquisition 与 transfer 逐 trial 可复现
-XSEED mapping      N=400 / N=1500 均无 self-donor、一一映射
-SHUFFLE            同 (seed, n_episodes) 置换确定；stay/switch 条数与 outcome 边际不变
-analysis ordering  1→2→3→4→5→6→7→8→9 用断言核过
+lock helper        atomic exclusive O_CREAT|O_EXCL; a second creation is rejected
+worker determinism acquisition and transfer reproduce trial by trial
+XSEED mapping      no self-donor and one-to-one at both N=400 and N=1500
+SHUFFLE            the permutation is fixed by (seed, n_episodes); stay/switch counts and outcome marginals unchanged
+analysis ordering  1→2→3→4→5→6→7→8→9 verified by assertion
 ```
 
-★ **STARTED lock 在【第一条 acquisition 轨迹】之前创建** —— 029 的种子从
-acquisition 阶段就开始产生信息，不是等 novel task 开跑才算 burned。lock 永不自动删除。
+★ **The STARTED lock is created before the very first acquisition trajectory** — a 029 seed starts producing
+information from the acquisition stage onwards, not only once the novel task begins. The lock is never deleted automatically.
 
-### 彩排结果（已烧段，N=1500）
+### Rehearsal results (an already-burned block, N=1500)
 
 ```
 completeness      Stable 70.07%   Volatile 76.40%
 non-zero evidence Stable 67.93%   Volatile 75.87%
 
 G2   saturation 0.0000 ✓   median|Δp| 0.0742 ✓   flip 0.1443 ✓   max expo 6.50/80 ✓
-G1 ✓   G3 ✓   → validity 全过
+G1 ✓   G3 ✓   → validity fully passed
 
-臂              ΔC          95% CI
+arm             ΔC          95% CI
 OWN          -0.8187   [-0.9387, -0.6993]
-DELETE       +0.0000   [+0.0000, +0.0000]     ← 恒等
-SWAP         +0.8187   [+0.6993, +0.9393]     ← 恒等
+DELETE       +0.0000   [+0.0000, +0.0000]     ← identity
+SWAP         +0.8187   [+0.6993, +0.9393]     ← identity
 SHUFFLE      +0.0200   [-0.0520, +0.0933]
-XSEED-DONOR  -0.9180   [-1.0527, -0.7880]     保留 OWN 的 112.1%
+XSEED-DONOR  -0.9180   [-1.0527, -0.7880]     retains 112.1% of OWN
 
-SESOI 判读  →  Detectable memory-mediated transfer, but functional
-               significance not established.（第二档）
+SESOI reading  →  Detectable memory-mediated transfer, but functional
+                  significance not established. (second band)
 
-retention  R = 0.0244   95% CI [0.0016, 0.1132]   上界 < 0.25  →  ★满足★
+retention  R = 0.0244   95% CI [0.0016, 0.1132]   upper bound < 0.25  →  ★satisfied★
 ```
 
-### ⚠ 三条必须在起飞前知道的事
+### ⚠ Three things to know before take-off
 
-**(a) 判据 B 在 N=1500 下确实可满足。**
-功效尺度检查预期 `[0.014, 0.182]`，全尺寸彩排实测 `[0.0016, 0.1132]`，
-上界离 0.25 有余量。**B 不是一个注定失败的 gate。**
+**(a) Criterion B really is satisfiable at N=1500.**
+The power-scaling check predicted `[0.014, 0.182]`; the full-size rehearsal measured `[0.0016, 0.1132]`,
+leaving the upper bound comfortably below 0.25. **B is not a gate doomed to fail.**
 
-**(b) ★ 两个独立块的 ΔC 都在 SESOI 下方 ★**
+**(b) ★ ΔC lies below the SESOI on both independent blocks ★**
 
 ```
-开发块 0–399（N=400）        ΔC = -0.927   CI [-1.202, -0.677]
-彩排块 10000–11499（N=1500） ΔC = -0.819   CI [-0.939, -0.699]
+development block 0–399 (N=400)       ΔC = -0.927   CI [-1.202, -0.677]
+rehearsal block 10000–11499 (N=1500)  ΔC = -0.819   CI [-0.939, -0.699]
 SESOI = 1.0
 ```
 
-> **两块都落在 −0.8 ~ −0.9，且 N=1500 的 CI 已经很窄。
-> 因此 FINAL 最可能的结果是第二档（detectable，功能意义未确立）。**
+> **Both blocks land between −0.8 and −0.9, and the N=1500 CI is already narrow.
+> So the most likely FINAL outcome is the second band (detectable, functional significance not established).**
 > 这**不是**改任何东西的理由 —— 恰恰相反，它证明 SESOI=1.0 不是照着结果定的。
 > 但起飞前必须知道：**大概率不会拿到"functionally meaningful"那一档。**
 
