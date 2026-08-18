@@ -1,44 +1,46 @@
-# v3 —— 冻结（论文候选架构）
+# v3 — frozen (the paper's candidate architecture)
 
-冻结日期：2026-08-15
+Frozen on: 2026-08-15
 `MODEL_VERSION = "v3"` · `COND_RECOVER_AT = 65.0`
-校验：`SHA256SUMS.txt`（完整 64 位 sha256，32 个文件）
+Verification: `SHA256SUMS.txt` (full 64-character sha256, 32 files)
 
-## ★ 冻结意味着什么 ★
+## ★ What freezing means ★
 
-**从这一刻起，`sim.py` 的默认机制不再改动。**
+**From this moment on, the default mechanisms of `sim.py` are not changed again.**
 
-后续任何实验（anchor probe、state transplant、novel-situation
-generalization…）只能作为 **experiment-level intervention** 存在：
-在实验脚本里临时改 agent 实例的状态、或临时设 `sim.` 上的开关，
-跑完恢复。**不允许**为了让某个实验好做而修改 v3 的默认值。
+Any later experiment (anchor probe, state transplant, novel-situation generalization…) may exist
+only as an **experiment-level intervention**: temporarily change the state of an agent instance
+inside the experiment script, or temporarily set a switch on `sim.`, and restore it afterwards.
+Changing a v3 default to make some experiment easier is **not allowed**.
 
-如果某个实验暴露出必须改模型的结构问题 —— 那就**分叉 v4，重新走一遍
-冻结流程**，并且明确记录 v3 的哪些结论因此失效。不要就地改 v3。
+If an experiment exposes a structural problem that forces a model change — then **fork v4 and go
+through the whole freezing procedure again**, recording explicitly which v3 conclusions are
+invalidated as a result. Do not edit v3 in place.
 
-## 与 v2 的差异
+## Differences from v2
 
-唯一可执行差异：`sim.py` 的 `COND_RECOVER_AT`，`30.0 → 65.0`
-（外加新增的 `MODEL_VERSION` 常量）。v2 快照在 `../v2_frozen/`。
+The only executable difference: `COND_RECOVER_AT` in `sim.py`, `30.0 → 65.0`
+(plus the newly added `MODEL_VERSION` constant). The v2 snapshot is in `../v2_frozen/`.
 
-理由见 `模拟实验记录.md` 3h 节（规则 49：怠惰谷）与实验 023。
+The reasoning is in §3h of `SIMULATION_LOG.md` (rule 49: the sloth valley) and experiment 023.
 
-## v3 已完成的重验（实验 023 §7，N=1500，同种子对照 v2）
+## The revalidation v3 has already passed (experiment 023 §7, N=1500, same seeds against v2)
 
 ```
-                      v2                    v3
-60 天死亡率          7.5–8.1%              4.1–4.3%
-022 P1               1.058 [1.029,1.102]   1.090 [1.047,1.128]   ✓ 过
-022 P2               ✗ 不过                 ✗ 不过                 预注册结论不变
-021§3 无地板         1.032 / 1.034 n.s.    1.036 n.s. / 1.057 **  ⚠ 块间不一致（规则 52）
-情节记忆删除          逐位 no-op             逐位 no-op             规则 41 加强
+                          v2                    v3
+60-day mortality          7.5–8.1%              4.1–4.3%
+022 P1                    1.058 [1.029,1.102]   1.090 [1.047,1.128]   ✓ pass
+022 P2                    ✗ fail                 ✗ fail                 the preregistered conclusion is unchanged
+021§3 no floors           1.032 / 1.034 n.s.    1.036 n.s. / 1.057 **  ⚠ inconsistent across blocks (rule 52)
+episodic-memory deletion  bit-identical no-op    bit-identical no-op    rule 41 strengthened
 ```
 
-## ⚠ 尚未使用的种子
+## ⚠ Seeds not yet used
 
-**final confirmation 的种子块必须是从未运行过的。**
-已用过的段落：`0–1499`（开发）、`10000–11499`（021 留出，已多次查看）、
-`20000–21499`（022 预注册保留段，已用于 P1/P2 与 023 重验）。
+**The seed block of the final confirmation must be one that has never been run.**
+Blocks already used: `0–1499` (development), `10000–11499` (reserved for 021, inspected many
+times), `20000–21499` (reserved for the 022 preregistration, used for P1/P2 and the 023
+revalidation).
 
-⚠ 上述三段**都不能**再当 final holdout。final block 见
-`FINAL_PREREGISTRATION.md`，在预注册写死之前**不要跑**。
+⚠ **None** of those three may serve as the final holdout. The final block is named in
+`FINAL_PREREGISTRATION.md`; **do not run it** before the preregistration is fixed in writing.

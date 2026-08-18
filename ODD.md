@@ -1,138 +1,141 @@
-# ODD 模型描述 —— AI SANDBOX Life Engine v3
+# ODD model description — AI SANDBOX Life Engine v3
 
-对象：`v3_frozen/sim.py`（`MODEL_VERSION = "v3"`，`COND_RECOVER_AT = 65.0`）
-**所有行号均为 `v3_frozen/sim.py` 的行号**（见 §8 的行号对照说明）。
+Subject: `v3_frozen/sim.py` (`MODEL_VERSION = "v3"`, `COND_RECOVER_AT = 65.0`)
+**All line numbers refer to `v3_frozen/sim.py`** (see the line-number note in §8).
 
-本文件是按 ODD 规范写的模型描述，同时充当**最后一次静态代码审计** ——
-每一句"agent 为什么做 X""这个变量什么时候变""这条记忆什么时候被读"
-都回代码核对过。审计中发现的问题记在 §8，**不修饰**。
-
----
-
-## 1. Purpose（目的）
-
-回答：**相同的个体，因为经历了不同的过去，是否成为行为上不同的个体？**
-
-模型**不**试图模拟真实的人格形成。它是一个最小装置，用来问：
-在一个只有环境差异、没有任何"个体类型"输入的系统里，
-经历能否产生**移植到同一环境后仍然存在**的行为差异。
-
-⚠ 模型里**没有"用户类型"这个概念**（v2 的核心变化）。
-"谁在投喂""投喂得勤不勤"是**实验脚本**的事（`scenarios.py`），
-Life Engine 本身不知道用户是什么。
+This file is a model description written to the ODD protocol, and doubles as a **final static
+code audit** — every statement of the form "why the agent does X", "when this variable changes",
+"when this memory is read" has been checked back against the code. Problems found during the
+audit are recorded in §8, **unvarnished**.
 
 ---
 
-## 2. Entities, state variables, scales（实体、状态变量、尺度）
+## 1. Purpose
+
+The question: **does an identical individual become a behaviourally different individual because
+it lived through a different past?**
+
+The model does **not** attempt to simulate real personality formation. It is a minimal apparatus
+for asking whether, in a system with only environmental differences and no "individual type"
+input whatsoever, experience can produce a behavioural difference that **survives transplant into
+an identical environment**.
+
+⚠ The model contains **no concept of a "user type"** (the core change of v2).
+"Who is feeding it" and "how diligently" are the business of the **experiment scripts**
+(`scenarios.py`); the Life Engine itself does not know what a user is.
+
+---
+
+## 2. Entities, state variables, scales
 
 ### 2.1 Agent
 
-| 变量 | 量程 | 何时改变 | 行号 |
+| Variable | Range | When it changes | Lines |
 |---|---|---|---|
-| `traits{caution, curiosity, industry}` | [floor, 100] | 每次行动后（正反馈） | 906–912 |
-| `trait_floor` | [identity, 90] | 关键经历、hardship 抬升；每日衰减 | 550, 973, 917 |
-| `trait_identity` | [0, 90] | 只被关键经历抬高，**永不下降** | 553 |
-| `hunger` | [0, 100] | +2.2/tick；吃一次 −20 | 936, 865 |
-| `energy` | [0, 100] | −1.2/tick；各行动另有消耗 | 937 |
-| `shelter` | [0, 100] | −0.35/tick；暴雨扣；build +22 | 938, 943, 882 |
-| `condition` | [0, 100] | 饿>70 时 −0.40；饿<65 时 +0.16 | 953–961 |
-| `inventory{food, material}` | ≥0 | 采集/消耗 | 864–882 |
-| `hardship` | ≥0 | 每 tick += deficit/24 | 966 |
-| `_hardship_anchor` | dict 或 None | **首次 condition<100 时写入一次，此后不改** | 967–968 |
-| `flags` | set | 关键经历触发 | 541 |
-| `knowledge` / `knowledge_strength` | 强度 (0,1] | 学到/重温回满 1.0；每日 −0.02 | 484, 499–502 |
-| `memories` | list | 关键经历追加 | — |
-| `goal` | dict 或 None | **每天早上（tick 0）更新一次** | 931–933 |
-| `goal_satiation` | dict | 目标完成/放弃时记日 | 740, 747 |
-| `alive` | bool | **只有 condition ≤ 0 会置 False** | 983 |
+| `traits{caution, curiosity, industry}` | [floor, 100] | after every action (positive feedback) | 906–912 |
+| `trait_floor` | [identity, 90] | raised by landmark experiences and hardship; decays daily | 550, 973, 917 |
+| `trait_identity` | [0, 90] | raised only by landmark experiences, **never falls** | 553 |
+| `hunger` | [0, 100] | +2.2/tick; −20 per meal | 936, 865 |
+| `energy` | [0, 100] | −1.2/tick; each action costs extra | 937 |
+| `shelter` | [0, 100] | −0.35/tick; storms deduct; build +22 | 938, 943, 882 |
+| `condition` | [0, 100] | −0.40 while hunger>70; +0.16 while hunger<65 | 953–961 |
+| `inventory{food, material}` | ≥0 | gathering / consumption | 864–882 |
+| `hardship` | ≥0 | += deficit/24 each tick | 966 |
+| `_hardship_anchor` | dict or None | **written once, the first time condition<100, never changed after** | 967–968 |
+| `flags` | set | triggered by landmark experiences | 541 |
+| `knowledge` / `knowledge_strength` | strength (0,1] | learning/refreshing restores 1.0; −0.02 daily | 484, 499–502 |
+| `memories` | list | appended by landmark experiences | — |
+| `goal` | dict or None | **updated once every morning (tick 0)** | 931–933 |
+| `goal_satiation` | dict | the day a goal was completed/abandoned | 740, 747 |
+| `alive` | bool | **only condition ≤ 0 sets it False** | 983 |
 
 ### 2.2 World
 
-`food`（存量，上限 `food_cap`）、`objects`（`book` / `music`）、
-`p`（参数：`food_regen` / `material_yield` / `storm_chance` / …）、
-`weather`（`clear` / `storm`）、`rng`、`events`（仅记录）。
+`food` (a stock, capped at `food_cap`), `objects` (`book` / `music`),
+`p` (parameters: `food_regen` / `material_yield` / `storm_chance` / …),
+`weather` (`clear` / `storm`), `rng`, `events` (recording only).
 
-### 2.3 尺度
+### 2.3 Scales
 
-`TICKS_PER_DAY = 24`。实验窗口：发育期 30 天 → 移植 → 观察 30 天。
+`TICKS_PER_DAY = 24`. Experiment window: 30 days of development → transplant → 30 days of observation.
 
 ---
 
-## 3. Process overview and scheduling（流程与调度）
+## 3. Process overview and scheduling
 
-**一个 tick 内的严格顺序**（实验循环 + `Agent.tick`，926–988）：
+**The strict order within one tick** (the experiment loop + `Agent.tick`, 926–988):
 
 ```
-1. world.tick(day, t)          资源再生；tick_of_day==3 时按 storm_chance 掷天气
-2. influences(...)             外部干预（投喂、实验层 probe）—— 在 agent 之前
+1. world.tick(day, t)          resource regrowth; at tick_of_day==3 the weather is drawn by storm_chance
+2. influences(...)             external interventions (feeding, experiment-layer probes) — before the agent
 3. agent.tick(day, t):
-   a. 若 not alive → 直接返回
-   b. 若 tick_of_day == 0 → update_goal()，并把当天目标写入 goal_by_day
+   a. if not alive → return immediately
+   b. if tick_of_day == 0 → update_goal(), and write the day's goal into goal_by_day
    c. hunger += 2.2 ; energy −= 1.2 ; shelter −= 0.35
-   d. 若 weather == "storm" → shelter −= damage；damage>28 触发关键经历
-   e. condition：饿>70 → −0.40 ；否则 饿<65 → +0.16 ；否则 0
-   f. deficit>0 → hardship += deficit/24；**若 anchor 为空则写入 anchor**
-   g. anchor 非空 → 用 hardship_norm 抬 trait_floor；hnorm≥0.5 触发 fears_hunger
-   h. **若 condition ≤ 0 → alive=False，返回（唯一死亡路径）**
-   i. 对全部 7 个动作算分 → argmax → act()
-4. （每天末）agent.daily(day):  trait_floor 向 identity 衰减；
-                               condition≥99.5 时 hardship 淡忘；knowledge 衰减
+   d. if weather == "storm" → shelter −= damage; damage>28 triggers a landmark experience
+   e. condition: hunger>70 → −0.40 ; else hunger<65 → +0.16 ; else 0
+   f. deficit>0 → hardship += deficit/24; **if the anchor is empty, write the anchor**
+   g. anchor non-empty → raise trait_floor by hardship_norm; hnorm≥0.5 triggers fears_hunger
+   h. **if condition ≤ 0 → alive=False, return (the only path to death)**
+   i. score all 7 actions → argmax → act()
+4. (at the end of each day) agent.daily(day):  trait_floor decays towards identity;
+                               hardship fades when condition≥99.5; knowledge decays
 ```
 
-⚠ 顺序上两处容易看错，都核对过：
-- **influence 在 `agent.tick` 之前** → 实验层 probe 只能对**上一 tick** 的
-  动作施加后果（026 里所有 influence 型 probe 都有这个一 tick 延迟）。
-- **目标一天只定一次**（tick 0），不是每 tick 重选 —— 这是"连续性"的来源。
+⚠ Two points in the ordering are easy to misread, and both were checked:
+- **influences run before `agent.tick`** → an experiment-layer probe can only charge for the
+  action of the **previous** tick (every influence-style probe in 026 carries this one-tick lag).
+- **The goal is set once a day** (tick 0), not re-picked every tick — that is where continuity comes from.
 
 ---
 
-## 4. Design concepts（设计概念）
+## 4. Design concepts
 
-**Emergence**：个体差异不是输入的，是"行动 → 性状 → 更倾向该行动"的
-正反馈放大出来的。
+**Emergence**: individual differences are not an input; they are amplified by the positive
+feedback "act → trait → more inclined to that act".
 
-**Adaptation**：**纯反应式**。agent 对当前状态打分并取最大，
-**没有任何在场契约学习** —— 它不能通过试错发现"这个世界里 X 导致 Y"。
-（这是 026 的核心射程限制。）
+**Adaptation**: **purely reactive**. The agent scores its current state and takes the maximum,
+with **no online contingency learning whatsoever** — it cannot discover by trial and error that
+"in this world X causes Y". (This is the core scope limitation of 026.)
 
-**Objectives**：`score(action)` = 状态项 + 性状匹配 + 当前目标加成
-+ landmark/knowledge 加成。**无效用函数、无规划、无前瞻。**
+**Objectives**: `score(action)` = state terms + trait match + current-goal bonus
++ landmark/knowledge bonus. **No utility function, no planning, no lookahead.**
 
-**Learning**：只有两条弱通路 —— 性状漂移（连续）与 knowledge
-（离散、学到即回满、按日衰减）。
+**Learning**: only two weak channels — trait drift (continuous) and knowledge
+(discrete, restored to full on learning, decaying daily).
 
-**Prediction**：无。
+**Prediction**: none.
 
-**Sensing**：agent 读自身全部状态与 `world.objects` / `world.p` /
-`world.food` / `world.weather`。**不感知其他 agent**（模型里只有一个 agent）。
+**Sensing**: the agent reads all of its own state plus `world.objects` / `world.p` /
+`world.food` / `world.weather`. It **does not sense other agents** (the model has only one).
 
-**Interaction**：无 agent–agent 交互。
+**Interaction**: no agent–agent interaction.
 
-**Stochasticity**：**只有 5 个来源**，全部核对过：
+**Stochasticity**: **five sources only**, all verified:
 
-| 来源 | 行号 |
+| Source | Lines |
 |---|---|
-| 出生时性状偏移 ±6 | 418 |
-| 暴雨是否发生 / 强度 | 175, 178 |
-| 采集食物成功率 0.85 | 183 |
-| 探索找到食物 0.28 | 886 |
-| 关键经历触发 0.30 / 0.25 | 888, 895 |
-| （实验层）投喂时机 | 200 |
+| trait offset at birth ±6 | 418 |
+| whether a storm happens / its strength | 175, 178 |
+| food-gathering success rate 0.85 | 183 |
+| exploring finds food 0.28 | 886 |
+| landmark experience triggers 0.30 / 0.25 | 888, 895 |
+| (experiment layer) feeding timing | 200 |
 
-**动作选择本身是完全确定的 argmax，没有 softmax、没有 ε-greedy。**
+**Action selection itself is a fully deterministic argmax: no softmax, no ε-greedy.**
 
-**Collectives**：无。
+**Collectives**: none.
 
-**Observation**：`action_by_hour`（24×动作）、`goal_by_day`、
-`action_log`、`flags`、`memories`。
-⚠ 其中 `action_log` 与 `goal_satiation` **会被回读**（见 §5），
-不是纯日志 —— 这一点在实验 024 的字段审计（规则 63）中才被发现。
+**Observation**: `action_by_hour` (24×actions), `goal_by_day`,
+`action_log`, `flags`, `memories`.
+⚠ Of these, `action_log` and `goal_satiation` **are read back** (see §5) and are not pure logs —
+a point that only surfaced during the field audit of experiment 024 (rule 63).
 
 ---
 
-## 5. Submodels（子模型，逐条核对）
+## 5. Submodels (checked one by one)
 
-### 5.1 动作选择
+### 5.1 Action selection
 
 ```python
 scored = [(self.score(a, day), a) for a in ACTIONS]
@@ -140,120 +143,123 @@ scored = [(s, a) for s, a in scored if s is not None]
 self.act(max(scored)[1], day, tick_of_day)          # 986–988
 ```
 
-- `score()` 返回 `None` = 该动作**不合法**（`read` 需要世界里有 `book`，
-  `ACTION_REQUIRES_OBJECT`，276）。
-- ★**隐藏机制**★ `max((score, action))` 在**分数相同**时按**动作名字母序**
-  裁决 → `sleep` 恒胜、`build` 恒败。
-  **实测 19,200 个决策 tick 中精确平局 0 次**，所以它存在但从未触发。
-  仍然记下来，因为它是确定性的、且未在任何文档中出现过。
+- `score()` returning `None` = the action is **illegal** (`read` requires a `book` in the world,
+  `ACTION_REQUIRES_OBJECT`, 276).
+- ★**Hidden mechanism**★ `max((score, action))` breaks **exact ties** by the **alphabetical order
+  of the action name** → `sleep` always wins, `build` always loses.
+  **Measured across 19,200 decision ticks: exactly 0 ties.** So it exists but has never fired.
+  It is recorded anyway, because it is deterministic and had never appeared in any document.
 
-### 5.2 正反馈（persistence 的来源）
+### 5.2 Positive feedback (the source of persistence)
 
 ```python
 extremity = abs(traits[t] - 50)/50
 pull      = max(0.12, 1 - extremity * TRAIT_SATURATION)
 traits[t] = clamp(traits[t] + delta * TRAIT_DRIFT * pull, trait_floor[t], 100)
 ```
-（906–912）
+(906–912)
 
-- `delta` 来自 `ACTION_TRAIT_FEEDBACK`（264–272）：做什么 → 强化促使你做它的性状。
-- `pull` 是**边际递减刹车**：越极端越难继续极端化。没有它，
-  explore 的 `caution −0.10` 会把球推到只会在外面跑（v1 靠永久地板挡，
-  v2 地板会消退，于是必须换这个刹车）。
-- **下界是 `trait_floor` —— 这就是棘轮。**
+- `delta` comes from `ACTION_TRAIT_FEEDBACK` (264–272): doing something reinforces the trait that made you do it.
+- `pull` is the **diminishing-returns brake**: the more extreme, the harder to grow further. Without it,
+  explore's `caution −0.10` would push the ball into doing nothing but running around outside (v1 was
+  protected by the permanent floor; v2's floor fades, so this brake had to replace it).
+- **The lower bound is `trait_floor` — that is the ratchet.**
 
-★ 因果证据：`TRAIT_DRIFT` 从 0 调到 2.4，移植比值 1.021 → 1.575；
-且它是 500 组参数随机化里最敏感的旋钮（ρ = +0.442）。
+★ Causal evidence: taking `TRAIT_DRIFT` from 0 to 2.4 moves the transplant ratio 1.021 → 1.575;
+and it is the most sensitive knob across 500 randomised parameter sets (ρ = +0.442).
 
-### 5.3 地板（floor）
+### 5.3 The floor
 
-- `trait_floor` 被两件事抬高：**关键经历**（550）与 **hardship**（973）
-- 每天向 `trait_identity` 衰减 `FLOOR_DECAY_PER_DAY`（917–919）
-- `trait_identity` **只升不降**（553），是永久身份
-- 地板作为性状更新的**下界**生效（912）
+- `trait_floor` is raised by two things: **landmark experiences** (550) and **hardship** (973)
+- It decays daily towards `trait_identity` by `FLOOR_DECAY_PER_DAY` (917–919)
+- `trait_identity` **only rises** (553) and is the permanent identity
+- The floor takes effect as the **lower bound** of the trait update (912)
 
-### 5.4 hardship 棘轮
-
-```
-首次 condition < 100  → _hardship_anchor = 当时的 traits 快照（写一次，此后不改）
-每 tick               → hardship += (100−condition)/100/24
-trait_floor[t]        ← min(anchor[t] + w × 22 × hardship_norm, 90)
-hardship_norm         = 1 − exp(−hardship / 1.5)
-```
-
-⚠ `HARDSHIP_SCALE = 1.5` 意味着累积约 5 天赤字就顶到 1.0，
-而实测 hardship 是 23–48 → **hnorm 对所有球、所有条件都饱和在天花板上**。
-所以这条棘轮**不是渐变信号，而是二值开关**（规则 50）。
-携带个体差异的是 **anchor 里那张快照**，不是"苦吃了多少"。
-
-★ 但实验 024 证明：**anchor 的内容只解释 1.3% 的效应**（规则 54）。
-起作用的是"地板存在过"，不是"地板锚在哪张快照上"。
-
-### 5.5 knowledge（实验 022 接入决策）
+### 5.4 The hardship ratchet
 
 ```
-learn/重温 → knowledge_strength[key] = 1.0          484
-每日        → strength −= 0.02，≤0 则删除           499–502
-score()     → += 12.0 × strength（× slack 若为可自由支配动作）  835
-目标优先级   → += 0.25 × strength                    656
+first time condition < 100  → _hardship_anchor = a snapshot of traits then (written once, never changed)
+every tick                  → hardship += (100−condition)/100/24
+trait_floor[t]              ← min(anchor[t] + w × 22 × hardship_norm, 90)
+hardship_norm               = 1 − exp(−hardship / 1.5)
 ```
 
-⚠ 强度实测近乎二值（p10 = 0.000、p50 = 0.979），**不是梯度通道**（规则 73）。
+⚠ `HARDSHIP_SCALE = 1.5` means roughly 5 days of accumulated deficit pins it at 1.0, while the
+measured hardship is 23–48 → **hnorm is saturated at the ceiling for every ball under every
+condition**. So this ratchet is **not a graded signal but a binary switch** (rule 50).
+What carries the individual difference is **the snapshot inside the anchor**, not "how much
+suffering there was".
 
-### 5.6 condition / 死亡
+★ But experiment 024 proved that **the anchor's content explains only 1.3% of the effect**
+(rule 54). What matters is that a floor existed, not which snapshot it was anchored to.
+
+### 5.5 knowledge (wired into decisions in experiment 022)
 
 ```
-饿 > 70 → condition −= 0.40
-饿 < 65 → condition += 0.16          （v3；v2 是 < 30）
-其余     → 0（死区，v3 只剩 5 分宽）
-condition ≤ 0 → 死亡（唯一路径）
+learn/refresh → knowledge_strength[key] = 1.0          484
+daily         → strength −= 0.02, deleted at ≤0        499–502
+score()       → += 12.0 × strength (× slack for discretionary actions)  835
+goal priority → += 0.25 × strength                      656
 ```
 
-**饥饿本身不致死**，它经由 condition 致死。
-v2 的死区宽 40 分且恢复通道几乎不触发 → 无稳态、120 天死亡率 40.7%；
-v3 把阈值抬到 65，**必须跨过"怠惰谷"**（规则 49）才有效。
+⚠ The measured strength is nearly binary (p10 = 0.000, p50 = 0.979), so it is **not a graded
+channel** (rule 73).
 
-### 5.7 目标
+### 5.6 condition / death
 
-每天早上 `update_goal()`：`propose_goals()` 给 5 个目标打优先级
-（读 shelter / food / condition / knowledge / flags），减去
-`_satiation`（不应期），取最高者；有切换边际与最短持续天数。
-目标通过 `GOAL_ACTIONS`（300–305）给对应动作加成。
+```
+hunger > 70 → condition −= 0.40
+hunger < 65 → condition += 0.16          (v3; v2 used < 30)
+otherwise    → 0 (the dead zone, only 5 points wide in v3)
+condition ≤ 0 → death (the only path)
+```
 
-⚠ `learn` 目标在基准世界**参与率 0.0%**（需要书）；`recover` 只有 16.6%。
-**实际只有 3 个活跃目标。**
+**Hunger itself is not lethal**; it kills through condition.
+v2's dead zone was 40 points wide and the recovery channel almost never fired → no steady state,
+120-day mortality 40.7%; v3 raises the threshold to 65, which only works **once the "sloth valley"
+has been crossed** (rule 49).
+
+### 5.7 Goals
+
+Every morning `update_goal()`: `propose_goals()` assigns priorities to 5 goals
+(reading shelter / food / condition / knowledge / flags), subtracts `_satiation` (the refractory
+period) and takes the highest; there is a switching margin and a minimum commitment in days.
+Goals bonus the matching actions through `GOAL_ACTIONS` (300–305).
+
+⚠ The `learn` goal has **0.0% participation** in the baseline world (it needs books); `recover`
+has only 16.6%. **In practice there are only 3 active goals.**
 
 ---
 
-## 6. Initialization（初始化）
+## 6. Initialization
 
-`traits = 50 ± U(−6, 6)`（418）；`hunger=30, energy=?, shelter=?, condition=100`；
-`inventory` 空；`flags/knowledge/memories` 空；`trait_floor = trait_identity = 0`。
-世界按 `scenarios.WORLDS` 的参数构造。
+`traits = 50 ± U(−6, 6)` (418); `hunger=30, energy=?, shelter=?, condition=100`;
+`inventory` empty; `flags/knowledge/memories` empty; `trait_floor = trait_identity = 0`.
+The world is constructed from the parameters in `scenarios.WORLDS`.
 
-★ 关键：**两个发育世界唯一的差别是世界参数**
-（`food_regen` 3.2/1.8、`material_yield` 2.0/0.5、`objects`
-`("book","music")`/`()`、`storm_chance` 0.02/0.1）。
-**agent 的初始化完全相同，只由种子决定。**
-
----
-
-## 7. Input data（外部输入）
-
-无外部数据。所有随机性来自种子。
+★ Key point: **the only difference between the two developmental worlds is the world parameters**
+(`food_regen` 3.2/1.8, `material_yield` 2.0/0.5, `objects` `("book","music")`/`()`,
+`storm_chance` 0.02/0.1).
+**The agent's initialization is completely identical and determined by the seed alone.**
 
 ---
 
-## 8. ★ 审计中发现的问题（不修饰，如实记录）★
+## 7. Input data
 
-### 8.1 行号对照：记录里 023 之前的行号在 v3 上对不上
+No external data. All randomness comes from the seed.
 
-`v2_frozen/sim.py` 1013 行，`v3_frozen/sim.py` 1043 行。
-v3 在文件头加了约 27 行 docstring，又在中部加了 3 行 `MODEL_VERSION`，
-**所以偏移不是常数**：
+---
+
+## 8. ★ Problems found during the audit (recorded plainly, unvarnished) ★
+
+### 8.1 Line-number correspondence: pre-023 line numbers in the log do not match v3
+
+`v2_frozen/sim.py` has 1013 lines, `v3_frozen/sim.py` has 1043. v3 added about 27 lines of
+docstring at the head and another 3 lines of `MODEL_VERSION` in the middle, **so the offset is not
+constant**:
 
 ```
-                              v2      v3     偏移
+                              v2      v3     offset
 def take_food                 154     181    +27
 KNOWLEDGE_WEIGHT × know       805     835    +30
 hardship += deficit           936     966    +30
@@ -261,26 +267,27 @@ _hardship_anchor = dict       938     968    +30
 trait_floor[t] = max(         943     973    +30
 ```
 
-⚠ **实验记录里 023 及更早引用的 `sim.py:NNN` 用的是 v2 编号**，
-在 `v3_frozen/` 里要 **+27（`MODEL_VERSION` 之前）或 +30（之后）**。
-本 ODD 的全部行号已统一为 **v3_frozen 编号**。
+⚠ **Any `sim.py:NNN` cited in the experiment log at 023 or earlier uses the v2 numbering**, so in
+`v3_frozen/` add **+27 (before `MODEL_VERSION`) or +30 (after)**.
+Every line number in this ODD has been normalised to the **v3_frozen numbering**.
 
-### 8.2 平局裁决是隐藏的确定性机制
+### 8.2 Tie-breaking is a hidden deterministic mechanism
 
-`max((score, action))` 按动作名字母序裁决平局。
-实测 0/19,200 次触发，**但此前从未在任何文档里出现过** ——
-如果有人改动打分让平局变常见，行为会系统性偏向 `sleep`。
+`max((score, action))` breaks ties by the alphabetical order of the action name.
+Measured 0/19,200 firings, **but it had never appeared in any document** — if someone changes the
+scoring so that ties become common, behaviour would tilt systematically towards `sleep`.
 
-### 8.3 写 ODD 时确认的、此前理解错过的机制
+### 8.3 Mechanisms that had been misunderstood, confirmed while writing this ODD
 
-| 机制 | 曾经的错误理解 | 正确的 | 记在哪 |
+| Mechanism | The former misunderstanding | The truth | Recorded as |
 |---|---|---|---|
-| `take_food` | 以为可以清零 `world.food` 来"暂时封锁" | 它是**从库存扣**，清零 = 烧掉存粮 | 规则 60 |
-| `memories` | 以为是纯日志 | 被 `recall()` 回读 | 规则 63 |
-| `action_log` | 以为是纯日志 | 喂**目标进度** | 规则 63 |
-| `goal_satiation` | 漏了 | 被回读（不应期） | 规则 63 |
-| `storm_damage` | 漏了 | **动态属性**，暴雨后才存在 | 规则 63 |
-| `explore` 食物产出 | 以为足以独立维生 | 0.14/tick vs 需要 0.11/tick，扣掉睡眠为负 | 规则 64 |
-| `knowledge_strength` | 以为是连续通道 | 近乎二值（0 或 0.98） | 规则 73 |
+| `take_food` | thought `world.food` could be zeroed to "block it temporarily" | it **deducts from the stock**, so zeroing = burning the food store | rule 60 |
+| `memories` | thought it was a pure log | read back by `recall()` | rule 63 |
+| `action_log` | thought it was a pure log | feeds **goal progress** | rule 63 |
+| `goal_satiation` | overlooked | read back (the refractory period) | rule 63 |
+| `storm_damage` | overlooked | a **dynamic attribute**, existing only after a storm | rule 63 |
+| `explore` food yield | thought it could sustain life on its own | 0.14/tick against a need of 0.11/tick, negative once sleep is deducted | rule 64 |
+| `knowledge_strength` | thought it was a continuous channel | nearly binary (0 or 0.98) | rule 73 |
 
-**这七条都是"我知道所以没写"的隐含机制，写 ODD 时才逐一暴露。**
+**All seven were implicit mechanisms of the "I know it so I never wrote it down" kind, and writing
+the ODD is what exposed them one by one.**
