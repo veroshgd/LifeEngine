@@ -57,20 +57,20 @@ TASK_FINGERPRINT = "26778f672e9e7009"
 PREREG_PATH = os.path.join(
     os.path.expanduser("~"), "Desktop", "Yinan", "AI SANDBOX",
     "MEMORY_TRANSFER029_PREREGISTRATION.md")
-PREREG_SHA256 = ("29e45930a07f2649c7958fdc0cd20a389005ca43"
-                 "e93287b9f69e2ccdcf867145")
+PREREG_SHA256 = ("f13f8296806ed57a67c26576fe1b4c71af8ed263"
+                 "21cdbd3743f83a573627b655")
 
 FROZEN_MODULES = {
-    "novel_task.py": "9db73d140853f6b0",
-    "memory_transfer_probe.py": "b4327de32216d0c1",
-    "memory_transfer_probe3.py": "f0664436301cf459",
-    "memory_acquisition_probe.py": "7b88b9f7c19062bd",
-    "memory_lambda_calibration.py": "9323f22b69eacd1c",
+    "novel_task.py": "731ec31aeac95ae1",
+    "memory_transfer_probe.py": "b0a9e832c3e1ec0f",
+    "memory_transfer_probe3.py": "b493608969f12790",
+    "memory_acquisition_probe.py": "97477c8d2d0818b8",
+    "memory_lambda_calibration.py": "69c2d340e96d75a8",
     # ★ Added 2026-08-18 ★ FINAL calls REH.BODY and REH.shuffled() directly;
     #   they are a runtime dependency but were briefly missing from the frozen manifest — changing them
     #   by mistake would still leave preflight all green.
     #   Preregistration §12.5 only says "the sha256 of each module" without enumerating how many, so no scientific amendment is needed.
-    "memory_transfer_rehearsal.py": "b29b2d417fdaed52",
+    "memory_transfer_rehearsal.py": "02102d69d52ac160",
 }
 
 N_BOOT = 10000
