@@ -1,231 +1,252 @@
-# NOVEL-SITUATION 实验设计 v3（**定稿方向 → 进入 group-blind 校准**）
+# NOVEL-SITUATION experiment design v3 (**settled direction → entering group-blind calibration**)
 
-状态：设计已收敛。**未碰 `60000–61499`，未改 `v3_frozen/`。**
-下一步：写 `novel_situation.py` + `novel_calibrate.py`，在 `20000+` 上做校准。
-v2 → v3 依据：全部数值拍板 + **规则 61**（§10 变更记录）。
+Status: the design has converged. **`60000–61499` untouched, `v3_frozen/` unmodified.**
+Next step: write `novel_situation.py` + `novel_calibrate.py` and calibrate on `20000+`.
+Basis for v2 → v3: all numeric values settled + **rule 61** (change log in §10).
 
 ---
 
-## 0. 架构射程（进预注册）
+## 0. Architectural scope (goes into the preregistration)
 
-v3 的动作选择是 `score(action)` = 「状态 + 性状 + 目标 + landmark/knowledge」
-加权和，**没有在场因果学习机制**。本实验最强只能回答：
+v3's action selection is `score(action)` = a weighted sum of "state + traits + goal +
+landmark/knowledge", with **no online causal learning mechanism**. The strongest thing this
+experiment can answer is:
 
-> 由不同过去塑造出来的**既有内部结构**，被放进一个训练历史中从未存在过的
-> 环境结构时，会不会产生系统性不同的**决策与后果**。
+> whether the **existing internal structure** shaped by different pasts, when placed into an
+> environmental structure that never existed in its training history, produces systematically
+> different **decisions and consequences**.
 
-**不能**回答"不同的过去会不会带来不同的**学习**"（那需要 v4）。**本阶段不扩模型。**
+It **cannot** answer "does a different past bring different **learning**" (that needs v4).
+**The model is not extended at this stage.**
 
-### 措辞纪律
+### Wording discipline
 
-- **不许写**"适应冻土需要理解：采材料 → 盖房 → 才能觅食"。v3 不会发现任何规则。
-  **正确**：新环境把既有的内部差异，**投影**到一个训练历史中不存在的策略分岔上。
-- **不许写**"history 携带的信息不是 `B_familiar` 的函数"。
-  **只能写**：*History carries predictive information not captured by the
+- **Must not write**: "adapting to the frozen ground requires understanding: gather material →
+  build a house → only then forage". v3 discovers no rule whatsoever.
+  **Correct**: the new environment **projects** existing internal differences onto a strategy fork
+  that did not exist in the training history.
+- **Must not write**: "the information carried by history is not a function of `B_familiar`".
+  **The only admissible wording**: *History carries predictive information not captured by the
   preregistered familiar-behavior representation and model class.*
-  （历史包含了**预注册的熟悉行为表征与模型类**无法充分捕捉的、
-  对新情境行为具有预测价值的信息。）
 
 ---
 
-## 1. ★★ 规则 61：counterfactual sibling branches ★★
+## 1. ★★ Rule 61: counterfactual sibling branches ★★
 
-**这是整个设计里最重要的一条，比 RF 用 8 层还是 12 层重要得多。**
+**This is the most important item in the whole design, far more so than whether the RF uses 8
+layers or 12.**
 
-### 不能这样（v2 的隐含做法，错的）
-
-```
-agent → 熟悉世界跑 W 天，测 B_familiar → 再进冻土，测 B_novel
-```
-
-**因为那 W 天的 familiar 测量本身就是一段额外经历**，会继续改变
-traits / goal / trait_floor / knowledge / hardship。
-到进冻土时，你预测的**已经不是"同一个历史状态面对两个未来"**。
-
-### 必须这样
+### Not like this (v2's implicit approach, which is wrong)
 
 ```
-              development 结束
+agent → run W days in the familiar world, measure B_familiar → then enter the frozen ground, measure B_novel
+```
+
+**Because those W days of familiar measurement are themselves an extra stretch of experience**,
+which keeps changing traits / goal / trait_floor / knowledge / hardship.
+By the time it enters the frozen ground, what you are predicting is **no longer "one historical
+state facing two futures"**.
+
+### It must be like this
+
+```
+              end of development
                      ↓
-                  状态拉平
+                 state levelling
                      ↓
-              完整 snapshot（含 RNG）
+              complete snapshot (including RNG)
                   ↙        ↘
              clone F        clone N
-             熟悉世界        Novel 世界
+          familiar world   novel world
                 ↓              ↓
             B_familiar      B_novel
 ```
 
-- 两个 clone 在**分叉瞬间**的完整可执行状态与 **RNG state 完全相同**。
-- **任何一个分支之后发生的事都不得反馈给另一个**（`copy.deepcopy` 后互不引用）。
-- 两个分支跑**同样长度 W**，窗口口径一致，`B_familiar` 与 `B_novel` 才可比。
+- At the **instant of forking**, the two clones have identical complete executable state **and
+  identical RNG state**.
+- **Nothing that happens in either branch afterwards may feed back into the other** (no shared
+  references after `copy.deepcopy`).
+- Both branches run for **the same length W**, on the same window convention, so that
+  `B_familiar` and `B_novel` are comparable.
 
-⚠ 实现陷阱（024 踩过）：`FrozenZero` 是 `dict` 子类且 `__setitem__` 是 no-op，
-`deepcopy` 重建它时走 `__setitem__` → 复制出**空 dict** → `KeyError`。
-分叉后必须重建 `FrozenZero()`（它不携带状态，重建等价）。
+⚠ Implementation trap (hit in 024): `FrozenZero` is a `dict` subclass whose `__setitem__` is a
+no-op, so `deepcopy` rebuilds it through `__setitem__` → it produces an **empty dict** →
+`KeyError`. `FrozenZero()` must be rebuilt after forking (it carries no state, so rebuilding is
+equivalent).
 
 ---
 
-## 1b. ★★ 规则 62：behavior window 与 consequence window 必须分离 ★★
+## 1b. ★★ Rule 62: the behaviour window and the consequence window must be separated ★★
 
-### 问题
+### The problem
 
-校准允许 novel probe 里死掉近 20%。但 G1 预测的是 **7 维动作占比**。
-若一只球第 8 天死、另一只活满窗口：
-
-```
-A：只观察到 8 天行为        B：观察到 30 天行为
-```
-
-- **删掉死亡个体** → 又制造 **survivor selection**，
-  而这正是 persistence 阶段花了大量实验才清理掉的东西（规则 44）。
-- **直接用死亡前的行为** → **观察窗口长度不同**，占比不可比；
-  而且死亡本身可能就是 rich/poor 历史造成的
-  → G1 会把**"谁活得久"**和**"怎么做决策"**混在一起。
-
-### 结构
+Calibration allows nearly 20% of the novel probe to die. But G1 predicts a **7-dimensional action
+share**. If one ball dies on day 8 and another survives the whole window:
 
 ```
-进入 Novel world
+A: only 8 days of behaviour observed        B: 30 days of behaviour observed
+```
+
+- **Dropping the dead** → creates **survivor selection** again, which is exactly what the
+  persistence stage spent a great many experiments cleaning out (rule 44).
+- **Using the behaviour up to death directly** → **the observation windows have different
+  lengths**, so the shares are not comparable; and death itself may be caused by the rich/poor
+  history → G1 would mix **"who lives longer"** with **"how decisions are made"**.
+
+### The structure
+
+```
+enter the novel world
       ↓
-【decision window】W_dec 天  ——  算 B_novel → G1（行为）
+[decision window] W_dec days  ——  compute B_novel → G1 (behaviour)
       ↓
-继续运行
+keep running
       ↓
-【consequence window】跑满  ——  survival / food / shelter / condition → G2（后果）
+[consequence window] run to the end  ——  survival / food / shelter / condition → G2 (consequences)
 ```
 
-- **G1 只用 decision window**，且校准必须保证该窗口内 **pooled survival ≥ 95%**。
-- **G2 才用长窗口**的死亡与资源后果。
-- **禁止用"只分析幸存者"来定义 G1。**
+- **G1 uses the decision window only**, and calibration must guarantee **pooled survival ≥ 95%**
+  inside that window.
+- **G2 is what uses the long window** for mortality and resource consequences.
+- **Defining G1 by "analysing survivors only" is forbidden.**
 
-> G1 测的是「**面对陌生情境时怎么选择**」；
-> G2 测的是「**这些选择后来造成什么后果**」。**这两个不许混。**
+> G1 measures "**how it chooses when facing an unfamiliar situation**";
+> G2 measures "**what consequences those choices later produce**". **These two must not be mixed.**
 
-`B_familiar` 同样只取 decision window（两支等长，规则 61），
-两支之后都继续跑到 consequence window —— 熟悉支的后果即 G2 的轭式对照基线。
+`B_familiar` likewise takes only the decision window (both branches equal in length, rule 61), and
+both branches then run on into the consequence window — the familiar branch's consequences are the
+yoked control baseline for G2.
 
-### `W_dec` 也不凭感觉选（与 S / λ 同等待遇）
+### `W_dec` is not chosen by intuition either (it gets the same treatment as S / λ)
 
-候选集 `W_dec ∈ {5, 7, 10, 14}` 天，先写死，在 `20000+` 上 **group-blind** 选。
+The candidate set `W_dec ∈ {5, 7, 10, 14}` days is fixed in writing first, then chosen
+**group-blind** on `20000+`.
 
-## 2. 两个结构正交的 probe（定死，禁止事后追加）
+## 2. Two structurally orthogonal probes (fixed; adding more afterwards is forbidden)
 
-**两个都过 G1 → 才允许用 *generalized individuality*；
-只过一个 → 只能写 *novel-context transfer*。**
+**Both passing G1 → only then may *generalized individuality* be used;
+only one passing → only *novel-context transfer* may be written.**
 
-### Probe A —— 「冻土」（N1：前置条件门控）
+### Probe A — "frozen ground" (N1: a precondition gate)
 
-`world.food` 只在 `agent.shelter ≥ S` 时**可取**。
+`world.food` is **accessible** only while `agent.shelter ≥ S`.
 
-> ### ★ 规则 60：必须是 non-destructive gate ★
-> **绝不能**写 `world.food = 0`。`World.take_food` 是从**库存**扣
-> （`sim.py:181-186`），清零 = 每 tick 烧掉世界存粮、下一 tick 从 0 重新 regen
-> —— 那是"shelter 不够就毁掉食物"，不是"食物存在但取不到"。**物理规律不同。**
+> ### ★ Rule 60: it must be a non-destructive gate ★
+> **`world.food = 0` must never be written.** `World.take_food` deducts from the **stock**
+> (`sim.py:181-186`), so zeroing it burns the world's food store every tick and regrows it from 0
+> the next — that is "destroy the food if shelter is insufficient", not "the food exists but
+> cannot be reached". **They are different physics.**
 >
 > ```python
-> class GatedWorld(sim.World):          # 实验层子类，不改 v3
+> class GatedWorld(sim.World):          # an experiment-layer subclass; v3 is not modified
 >     def take_food(self, rng):
 >         if self.agent.shelter >= self.gate_S:
 >             return super().take_food(rng)
->         if self.food >= 1:            # 与 v3 相同的抽样条件，保持随机流对齐
->             rng.random()              # 门只改可供性，不额外扰动 RNG
+>         if self.food >= 1:            # the same sampling condition as v3, keeping the random stream aligned
+>             rng.random()              # the gate changes affordance only and adds no extra perturbation to the RNG
 >         return 0
 > ```
 >
-> `self.agent` 在换世界时绑定 → `shelter` 在**调用时刻**读取，**无一 tick 延迟**，
-> 且 Probe A 根本不需要 influence。
+> `self.agent` is bound when the world is swapped → `shelter` is read **at call time**, with
+> **no one-tick lag**, and Probe A needs no influence at all.
 >
-> 一般教训：**在有库存/存量语义的变量上做临时限制，不能改写存量，
-> 要改取用规则。**
+> The general lesson: **when temporarily restricting a variable with stock semantics, do not
+> rewrite the stock; change the access rule.**
 
-策略分岔来源：`explore` 的产出走 `EXPLORE_FOOD_YIELD`，**不经过 `world.food`**
-（`sim.py:886`）→「盖房 → 正常觅食」与「持续探索」两条路都能活。
+Source of the strategy fork: the yield of `explore` goes through `EXPLORE_FOOD_YIELD` and
+**does not pass through `world.food`** (`sim.py:886`) → both "build a house → forage normally"
+and "keep exploring" are survivable routes.
 
-### Probe B —— 「盐碱地」（N2：零和耦合）
+### Probe B — "saline soil" (N2: zero-sum coupling)
 
-`gather_material` 额外扣 `world.food`；`gather_food` 额外扣 `agent.shelter`。
+`gather_material` additionally costs `world.food`; `gather_food` additionally costs `agent.shelter`.
 
-**一维 λ 校准**（二维空间里"最小耦合强度"没有唯一含义）：
+**One-dimensional λ calibration** (in a two-dimensional space "minimum coupling strength" has no
+unique meaning):
 
 ```
-c_f = λ × k_food       k_food    = 一次 gather_food 的产出 = 1     （sim.py:185）
-c_s = λ × k_shelter    k_shelter = 一次 build 的 shelter 增量 = 22 （sim.py:882）
+c_f = λ × k_food       k_food    = the yield of one gather_food = 1     (sim.py:185)
+c_s = λ × k_shelter    k_shelter = the shelter increment of one build = 22 (sim.py:882)
 ```
 
-λ 的含义对称可读：**一次采材料 = 毁掉 λ 次觅食的收成；
-一次觅食 = 毁掉 λ 次盖房的成果。** 校准只在 `λ = 0.1, 0.2, 0.3 …` 里找**第一个**
-满足 pooled 判据的值。
+The meaning of λ reads symmetrically: **one material gather = destroying λ foraging harvests;
+one foraging = destroying λ builds' worth of progress.** Calibration looks for the **first** value
+among `λ = 0.1, 0.2, 0.3 …` that satisfies the pooled criteria.
 
-实现有**一 tick 延迟**（influence 在 `agent.tick()` 之前跑）——**论文里如实写明**。
-`explore` 不吃 material 也不掉 shelter → 保留第三条路。
+The implementation has a **one-tick lag** (influences run before `agent.tick()`) — **stated
+plainly in the paper**. `explore` neither consumes material nor loses shelter → the third route is
+preserved.
 
-### 正交性
-A = **门控 / 前置条件**（达标才解锁）；B = **零和权衡**（此消彼长）。因果拓扑不同。
+### Orthogonality
+A = **gating / precondition** (unlocked once a threshold is met); B = **zero-sum trade-off** (one
+gains as the other loses). Different causal topologies.
 
 ---
 
-## 3. 特征、目标与损失（★ v3 定稿 ★）
+## 3. Features, target and loss (★ settled in v3 ★)
 
-### `B_familiar` = **182 维**（故意给 M0 优势）
+### `B_familiar` = **182 dimensions** (deliberately giving M0 the advantage)
 
-| 维度 | 内容 |
+| Dimensions | Contents |
 |---|---|
-| 168 | 24 小时 × 7 动作的**完整动作比例矩阵**（每小时内归一） |
-| 7 | 全窗口动作占比 |
-| 7 | **后半段 − 前半段**的动作占比变化量 |
+| 168 | the **complete action-share matrix** of 24 hours × 7 actions (normalised within each hour) |
+| 7 | the whole-window action shares |
+| 7 | the change in action share, **second half − first half** |
 
-后 14 维都是 168 / 原始行为记录的**确定性摘要**，**不引入新信息**，
-只是让 RF 更容易读到已有信息（"几点做什么" + "熟悉环境中行为是否还在漂移"）。
+The last 14 are **deterministic summaries** of the 168 / of the raw behaviour record and
+**introduce no new information**; they merely make it easier for the RF to read information that
+is already there ("what it does at what hour" + "is behaviour still drifting in a familiar
+environment").
 
-> **为什么不用 7 维**：审稿人一句
-> "history 只是补回了你自己压缩掉的 circadian / temporal information"
-> 就挡不住。182 维让 G1 更难通过，**但通过以后更硬**。
+> **Why not 7 dimensions**: one reviewer sentence —
+> "history is only restoring the circadian / temporal information you compressed away yourself" —
+> would be unanswerable. 182 dimensions make G1 harder to pass, **but harder to dismiss once passed**.
 
-### `B_novel` = **7 维动作占比分布**（primary target）
+### `B_novel` = **the 7-dimensional action-share distribution** (primary target)
 
-即：182 维熟悉行为信息 → 预测 7 维 novel 策略剖面。**刻意让 M0 占便宜。**
+That is: 182 dimensions of familiar behaviour → predicting a 7-dimensional novel strategy profile.
+**M0 is deliberately given the advantage.**
 
-### 损失 = TV 距离（接得上项目一贯的行为指标）
+### Loss = TV distance (continuing the project's usual behavioural metric)
 
 ```
 L(p, p̂) = ½ Σ_{a=1..7} |p_a − p̂_a|
 
-d_i = L(actual_novel, M0预测) − L(actual_novel, M1预测)
+d_i = L(actual_novel, M0 prediction) − L(actual_novel, M1 prediction)
 ```
 
-`d_i > 0` 的通俗含义：**知道过去以后，对这个 agent 在新世界里会怎么分配
-行为时间，预测得更准了多少。**
+`d_i > 0` in plain terms: **how much better we predict how this agent will allocate its behaviour
+in the new world once we know its past.**
 
-**聚合顺序**：一颗 seed 的 rich/poor 两只球**先取平均** loss improvement，
-**再**做 seed-level 推断。
+**Aggregation order**: the rich/poor pair of one seed is **averaged first** in loss improvement,
+**then** seed-level inference is done.
 
-### ⚠ `entry_state` 在主分析里是常量
+### ⚠ `entry_state` is a constant in the main analysis
 
-拉平之后所有 agent 的进入态**按构造完全相同** → 在主分析中 `entry_state`
-不携带任何信息，`M0 = f(B_familiar)`。
-`entry_state` 只在**未拉平的配对匹配次分析**里才是真变量。
-这一点要写明，否则看起来像漏了一项。
+After levelling, every agent's entry state is **identical by construction** → in the main analysis
+`entry_state` carries no information and `M0 = f(B_familiar)`.
+`entry_state` is a real variable only in the **unlevelled paired-matching secondary analysis**.
+This must be stated, or it looks like an omission.
 
 ---
 
-## 4. 模型与推断
+## 4. Models and inference
 
-### 模型类
+### Model class
 
-- **Primary：Random Forest**，`n_estimators = 1000`（压低森林自身随机性），
-  `random_state` 固定。
-- **Robustness：二次基展开 Ridge**（好解释，但只覆盖预先指定的二阶结构）。
-  **不要求两者都显著。**
-- **不用 k-NN**（行为向量维度一高，距离就不好使）。
+- **Primary: Random Forest**, `n_estimators = 1000` (to suppress the forest's own randomness),
+  with a fixed `random_state`.
+- **Robustness: Ridge on a quadratic basis expansion** (interpretable, but covering only the
+  pre-specified second-order structure). **Both are not required to be significant.**
+- **No k-NN** (once the behaviour vector has many dimensions, distances stop working).
 
-**M0 与 M1 必须同模型类、同超参、同 fold、同特征预处理、同 random_state。
-M1 唯一多 `development_history` 这一列。**
+**M0 and M1 must use the same model class, the same hyperparameters, the same folds, the same
+feature preprocessing and the same random_state. M1's only extra is the
+`development_history` column.**
 
-### 超参选择：group-blind，且**只优化 M0**
+### Hyperparameter selection: group-blind, and **optimising M0 only**
 
-在 `20000+` 上扫小网格：
+Scan a small grid on `20000+`:
 
 ```
 max_depth        ∈ {8, 12, None}
@@ -233,199 +254,225 @@ min_samples_leaf ∈ {5, 10, 20}
 max_features     ∈ {"sqrt", 0.5, 1.0}
 ```
 
-> ### ★ 铁律 ★
-> 调参脚本**不接收 `development_history`**，**更不许看哪个模型让 M1−M0 最大**。
-> 唯一目标：**哪个 RF 最能从 `B_familiar` 预测 `B_novel`**。
-> **性能接近时，预先规定选更简单 / 更正则化的那个**
-> （更大的 `min_samples_leaf`、更小的 `max_depth`、更小的 `max_features`），
-> 而不是挑结果最漂亮的。
+> ### ★ Iron rule ★
+> The tuning script **does not receive `development_history`**, and is **still less** allowed to
+> look at which model maximises M1−M0.
+> Its sole objective: **which RF best predicts `B_novel` from `B_familiar`**.
+> **When performance is close, it is specified in advance that the simpler / more regularised one
+> is taken** (larger `min_samples_leaf`, smaller `max_depth`, smaller `max_features`), rather than
+> whichever gives the prettiest result.
 
-### 推断：`ΔOOS` + 种子聚类 bootstrap
+### Inference: `ΔOOS` + seed-cluster bootstrap
 
 ```
-ΔOOS = mean_i d_i          （只在【没参与拟合】的 fold 上算）
+ΔOOS = mean_i d_i          (computed only on folds that took no part in fitting)
 ```
 
-- **CI**：按**种子** cluster bootstrap，**10 000 次**，取 2.5/97.5 分位。
-- **判据**：`ΔOOS` 的 95% CI 下界 **> 0**。
-- **Secondary**：双胞胎对内交换 rich/poor 标签 + 重跑整条 CV 流水线的置换检验。
+- **CI**: cluster bootstrap by **seed**, **10,000 times**, taking the 2.5/97.5 percentiles.
+- **Criterion**: the 95% CI lower bound of `ΔOOS` is **> 0**.
+- **Secondary**: a permutation test that swaps the rich/poor labels within twin pairs and re-runs
+  the entire CV pipeline.
 
-### ★ 规则 56 强化版：消灭分析随机性，而不只是测量它 ★
+### ★ Rule 56, strengthened: eliminate analysis randomness rather than merely measuring it ★
 
-R52 的教训是"换个分析种子结论就翻"。**这次从源头堵死**：
+The lesson of R52 was "change the analysis seed and the conclusion flips". **This time it is
+blocked at the source**:
 
-1. **CV fold 确定性**：`fold = deterministic_hash(seed) % K`，
-   **rich/poor 双胞胎永远同 fold**（否则信息泄漏）。**不每次随机分。**
-2. **RF `random_state` 固定**；`n_estimators = 1000` 进一步压低森林随机性。
-3. **bootstrap 固定 analysis seed**，replicates 提到 **10 000**
-   （只是重采样 OOS 的 `d_i`，很便宜）。
+1. **Deterministic CV folds**: `fold = deterministic_hash(seed) % K`, with
+   **rich/poor twins always in the same fold** (otherwise information leaks). **Not randomly
+   re-split each time.**
+2. **The RF `random_state` is fixed**; `n_estimators = 1000` suppresses forest randomness further.
+3. **The bootstrap uses a fixed analysis seed**, with replicates raised to **10,000**
+   (it only resamples the OOS `d_i`, which is cheap).
 
-**正式分析本质上是 deterministic 的。**
-8 个 analysis seed 的彩排仍然跑，但**只作稳定性诊断**，不再是判读的一部分。
-若彩排显示判读仍会被随机性左右 → **跑前**改三值判读，绝不事后改。
+**The formal analysis is essentially deterministic.**
+The 8-analysis-seed rehearsal is still run, but **only as a stability diagnostic**; it is no
+longer part of the verdict. If the rehearsal shows the verdict would still be decided by
+randomness → switch to a three-valued verdict **before the run**, never afterwards.
 
-### 容量对照 —— 护栏（★ v3 收紧判读 ★）
+### Capacity controls — the guardrail (★ tightened in v3 ★)
 
-RF 之下 `rank(explore)` 这种**单调变换无效**（树本就按阈值切分）。
-改用**需要交互才能恢复**的、100% 是 `f(B_familiar)` 的变量：
+Under an RF, a **monotone transform** such as `rank(explore)` has no effect (trees split on
+thresholds anyway). Use instead variables that are 100% `f(B_familiar)` but **require an
+interaction to recover**:
 
 ```
 C1 = explore × build
 C2 = 1[ (explore > median) XOR (build > median) ]
 ```
 
-**判「模型容量不足，不能解释」需要【两个条件同时成立】**：
+**Declaring "insufficient model capacity, so it cannot explain this" requires both conditions to
+hold at once**:
 
-1. 该容量对照**自身的 `ΔOOS` CI 下界 > 0**（它自己得是真的有用），**且**
-2. 点估计 ≥ 真 history 的 **50%**
+1. that capacity control's **own `ΔOOS` CI lower bound is > 0** (it has to be genuinely useful
+   itself), **and**
+2. its point estimate is ≥ **50%** of the true history's
 
-> 只看点估计会让一个很噪的 C1 恰好到 51% 就把实验判死。
-> **50% 是人为护栏，不假装它是某个理论常数。**
+> Looking at the point estimate alone would let one noisy C1 that happens to reach 51% kill the
+> experiment.
+> **50% is a deliberate guardrail and is not pretended to be some theoretical constant.**
 >
-> ⚠ **通过容量对照 ≠ 证明没有 underfit。** 只能说
-> "预先检验的两类交互结构未攻破 M0"。
+> ⚠ **Passing the capacity control ≠ proving there is no underfit.** All it says is
+> "the two classes of interaction structure tested in advance did not break M0".
 
 ---
 
-## 5. 状态相同性与阴性对照
+## 5. State identity and negative controls
 
-① **状态拉平**（主分析）：沿用 `leveling.py`（020），统一
-`hunger / energy / shelter / condition / inventory`。拉平后 shelter **必须低于 S**。
-② **配对匹配**（次分析，无干预）：不拉平，只留进入态接近（ε 预定）的配对。
+① **State levelling** (main analysis): following `leveling.py` (020), equalising
+`hunger / energy / shelter / condition / inventory`. After levelling, shelter **must be below S**.
+② **Paired matching** (secondary analysis, no intervention): no levelling, keeping only pairs whose
+entry states are close (ε fixed in advance).
 
-### ③ 完整可执行状态拉平 —— 阴性对照
+### ③ Full executable-state levelling — the negative control
 
-不只 traits/floor/knowledge/flags/memories/hardship，**还必须包括**：
-**RNG state**（`agent.rng` / `world.rng` / `life.inf_rng`，用 `getstate()`）、
-goal 状态、landmark 状态、`_hardship_anchor`、所有计数器与缓存
-（`action_log` / `action_by_hour` / `goal_by_day` / `events` …）。
+Not only traits/floor/knowledge/flags/memories/hardship, but **also necessarily**:
+**RNG state** (`agent.rng` / `world.rng` / `life.inf_rng`, via `getstate()`),
+the goal state, the landmark state, `_hardship_anchor`, and every counter and cache
+(`action_log` / `action_by_hour` / `goal_by_day` / `events` …).
 
-**执行**：probe 前完整序列化两个 agent，除 `development_history_label` 外
-**hash 必须相同**。若全部一致、放进同一环境仍不逐位相同 → 有泄漏 → **整批作废**。
+**Execution**: serialise both agents completely before the probe; apart from
+`development_history_label`, the **hashes must be identical**. If everything matches and yet
+placing them in the same environment is still not bit-identical → there is a leak → **the whole
+batch is void**.
 
-### 其余阴性对照
-- 只删 memories：必须**逐位** no-op
-- novel 规则关闭：必须复现 persistence 阶段数字
+### The remaining negative controls
+- deleting only memories: must be a **bit-identical** no-op
+- with the novel rule switched off: must reproduce the persistence-stage numbers
 
 ---
 
-## 6. 难度校准：group-blind，先冻结算法后定数值
+## 6. Difficulty calibration: group-blind, algorithm frozen before the values are chosen
 
-在**已烧掉的 `20000+`** 上跑，**脚本不接收发育世界标签**，不得计算任何按发育
-世界分组的量。
+Run on the **already burned `20000+`**, with **the script receiving no developmental-world label**
+and forbidden to compute any quantity grouped by developmental world.
 
-策略归类：novel 窗口内 `b = (gather_material + build) 占比`、`e = explore 占比`：
-`盖房派 b−e ≥ m` / `探索派 e−b ≥ m` / 其余混合。**`m = 0.05`**。
+Strategy classification: within the novel window, `b = the share of (gather_material + build)` and
+`e = the share of explore`:
+`builder if b−e ≥ m` / `explorer if e−b ≥ m` / mixed otherwise. **`m = 0.05`.**
 
-### 合格条件（pooled，标签隐藏）
+### Pass conditions (pooled, labels hidden)
 
-1. 两条主策略**各自** ≥ 20% 且 ≤ 80%（在 **decision window** 内归类）
-2. **★规则 62★ decision window 内 pooled 存活率 ≥ 95%**
-3. consequence window 的总体存活率 ≥ 80%
-4. 进入后 5 天内达标者 ≤ 50%（不是所有球瞬间过关）
-5. **门确实打得开**：consequence window **结束前**达到 `S` 的比例 ∈ **20–80%**
-6. **不是伪分岔**：两条策略各自 pooled 存活率 **各 ≥ 80%**，且**相差 ≤ 10pp**
-7. **行为样本够**：每小时格 ≥ 5 次观测（即 `W_dec ≥ 5`），每只球总动作数 ≥ 120
+1. each of the two main strategies is ≥ 20% and ≤ 80% (classified within the **decision window**)
+2. **★rule 62★ pooled survival within the decision window ≥ 95%**
+3. overall survival within the consequence window ≥ 80%
+4. no more than 50% meet the gate within 5 days of entry (not every ball clears it instantly)
+5. **the gate really does open**: the share reaching `S` **before the consequence window ends** is
+   ∈ **20–80%**
+6. **not a pseudo-fork**: the pooled survival of each strategy is **≥ 80%** individually, and the
+   two differ by **≤ 10pp**
+7. **enough behavioural sample**: ≥ 5 observations per hourly cell (i.e. `W_dec ≥ 5`), and ≥ 120
+   total actions per ball
 
-### 选择顺序（★ 二维也要有唯一解 ★）
+### Selection order (★ a unique solution is required in two dimensions too ★)
 
-`W_dec` 与 `S`（或 `λ`）**联合**决定，但用**字典序**取唯一解，
-避免重蹈 `c_f/c_s` 那种"二维空间里最小没有唯一含义"：
+`W_dec` and `S` (or `λ`) are decided **jointly**, but a unique solution is taken by
+**lexicographic order**, avoiding a repeat of the `c_f/c_s` problem where "minimum in a
+two-dimensional space" has no unique meaning:
 
 ```
-for W_dec in (5, 7, 10, 14):          # 先按 W_dec 升序
-    for S in 候选升序:                 # 再按 S 升序
-        if 满足全部 1–7:  取之，停止
+for W_dec in (5, 7, 10, 14):          # W_dec ascending first
+    for S in candidates ascending:     # then S ascending
+        if all of 1–7 hold:  take it and stop
 ```
 
-即 **先取最短的 decision window，再取最小的 S / λ。**
+That is: **take the shortest decision window first, then the smallest S / λ.**
 
-> ### ★ 铁律 ★
-> 选 `S` / `λ` 时**不许看哪个值让 rich/poor 差异最大** —— 那是在调 effect size。
+> ### ★ Iron rule ★
+> When choosing `S` / `λ`, **it is forbidden to look at which value maximises the rich/poor
+> difference** — that is tuning the effect size.
 >
-> ### ★ 找不到满足条件的 S / λ 怎么办 ★
-> **就说明这个 probe 的设计本身不够干净，不应该为了让它能跑而放宽标准。**
-> 026 要测的是 strategy transfer，**不是重新研究 survival selection**。
-> 允许一条路线死 30%、另一条死 10%，已经足够让行为样本产生明显筛选。
+> ### ★ What if no S / λ satisfies the conditions ★
+> **Then the probe's design is not clean enough, and the standards must not be relaxed just to let
+> it run.** 026 is meant to measure strategy transfer, **not to restart the study of survival
+> selection**. Allowing one route to lose 30% and another 10% already produces obvious filtering
+> of the behavioural sample.
 
 ---
 
-## 7. 判据
+## 7. Criteria
 
-| 判据 | 内容 |
+| Criterion | Content |
 |---|---|
-| **G1 主判据** | 双 probe **各自** `ΔOOS` 的种子聚类 bootstrap 95% CI 下界 > 0，**且容量对照未被攻破**。**只用 decision window**（规则 62），**禁止靠只分析幸存者来定义** |
-| **G2 后果判据** | **consequence window** 里存活率或末期资源存在世界差异，配对检验 `p < 0.01` |
-| **G3 机制问题** | `−全部地板①②` 下 G1 是否仍成立 —— **探索性，不预设方向** |
-| **命名判据** | 两 probe 都过 G1 → *generalized individuality*；只过一个 → *novel-context transfer* |
-| 阴性对照 | §5 三条全过 |
+| **G1 main criterion** | for **each** probe separately, the seed-cluster bootstrap 95% CI lower bound of `ΔOOS` is > 0, **and the capacity control is not broken**. **Decision window only** (rule 62); **defining it by analysing survivors only is forbidden** |
+| **G2 consequence criterion** | within the **consequence window**, survival or terminal resources differ between the worlds, paired test `p < 0.01` |
+| **G3 mechanism question** | does G1 still hold under `−all floors ①②` — **exploratory, no direction assumed** |
+| **naming criterion** | both probes passing G1 → *generalized individuality*; only one → *novel-context transfer* |
+| negative controls | all three of §5 pass |
 
-### G3 的地位：机制问题，不是必要条件
+### The standing of G3: a mechanism question, not a necessary condition
 
-若 persistence 本来就由 floor 携带，那么
+If persistence is carried by the floor in the first place, then
 `history → floor consolidation → novel context → new divergence`
-**完全可以是真正的 generalization**。generalization **不要求换载体**；
-载体可以还是同一个，**新的是它对未见问题产生了新的功能后果**。
+**can perfectly well be genuine generalization**. Generalization **does not require a change of
+carrier**; the carrier may stay the same, and what is new is that it produces new functional
+consequences on an unseen problem.
 
-- 关 floor 后 G1 消失 → *generalization depends on the same consolidation
-  architecture*。**不是失败**，是完整故事：
-  **同一结构既保存过去，也把过去投射到新的未来。**
-- 关 floor 后 G1 仍在 → 存在第二条载体，更意外，但**不是必要条件**。
-
----
-
-## 8. 种子计划
-
-**留给 novel-situation final 的干净段：`60000–61499`。预注册写死前不许指向。**
-已烧掉、可用于设计 / 校准 / 调参 / 彩排：`0–1499`、`10000–11499`、
-`20000–21499`、`50000–51499`。校准与彩排一律用 `20000+`（规则 57）。
+- G1 disappears with the floor off → *generalization depends on the same consolidation
+  architecture*. **That is not a failure**, it is the complete story:
+  **one structure both preserves the past and projects it onto a new future.**
+- G1 survives with the floor off → there is a second carrier, which is more surprising, but
+  **not a necessary condition**.
 
 ---
 
-## 9. 实现约束
+## 8. Seed plan
 
-1. **不改 `v3_frozen/` 任何一行。** Probe A = `GatedWorld` 子类；
-   Probe B = influence（一 tick 延迟，需披露）。要改 v3 就分叉 v4。
-2. 新模块：`novel_situation.py`（GatedWorld / Probe B / 拉平 / 分叉 / 序列化对照）、
-   `novel_calibrate.py`（**group-blind**）、`novel_probe.py`（执行）。
-3. **规则 55**：每个子任务显式设定所有 `sim.` 全局量；换 `--workers` 跑两遍须逐字节相同。
-4. **规则 57**：彩排参数形状与正式运行一致（不用 `seed0 = 0`）。
-5. 覆盖率自检 + `n = 0` 拦截（025 §4）照搬。
-6. 分叉后重建 `FrozenZero()`（deepcopy 陷阱，024）。
-7. ★ **C2 的中位数只能用 training fold 计算**，再应用到 held-out fold。
-   用全数据中位数会造成 test information leakage。
-   （C1 = `explore × build` 是纯乘积，无此问题。）
-   同理：任何特征标准化 / 分箱都只在 training fold 上拟合。
-8. ★ **sibling 隔离的主动证明**（规则 61 的验收测试，很便宜）：
-   分叉后不只检查"没有共享引用"，还要在开发种子上做一次
-   **突变测试** —— 改 clone F 的 `inventory` / `traits` / `world.food`，
-   **断言 clone N 逐位不变**；反向再做一次。不过不往下走。
+**The clean block reserved for the novel-situation final: `60000–61499`. Nothing may point at it
+before the preregistration is fixed in writing.**
+Already burned and usable for design / calibration / tuning / rehearsal: `0–1499`,
+`10000–11499`, `20000–21499`, `50000–51499`. Calibration and rehearsal always use `20000+`
+(rule 57).
 
 ---
 
-## 10. v2 → v3 变更记录
+## 9. Implementation constraints
 
-| # | 变更 |
+1. **Do not change one line of `v3_frozen/`.** Probe A = the `GatedWorld` subclass;
+   Probe B = an influence (one-tick lag, which must be disclosed). To change v3, fork v4.
+2. New modules: `novel_situation.py` (GatedWorld / Probe B / levelling / forking / serialisation
+   controls), `novel_calibrate.py` (**group-blind**), `novel_probe.py` (execution).
+3. **Rule 55**: every subtask sets all `sim.` globals explicitly; two runs with different
+   `--workers` must be byte-identical.
+4. **Rule 57**: the rehearsal parameter shape matches the official run (do not use `seed0 = 0`).
+5. Coverage self-check + the `n = 0` interception (025 §4) carried over verbatim.
+6. Rebuild `FrozenZero()` after forking (the deepcopy trap, 024).
+7. ★ **The median for C2 may only be computed on the training fold** and then applied to the
+   held-out fold. Using the whole-data median causes test information leakage.
+   (C1 = `explore × build` is a pure product and has no such problem.)
+   Likewise: any feature standardisation / binning is fitted on the training fold only.
+8. ★ **Active proof of sibling isolation** (the acceptance test for rule 61, and cheap):
+   after forking, do not merely check that no references are shared — also run a
+   **mutation test** on development seeds — change clone F's `inventory` / `traits` /
+   `world.food` and **assert that clone N is bit-unchanged**; then do it in the reverse
+   direction. If it does not pass, do not proceed.
+
+---
+
+## 10. v2 → v3 change log
+
+| # | Change |
 |---|---|
-| 1 | ★ **新增规则 61：counterfactual sibling branches** ★ —— `B_familiar` 与 `B_novel` 必须来自同一进入态的两个平行分支，不能顺序测量 |
-| 2 | `B_familiar` 定为 **182 维**（168 时辰×动作 + 7 全窗口占比 + 7 前后半段变化） |
-| 3 | `B_novel` 定为 **7 维动作占比**；**损失 = TV 距离**；先对双胞胎取平均再做 seed-level 推断 |
-| 4 | 容量对照判读加条件：**对照自身 CI 下界 > 0 且点估计 ≥ history 的 50%** 才判容量不足 |
-| 5 | 校准第 5 条收紧：两策略存活率**各 ≥ 80%、相差 ≤ 10pp**（原 70% / 20pp）；并写明"找不到就说明 probe 不干净，不放宽标准" |
-| 6 | RF 超参：`n_estimators = 1000` 固定，小网格 group-blind **只优化 M0**，性能接近时**预先规定选更正则化的** |
-| 7 | **规则 56 强化为"消灭分析随机性"**：fold = `hash(seed) % K` 确定性划分、RF 固定 `random_state`、bootstrap 固定种子且提到 10 000 次；8 种子彩排降为稳定性诊断 |
-| 8 | 写明 **`entry_state` 在拉平后的主分析中是常量**，只在未拉平的次分析里是真变量 |
-| 9 | ★ **新增规则 62：decision window / consequence window 分离** ★ —— G1 只用短窗口且要求窗内存活 ≥95%，G2 才用长窗口的死亡与资源后果；禁止用"只分析幸存者"定义 G1 |
-| 10 | `W_dec` 与 `S`/`λ` 用**字典序**联合选择（先最短窗口，再最小 S/λ），保证二维也有唯一解 |
-| 11 | 实现约束新增：C2 中位数只在 training fold 算（防泄漏）；sibling 隔离要做**突变测试**主动证明 |
+| 1 | ★ **Added rule 61: counterfactual sibling branches** ★ — `B_familiar` and `B_novel` must come from two parallel branches of the same entry state, not from sequential measurement |
+| 2 | `B_familiar` fixed at **182 dimensions** (168 hour×action + 7 whole-window shares + 7 first/second-half changes) |
+| 3 | `B_novel` fixed at **7-dimensional action shares**; **loss = TV distance**; twins averaged first, then seed-level inference |
+| 4 | The capacity-control verdict gains a condition: insufficient capacity is declared only if **the control's own CI lower bound > 0 and its point estimate ≥ 50% of history's** |
+| 5 | Calibration condition 5 tightened: each strategy's survival **≥ 80% individually, differing by ≤ 10pp** (was 70% / 20pp); and it is stated that "finding nothing means the probe is not clean, and standards are not relaxed" |
+| 6 | RF hyperparameters: `n_estimators = 1000` fixed, a small group-blind grid **optimising M0 only**, and when performance is close **the more regularised option is specified in advance** |
+| 7 | **Rule 56 strengthened into "eliminate analysis randomness"**: deterministic folds via `hash(seed) % K`, a fixed RF `random_state`, a fixed bootstrap seed with replicates raised to 10,000; the 8-seed rehearsal demoted to a stability diagnostic |
+| 8 | Stated that **`entry_state` is a constant in the post-levelling main analysis** and a real variable only in the unlevelled secondary analysis |
+| 9 | ★ **Added rule 62: decision window / consequence window separation** ★ — G1 uses the short window only and requires ≥95% survival within it; G2 is what uses the long window's mortality and resource consequences; defining G1 by "analysing survivors only" is forbidden |
+| 10 | `W_dec` and `S`/`λ` are selected jointly by **lexicographic order** (shortest window first, then the smallest S/λ), guaranteeing a unique solution in two dimensions too |
+| 11 | New implementation constraints: the C2 median is computed on the training fold only (against leakage); sibling isolation must be proven actively by a **mutation test** |
 
 ---
 
-## 11. 下一步
+## 11. Next steps
 
-设计到此收敛，**不再发散**。接下来：
+The design has converged here and **will not be expanded further**. Next:
 
-1. 写 `novel_situation.py`（机制层：`GatedWorld`、Probe B influence、
-   拉平、**规则 61 的分叉**、完整序列化对照）
-2. 写 `novel_calibrate.py`（**group-blind**），在 `20000+` 上校准 `S` 与 `λ`
-3. 校准产出数值 → 写 `NOVEL_PREREGISTRATION.md` → **然后才**碰 `60000–61499`
+1. Write `novel_situation.py` (the mechanism layer: `GatedWorld`, the Probe B influence,
+   levelling, **the forking of rule 61**, the full serialisation controls)
+2. Write `novel_calibrate.py` (**group-blind**) and calibrate `S` and `λ` on `20000+`
+3. Calibration produces the values → write `NOVEL_PREREGISTRATION.md` → **and only then** touch
+   `60000–61499`

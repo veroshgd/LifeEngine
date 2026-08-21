@@ -1,265 +1,267 @@
-# 实验 028 预注册 —— Interface Breadth and Component Transfer
+# Experiment 028 preregistration — Interface Breadth and Component Transfer
 
-**写死日期：2026-08-17 · 状态：待彩排 → 待执行**
+**Fixed on: 2026-08-17 · Status: awaiting rehearsal → awaiting execution**
 
-一次性文件。写完之后到跑完之前，**不改这个文件、不改 frozen transform、
-不改五臂定义、不改 gates、不改 G/R_B、不改 SESOI、不改 joint-bootstrap 方法。**
-
----
-
-## 0. 研究问题
-
-027 逼出了一个概念区分：
-
-```
-有没有历史信息              ← v3 证明存在
-新任务能不能【访问】这些信息   ← 027：经一条窄接口只读到极微弱的功能影响（0.08 trial）
-```
-
-**028 专门把这两件事拆开。**
-
-> **在总 coupling budget 相同的情况下，broader historical readout
-> 是否比 027 的窄接口产生更大的 novel-task transfer magnitude？**
-
-⚠ **名字刻意不叫 generalization**，也不叫 interface-width：
-C 最终仍然压成**一个** `beta_i` 进同一个 softmax，
-扩大的是**历史读取范围**，**不是决策通道数**。
+A one-shot document. Between finishing it and finishing the run, **this file, the frozen
+transform, the five-arm definition, the gates, G/R_B, the SESOI and the joint-bootstrap method
+are not changed.**
 
 ---
 
-## 1. 冻结对象
+## 0. Research question
+
+027 forced a conceptual distinction into the open:
 
 ```
-模型      v4 = v3_frozen 核心（逐字节不动）+ novel_task.py
-任务      α=0.05  β=0.05  τ=0.20  TRIALS=80  REVERSAL_AT=40  P=0.80/0.20
-          指纹 26778f672e9e7009
-接口      interface028_frozen.json   sha256 f82497fb5b1ff535…（n_cal=2936）
+whether historical information exists                ← v3 proved it does
+whether the new task can **access** that information  ← 027: through one narrow interface it read only a minuscule functional influence (0.08 trials)
 ```
 
-### 五臂
+**028 exists specifically to separate those two things.**
 
-| 臂 | historical readout | 说明 |
+> **At the same total coupling budget, does a broader historical readout produce a larger
+> novel-task transfer magnitude than the narrow interface of 027?**
+
+⚠ **The name deliberately avoids "generalization"**, and also avoids "interface width":
+C is still compressed into **one** `beta_i` entering the same softmax; what is widened is the
+**range of history being read**, **not the number of decision channels**.
+
+---
+
+## 1. What is frozen
+
+```
+model      v4 = the v3_frozen core (byte-for-byte untouched) + novel_task.py
+task       α=0.05  β=0.05  τ=0.20  TRIALS=80  REVERSAL_AT=40  P=0.80/0.20
+           fingerprint 26778f672e9e7009
+interface  interface028_frozen.json   sha256 f82497fb5b1ff535… (n_cal=2936)
+```
+
+### The five arms
+
+| Arm | historical readout | Note |
 |---|---|---|
-| **A** | `curiosity − caution` | **027 原接口，一行不改**。不经 028 任何映射 |
+| **A** | `curiosity − caution` | **the original 027 interface, not one line changed**. Passes through none of 028's mappings |
 | **B+** | `+industry⊥` | component assay |
 | **B−** | `−industry⊥` | component assay |
 | **C+** | `A_std + industry⊥` | broader readout |
 | **C−** | `A_std − industry⊥` | broader readout |
 
-`industry⊥` = industry 对 **`curiosity − caution`（A 的真实排序变量）** 的
-**OLS 残差**，calibration 上 Pearson = 0.000000、**Spearman = −0.0080**。
+`industry⊥` = the **OLS residual** of industry against **`curiosity − caution` (A's true ordering
+variable)**; on calibration, Pearson = 0.000000 and **Spearman = −0.0080**.
 
-⚠ 正交化基准必须是 **raw 差**，不是 `z(cur) − z(cau)` ——
-A 的 beta 是 raw 差的单调函数，而 σ_cur=20.87 ≠ σ_cau=29.55，
-两者**排序不同**（Spearman 0.9999）。quantile mapping 完全基于排序。
+⚠ The orthogonalisation basis must be the **raw difference**, not `z(cur) − z(cau)` —
+A's beta is a monotone function of the raw difference, and since σ_cur=20.87 ≠ σ_cau=29.55 the
+two **order differently** (Spearman 0.9999). Quantile mapping is entirely ordering-based.
 
-### 等预算：quantile mapping
+### Equal budget: quantile mapping
 
-所有非 A 臂的 readout **单调 rank-normalize 到 A 的冻结 beta 边际分布**，
-于是 support / mean / SD / 偏度 / 尾部 **全部与 A 相同**，
-**唯一差异是"哪些 agent 拿到较大的 beta"（排序）**。
+The readout of every non-A arm is **monotonically rank-normalised onto A's frozen beta marginal
+distribution**, so support / mean / SD / skew / tails are **all identical to A's**, and
+**the only difference is "which agents receive the larger beta" (the ordering)**.
 
 > All historical readouts were monotonically rank-normalized to the frozen
 > marginal coupling distribution of the original 027 interface, so arms
 > differed in historical ordering rather than overall coupling magnitude.
 
-⚠ **B− 不是 `0.05 − b(B+)`** —— A 的分布不对称（[0.012139, 0.048427]，
-μ=0.036948），必须走**反向 percentile**。
+⚠ **B− is not `0.05 − b(B+)`** — A's distribution is asymmetric ([0.012139, 0.048427],
+μ=0.036948), so a **reverse percentile** is required.
 
-⚠ **adapter 必须抵消内部乘法**：`NT.run_task(..., beta=X)` 内部会做
-`b = X × novelty_style(agent)`。直接把映射好的 `b_i` 当 `beta=` 传入
-会变成 `b_i × novelty_style_i` —— **A 轴被偷偷乘回来，五臂设计失效**。
-实测该误差 0.0107 ≈ A 臂整个 SD（0.0122）的同量级。
+⚠ **The adapter must cancel the internal multiplication**: `NT.run_task(..., beta=X)` internally
+computes `b = X × novelty_style(agent)`. Passing the mapped `b_i` straight in as `beta=` would
+give `b_i × novelty_style_i` — **secretly multiplying the A axis back in and destroying the
+five-arm design**. That error was measured at 0.0107 ≈ the same order as arm A's entire SD (0.0122).
 
 ---
 
-## 2. ★ Primary：G = min(|E_C+|, |E_C−|) − |E_A| ★
+## 2. ★ Primary: G = min(|E_C+|, |E_C−|) − |E_A| ★
 
-`E_arm` = 该臂下 restricted switch latency 的 **same-seed 配对差**
-（`d_i = L_rich,i − L_poor,i`，截尾 None → 36，沿用 027）。
+`E_arm` = the **same-seed paired difference** in restricted switch latency under that arm
+(`d_i = L_rich,i − L_poor,i`, censoring None → 36, following 027).
 
-**取 min 的含义**：**无论这份未赋予语义方向的历史成分以哪个符号接入，
-更宽的 readout 都必须比窄接口产生更强的 transfer**，才算 robust breadth gain。
-只有 C+ 或 C− 一个赢 → **sign-dependent，明确不计 primary success**。
+**What taking the min means**: **whatever sign this semantically undirected historical component
+is wired in with, the broader readout must produce stronger transfer than the narrow interface**
+for it to count as a robust breadth gain. If only C+ or only C− wins →
+**sign-dependent, and explicitly not counted as primary success**.
 
-### 统计：joint same-seed bootstrap
+### Statistics: joint same-seed bootstrap
 
 ```
-每个 replicate b：
-    idx = 重采样一次种子下标        ★五臂共用同一组 idx★
-    E_A^(b), E_Cp^(b), E_Cm^(b)    ← 都用这组 idx
+for each replicate b:
+    idx = resample the seed indices once        ★shared by all five arms★
+    E_A^(b), E_Cp^(b), E_Cm^(b)                 ← all using that idx
     G^(b) = min(|E_Cp^(b)|, |E_Cm^(b)|) − |E_A^(b)|
-CI 直接取自 {G^(b)}     n_boot = 10,000   analysis seed 固定
+the CI is taken directly from {G^(b)}     n_boot = 10,000   analysis seed fixed
 ```
 
-⛔ **两类禁止做法**（`stats028.py` 有对抗性测试让它们显式失败）：
-① 各臂分别算 marginal CI 再拿端点相减 —— 实测虚宽 **29.2×**
-② 先对各臂求 bootstrap 均值再套 `abs()`/`min()` —— `G` 是非线性的，
-   必须**逐 replicate** 施加
+⛔ **Two forbidden approaches** (`stats028.py` carries adversarial tests that make them fail explicitly):
+① computing marginal CIs per arm and subtracting the endpoints — measured 29.2× too wide
+② taking the bootstrap mean of each arm first and then applying `abs()`/`min()` — `G` is
+   non-linear and must be applied **per replicate**
 
-### 三值判读（SESOI = 1.0 trial，与 027 同单位）
+### Three-valued verdict (SESOI = 1.0 trial, the same unit as 027)
 
-| 情况 | 判读 |
+| Case | Verdict |
 |---|---|
-| 95% CI **包含 0** | **没有证据表明 broader readout 比 A 更强** |
-| CI 完全 **> 0**，但仍与 **[0, 1]** 重叠 | **检测到 breadth gain，但增益低于功能门槛** |
-| CI **整体 > 1 trial** | **functionally meaningful breadth gain established** |
+| the 95% CI **contains 0** | **no evidence that the broader readout beats A** |
+| the CI lies entirely **> 0** but still overlaps **[0, 1]** | **a breadth gain is detected, but below the functional threshold** |
+| the CI lies **entirely > 1 trial** | **functionally meaningful breadth gain established** |
 
-**C+、C− 各自再按 ±1 trial 等价区间单独报一次** ——
-"C 比 A 强"与"C 本身有功能意义"是**两个不同的 claim**。
+**C+ and C− are each additionally reported once against the ±1 trial equivalence region** —
+"C beats A" and "C is functionally meaningful in itself" are **two different claims**.
 
 ---
 
-## 3. Secondary：R_B = min(|E_B+|, |E_B−|)
+## 3. Secondary: R_B = min(|E_B+|, |E_B−|)
 
-同样在 **每个 joint replicate 内部**计算。B+、B− 的原始值全部报告。
+Likewise computed **inside each joint replicate**. The raw values of B+ and B− are all reported.
 
-⚠ B 问的**不是**"industry 天生能不能迁移"，而是：
-**industry 中不被 exploration 轴解释的那部分历史信息，
-接到与 027 相同的标准化 decision interface 上时，能产生多少 transfer。**
-这是**信息通路实验**，不是心理学语义断言。
+⚠ What B asks is **not** "can industry transfer at all", but:
+**how much transfer the part of industry's historical information that the exploration axis does
+not explain can produce when wired into the same standardised decision interface as 027.**
+This is an **information-pathway experiment**, not a psychological semantic assertion.
 
-**预先记录的结构事实**：`corr(A轴, raw industry) = −0.8823` ——
-raw industry 的大部分变异与 exploration 轴重叠。
+**Structural fact recorded in advance**: `corr(A axis, raw industry) = −0.8823` — most of the
+variance of raw industry overlaps with the exploration axis.
 
 ---
 
-## 4. ★ Validity gates（判读顺序：先于 outcome）★
+## 4. ★ Validity gates (reading order: before the outcome) ★
 
 ```
-support gate            raw 越界 ≤ 2.0%   且   boundary mass ≤ 2.0%
-budget-transport gate   |μ_j − μ_A|/SD_A ≤ 10%   且   |SD_j − SD_A|/SD_A ≤ 10%
+support gate            raw out-of-range ≤ 2.0%   and   boundary mass ≤ 2.0%
+budget-transport gate   |μ_j − μ_A|/SD_A ≤ 10%    and   |SD_j − SD_A|/SD_A ≤ 10%
 ```
 
-⚠ `μ_A / SD_A` 必须是**同一批 confirmatory population 上实际跑出来的 A 臂**，
-不是 calibration 的 A —— 这样 population shift 自动被消掉。
-（transport 彩排实测：A 自己从 0.036948 漂到 0.036663，即 2.3% 的 SD_A。）
+⚠ `μ_A / SD_A` must be **arm A as actually run on the same confirmatory population**, not
+calibration's A — that way any population shift cancels automatically.
+(Measured in the transport rehearsal: A itself drifted from 0.036948 to 0.036663, i.e. 2.3% of SD_A.)
 
-⚠ **out-of-support 查【输入端 raw readout】，不是 beta 输出** ——
-beta 已被 frozen mapping 限死在 A 的 support 内，本身看不出 extrapolation。
+⚠ **out-of-support is checked on the input-side raw readout, not on the beta output** — beta is
+already pinned inside A's support by the frozen mapping and can show no extrapolation by itself.
 
-### 分层失败处理
+### Layered failure handling
 
-| 失败 | 后果 |
+| Failure | Consequence |
 |---|---|
-| C+ 或 C− 任一 gate 失败 | **primary G invalid / not cleanly interpretable** —— 既不许声称 breadth gain，也不许声称 no-gain |
-| B+ 或 B− gate 失败 | R_B secondary invalid；**若 C± 都通过，G 不受影响** |
-| A | **没有 mapping transport gate**（它就是 contemporaneous reference） |
+| either the C+ or C− gate fails | **primary G invalid / not cleanly interpretable** — neither a breadth gain nor a no-gain may be claimed |
+| the B+ or B− gate fails | R_B secondary invalid; **if both C± pass, G is unaffected** |
+| A | **has no mapping transport gate** (it is the contemporaneous reference itself) |
 
-失败时的固定措辞：
+The fixed wording on failure:
 
 > Frozen coupling normalization did not transport adequately to the
 > confirmatory population; breadth contrast is not cleanly interpretable
 > under the preregistered equal-budget assumption.
 
-⚠ gate 失败**不许重估 mapping**。
+⚠ A gate failure **must not** lead to re-estimating the mapping.
 
-### transport 彩排实测（seeds 10000–11499，n=2944，group-blind）
+### Transport rehearsal measurements (seeds 10000–11499, n=2944, group-blind)
 
 ```
-最大越界合计 0.10%   最大边界质量 0.20%
-最大 |Δμ| = 3.2% × SD_A     最大 |ΔSD| = 2.4% × SD_A
+largest out-of-range total 0.10%   largest boundary mass 0.20%
+largest |Δμ| = 3.2% × SD_A     largest |ΔSD| = 2.4% × SD_A
 ```
 
 ---
 
-## 5. ★ A 臂的双重身份（必须分开判）★
+## 5. ★ Arm A's dual role (which must be judged separately) ★
 
-`70000–71499` 对 A 也是**真正的新 sampling block**，所以 028 同时产生两个层次的结果：
+`70000–71499` is a **genuinely new sampling block for A too**, so 028 produces results at two
+levels at once:
 
 | | |
 |---|---|
-| **A 臂** | 027 effect 的 **sampling-level replication**（区别于 027 内部的 analysis-level MC stability，规则 80） |
-| **G** | broader readout 相对 A 的 fixed-budget breadth contrast |
+| **Arm A** | a **sampling-level replication** of the 027 effect (as distinct from 027's internal analysis-level MC stability, rule 80) |
+| **G** | the fixed-budget breadth contrast of the broader readout against A |
 
-**两者必须分开判：**
+**The two must be judged separately:**
 
-- 即使 A 没复制出 027 的 −0.08 trial，**G 仍然可以计算**，
-  但论文必须写：*027 narrow-interface effect did not replicate on the new
-  sampling block.*
-- 即使 A 又复制出来，**也不能把 A 的成功算成 028 breadth hypothesis 的成功**。
-  G 仍按自己的 CI + 1-trial SESOI 判断。
+- Even if A fails to reproduce 027's −0.08 trials, **G can still be computed**, but the paper must
+  state: *027 narrow-interface effect did not replicate on the new sampling block.*
+- Even if A does reproduce it, **A's success must not be counted as success for 028's breadth
+  hypothesis.** G is still judged by its own CI + the 1-trial SESOI.
 
 ---
 
-## 6. ★ 四种 dilution 判读模式（预先写死）★
+## 6. ★ Four dilution reading modes (fixed in advance) ★
 
-| 模式 | 结论 |
+| Mode | Conclusion |
 |---|---|
-| **C > A，且 B 有 transfer** | 增加可读取的历史成分，在固定耦合预算下**提高了** transfer |
-| **C ≈ A** | 更宽的历史 readout **没有增加** transfer；额外维度没有提供净增益 |
-| **C < A，且 B 很弱** | 与"固定预算下加入低-transferability 成分造成**信息稀释**"一致 |
-| **B 很强，但 C < A** | **不能**叫 dilution-by-noise；提示组合 readout 中可能存在**抵消、相关结构或非线性交互**，需后续机制研究 |
+| **C > A, and B shows transfer** | adding readable historical components **increased** transfer at a fixed coupling budget |
+| **C ≈ A** | the broader historical readout **did not increase** transfer; the extra dimension provided no net gain |
+| **C < A, and B is very weak** | consistent with **information dilution** from adding a low-transferability component at a fixed budget |
+| **B is strong but C < A** | this may **not** be called dilution-by-noise; it suggests **cancellation, correlation structure or non-linear interaction** within the combined readout, and calls for follow-up mechanistic study |
 
-⛔ **不许**把结果简化成 "C>A → 宽接口有效 / C≤A → 宽接口无效"。
+⛔ The result **must not** be reduced to "C>A → wide interfaces work / C≤A → wide interfaces don't".
 
 ---
 
-## 7. 种子账本
+## 7. Seed ledger
 
 ```
 0–1499          development
-10000–11499     021 留出集 / 028 transport rehearsal
-20000–21499     022 预注册段 / 027 + 028 group-blind calibration
+10000–11499     021 holdout set / 028 transport rehearsal
+20000–21499     022 preregistration block / 027 + 028 group-blind calibration
 50000–51499     v3 persistence FINAL
 60000–61499     027 novel-task FINAL
-70000–71499     ★028 breadth FINAL★   ← 新，从未使用
+70000–71499     ★028 breadth FINAL★   ← new, never used
 ```
 
-### 028 FINAL CONFIRMATORY BLOCK
+### The 028 FINAL CONFIRMATORY BLOCK
 
 ```
 seed0 = 70000     N = 1500     seeds = 70000–71499
 ```
 
-- **仅用于 Experiment 028 FINAL**
-- **禁止**用于 calibration / transport / rehearsal / parameter selection
-- **一旦任何 agent trajectory 被正式生成，该 block 视为 burned**
+- **for Experiment 028 FINAL only**
+- **forbidden** for calibration / transport / rehearsal / parameter selection
+- **once any agent trajectory has been officially generated, the block counts as burned**
 
-已核实：代码、实验记录、结果文件中 `70000` 出现 **0 次**。
+Verified: `70000` appears **0 times** in the code, the experiment log and the result files.
 
 ---
 
-## 8. 工程保护（runner 必须实现）
+## 8. Engineering protections (the runner must implement these)
 
-1. **Seed guard** —— `--final` 只接受 `seed0=70000, N=1500`，其他值直接拒绝
-2. **One-shot lock** —— `final_028_result.txt` 已存在则拒绝再次运行
-3. **Preflight ledger print** —— final 开始前打印并落盘完整种子账本（§7），
-   使四个阶段的数据角色一眼可辨
-4. frozen JSON sha256 + 任务指纹校验，任一不符即拒绝运行
+1. **Seed guard** — `--final` accepts only `seed0=70000, N=1500` and rejects anything else outright
+2. **One-shot lock** — refuse to run again if `final_028_result.txt` already exists
+3. **Preflight ledger print** — before the final starts, print and persist the full seed ledger (§7),
+   so the data role of all four stages is obvious at a glance
+4. frozen JSON sha256 + task fingerprint verification, refusing to run on any mismatch
 
 ---
 
 ## 9. ★★ Closure rule ★★
 
-> **一旦看到 70000–71499 的 rich/poor 结果，不允许再改：**
-> frozen transform、五臂定义、quantile mapping、transport gates、
-> G / R_B 定义、SESOI、joint-bootstrap 方法、任务参数、种子块。
+> **Once the rich/poor result of 70000–71499 has been seen, none of the following may be changed:**
+> the frozen transform, the five-arm definition, the quantile mapping, the transport gates,
+> the definitions of G / R_B, the SESOI, the joint-bootstrap method, the task parameters, the seed block.
 >
-> **Primary 失败就是失败。**
+> **If the primary fails, it fails.**
 
-失败后可做 exploratory analysis，但**只能标为 exploratory**。
+Exploratory analysis after a failure is allowed, but **may only be labelled exploratory**.
 
 ---
 
-## 10. 事前预测（跑前写下，跑完照抄对比）
+## 10. Prior predictions (written before the run, copied verbatim for comparison afterwards)
 
-| 项 | 预测 |
+| Item | Prediction |
 |---|---|
-| G 方向 | **不预设**（双侧） |
-| G 是否越过 SESOI | **未知** —— 这是 028 唯一真正未知的一项 |
-| A 臂 replication | 倾向于再次得到极小效应，但**不预设是否复制** |
-| R_B | 未知；`corr(A轴, raw industry) = −0.88` 意味着残差成分的历史信息量可能很小 |
-| transport gates | 预计全部通过（彩排最坏 3.2% / 0.20%） |
-| C+ / C− 各自 | 预计都落在 ±1 等价区间内 |
+| G direction | **not assumed** (two-sided) |
+| Does G clear the SESOI | **unknown** — the only genuinely unknown item in 028 |
+| arm A replication | leaning towards another minuscule effect, but **whether it replicates is not assumed** |
+| R_B | unknown; `corr(A axis, raw industry) = −0.88` suggests the residual component may carry very little historical information |
+| transport gates | expected to pass throughout (worst rehearsal values 3.2% / 0.20%) |
+| C+ / C− individually | both expected to land inside the ±1 equivalence region |
 
 ---
 
-## 11. 措辞纪律
+## 11. Wording discipline
 
-- ⛔ **不许写** *generalized individuality*
-- ⛔ **不许写** agent "理解 / 学会了因果结构" —— 它学的是 2 臂赌博机的价值
-- ⛔ **不许写** "我们搜索了所有历史载体" —— 任务只给了一条 readout
-- ✅ 必须在 Methods 说明：双胞胎共享 reward table 与 softmax 抽样 `u_t`，
-  这是 **common random numbers / counterfactual pairing 的方差缩减设计**
-- ✅ B 的措辞必须是 **residual component**，不是 "industry"
+- ⛔ **Must not write** *generalized individuality*
+- ⛔ **Must not write** that the agent "understood / learned the causal structure" — what it learns is the value of a 2-armed bandit
+- ⛔ **Must not write** "we searched every carrier of history" — the task offered only one readout
+- ✅ The Methods section must state: the twins share the reward table and the softmax draw `u_t`,
+  which is a **common random numbers / counterfactual pairing variance reduction design**
+- ✅ B must be worded as a **residual component**, never as "industry"

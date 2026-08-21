@@ -1,135 +1,136 @@
-# Paper-claim audit —— 每句核心结论旁边标证据
+# Paper-claim audit — evidence marked beside every core conclusion
 
-规则：**每个 claim 必须落到三类之一**，落不进去的不许写。
+Rule: **every claim must fall into one of three categories**, and anything that fits none of
+them may not be written.
 
-| 类别 | 门槛 |
+| Category | Bar |
 |---|---|
-| **A 主结果** | v3 冻结**之后**的直接实验支持（最好是预注册的） |
-| **B 机制结果** | 有**定向消融 / 删除**实验支持 |
-| **C 限制 / 未来问题** | 目前**没有证据**，明确**不声称** |
+| **A main result** | direct experimental support obtained **after** v3 was frozen (preregistered where possible) |
+| **B mechanism result** | supported by a **targeted ablation / deletion** experiment |
+| **C limitation / open question** | **no evidence at present**; explicitly **not claimed** |
 
 ---
 
-## A · 主结果
+## A · Main results
 
-### A1 不同的过去 → 移植到同一环境后仍存在持久的行为差异
-- `final_confirm_result.txt` **H1 = 1.142 [1.098, 1.183]**，
-  seeds 50000–51499，**预注册、只跑一次**，dz = 0.20，p = 0.0001
-- v3 参数稳健性：500 组随机参数中 **78.3% > 1**，中位 1.076
-- ✅ 可作头条。**指标必须写明是"逐时辰动作分布的 TV 比值"。**
+### A1 A different past → a persistent behavioural difference that survives transplant into an identical environment
+- `final_confirm_result.txt` **H1 = 1.142 [1.098, 1.183]**,
+  seeds 50000–51499, **preregistered, run once**, dz = 0.20, p = 0.0001
+- v3 parameter robustness: **78.3% > 1** across 500 random parameter sets, median 1.076
+- ✅ May be the headline. **The metric must be stated as "the TV ratio of the per-hour action distribution".**
 
-### A2 该差异不是 mortality artifact
-- v3 修正后 60 天死亡率 8.1% → **4.3%**，而效应**未减反增**
-  （P1 1.058 → 1.090，023 §7）
-- final 阶段单世界死亡率 0.0% / 3.9%
-- ✅ 可写。这是 023 整个重验的价值所在。
+### A2 The difference is not a mortality artifact
+- After the v3 correction, 60-day mortality went 8.1% → **4.3%**, while the effect **grew rather than shrank**
+  (P1 1.058 → 1.090, 023 §7)
+- Single-world mortality in the final stage: 0.0% / 3.9%
+- ✅ May be written. This is what the whole 023 revalidation was worth.
 
-### A3 存在不依赖性状地板棘轮的持久性通路
-- `final_confirm` **P1 = 1.134 [1.090, 1.175]**（地板全关，022 打开）
-- ✅ 可写。
+### A3 There is a persistence channel that does not depend on the trait-floor ratchet
+- `final_confirm` **P1 = 1.134 [1.090, 1.175]** (all floors off, 022 on)
+- ✅ May be written.
 
-### A4 接到行为上的离散记忆结构不是长期载体
-- `final_confirm` **P2 不过**：1.134 → 1.102，落差 0.032 < 0.05 且 CI 重叠
-- v2 / v3 / final **三次独立运行都不过**
-- ✅ 可写，且这是**预注册在先**的结论，不是事后解释。
+### A4 Discrete memory structures wired into behaviour are not the long-term carrier
+- `final_confirm` **P2 fails**: 1.134 → 1.102, a drop of 0.032 < 0.05 with overlapping CIs
+- **All three independent runs fail** (v2 / v3 / final)
+- ✅ May be written, and it is a **preregistered** conclusion rather than a post-hoc explanation.
 
-### A5 情节记忆（`memories`）在移植点删除是**逐位** no-op
-- v2 / v3 / final 三次运行，删 `memories` 与不删的 fingerprint **完全相同**
-- ✅ 可写，措辞可以很强（"bit-identical"）。
-
----
-
-## B · 机制结果
-
-### B1 `TRAIT_DRIFT` 正反馈是 persistence 的因果驱动
-- **定向消融**：drift 0 → 2.4，移植比值 **1.021 → 1.575**（近乎单调）
-- **独立印证**：500 组参数随机化中它是最敏感旋钮，
-  Spearman **ρ = +0.442**（v2 上 +0.432）
-- ✅ 可写。**两条独立方法指向同一机制**，这句话很硬。
-
-### B2 地板架构承担了大部分持久性
-- 完整 1.142 → 地板全关 1.046（final），021§3 同向
-- ✅ 可写。
-
-### B3 起作用的是"地板存在过"，而不是"地板锚在哪张快照上"
-- 实验 024 anchor-content transplant：改 anchor 内容只解释 **1.3%** 的效应
-- **阴性对照**：地板全关时六个分支**逐位相同**（anchor 唯一通路确认）
-- ✅ 可写。⚠ 必须同时写**射程限制**：干预点在第 30 天，
-  development 期间由自然 anchor 抬起的地板**没有被拆掉**。
-
-### B4 v3 的体质修正必须跨过一个"怠惰谷"
-- `death_split`：丰富世界 24.3% →(T=55) **36.3%** →(T=60) 18.0% →(T=65) 2.0%
-- 机制：体质↑ → survival urgency↓ → 富养 agent 减少觅食 → 饥饿反升
-- ✅ 可写。这句让"为什么阈值取 65"有机制解释，而不是"扫出来最好"。
+### A5 Deleting episodic memory (`memories`) at the transplant point is a **bit-identical** no-op
+- Across the v2 / v3 / final runs, the fingerprints with and without deleting `memories` are **exactly equal**
+- ✅ May be written, and the wording may be strong ("bit-identical").
 
 ---
 
-## C · 限制 / 未来问题（**明确不声称**）
+## B · Mechanism results
 
-### C1 地板全关后的残余效应是否 > 1 —— **无法裁决**
-- final R52：**1.046 [1.00208, 1.08609]**，CI 下界只高出 1.00 万分之二十
-- 按**预注册修订 A**（跑前写死）判为「**落在检出边界，本判据无法裁决**」
-- 三个种子块点估计一致（1.036 / 1.057 / 1.046），方向稳定但幅度极小
-- ⛔ **不许写"存在残余效应"，也不许写"不存在"。** 写"无法裁决"。
-- ⛔ 尤其不许因为边界诊断 8/8 都 > 1 就改判 —— 门槛是**看数据之前**定的。
+### B1 The `TRAIT_DRIFT` positive feedback is the causal driver of persistence
+- **Targeted ablation**: drift 0 → 2.4 takes the transplant ratio **1.021 → 1.575** (near-monotone)
+- **Independent corroboration**: it is the most sensitive knob across 500 randomised parameter sets,
+  Spearman **ρ = +0.442** (+0.432 on v2)
+- ✅ May be written. **Two independent methods point at the same mechanism**, which makes the sentence solid.
 
-### C2 目标（goal）轴 —— **不作主张**
-- v3 参数集合上 **48.7% > 1，中位 0.998**（v2 是 72.2% / 1.061）
-- 机制：v3 让体质常驻高位 → `recover` 目标很少触发 →
-  **v2 里的目标层差异有相当部分是搭了体质差异的便车**
-- ⛔ **不得作为主 claim。** 若要提，只能作为"修 confound 的代价"讨论。
+### B2 The floor architecture carries most of the persistence
+- Full 1.142 → all floors off 1.046 (final); 021§3 points the same way
+- ✅ May be written.
 
-### C3 novel-context generalization —— **未证明**
-- ⛔ **不许写** "generalization failed" / "v3 无法泛化"
-- ✅ **只能写**：
-  > **v3 当前架构无法提供一个干净的原生 novel-contingency test interface。**
-  > 四个结构不同的 probe 在 group-blind feasibility calibration 阶段
-  > 全部不合格（生存分裂 ×2、乘性加成落空、干预饱和 75–85%），
-  > **均在使用最终种子块之前被拦下**。`60000–61499` 从未使用。
-- 这是**实验设计层面的限制**，不是关于 agent 能力的阴性结论 ——
-  **我们根本没能把这个问题问出口。**
+### B3 What matters is "that a floor existed", not "which snapshot the floor is anchored to"
+- Experiment 024 anchor-content transplant: changing the anchor content explains only **1.3%** of the effect
+- **Negative control**: with all floors off, the six branches are **bit-identical** (confirming the anchor has one channel only)
+- ✅ May be written. ⚠ The **scope limitation** must be written alongside: the intervention point is day 30,
+  and the floor raised by the natural anchor during development is **not dismantled**.
 
-### C4 ~~正反馈同时降低可塑性~~ —— **删除**
-- ⛔ **整条删除。** 曾写为"同一个机制的两面"，读起来很像 highlight。
-- **被定向消融证伪**：drift 0 → 2.4 时 Δ=3 可翻转决策 **41.1% → 38.0% → 44.2%**
-  （非单调，幅度 ~3pp）；`material` 两极程度**与 drift 无关**
-  （drift=0 时就已 93.8%）。
-- 正确说法（可写）：**026 遇到的资源双峰主要来自 v3 资源动力学本身**
-  （material 只被 build 以 3/次消耗、shelter 以 0.35/tick 单调衰减），
-  **与产生 persistence 的性状正反馈基本无关**。
-
-### C5 模型的 intended purpose
-- ⛔ 不许声称模拟真实的人格形成
-- ✅ 写：最小装置，用于检验"经历能否产生移植后仍存在的行为差异"
-
-### C6 架构射程
-- v3 **没有在场因果学习** —— agent 不能通过试错发现新契约
-- 任何"agent 学会了 / 理解了 / 意识到"的措辞 ⛔ **一律禁止**
-- ✅ 写："带着既有策略进入新动力学"
+### B4 The v3 condition correction has to cross a "sloth valley"
+- `death_split`: the rich world goes 24.3% →(T=55) **36.3%** →(T=60) 18.0% →(T=65) 2.0%
+- Mechanism: condition↑ → survival urgency↓ → well-fed agents forage less → hunger rises again
+- ✅ May be written. It gives "why the threshold is 65" a mechanistic explanation rather than "it swept best".
 
 ---
 
-## 禁止出现的措辞（速查）
+## C · Limitations / open questions (**explicitly not claimed**)
 
-| ⛔ 不许写 | ✅ 改成 |
+### C1 Whether the residual effect with all floors off exceeds 1 — **undecidable**
+- final R52: **1.046 [1.00208, 1.08609]**; the CI lower bound clears 1.00 by two parts in ten thousand
+- Judged, under **preregistration amendment A** (fixed before the run), as "**on the detection boundary; this criterion cannot decide**"
+- The point estimates agree across three seed blocks (1.036 / 1.057 / 1.046): the direction is stable but the magnitude is tiny
+- ⛔ **Neither "a residual effect exists" nor "it does not exist" may be written.** Write "undecidable".
+- ⛔ In particular it must not be re-judged because the boundary diagnostic gave 8/8 > 1 — the threshold was fixed **before the data were seen**.
+
+### C2 The goal axis — **no claim made**
+- Across the v3 parameter set: **48.7% > 1, median 0.998** (v2 gave 72.2% / 1.061)
+- Mechanism: v3 keeps condition permanently high → the `recover` goal rarely fires →
+  **a substantial part of the goal-layer difference in v2 was riding on the condition difference**
+- ⛔ **Must not be a main claim.** If mentioned at all, only as a discussion of "the price of fixing a confound".
+
+### C3 Novel-context generalization — **not demonstrated**
+- ⛔ **Must not be written** as "generalization failed" / "v3 cannot generalize"
+- ✅ **The only admissible wording**:
+  > **The current v3 architecture cannot provide a clean native novel-contingency test interface.**
+  > Four structurally different probes all failed at the group-blind feasibility calibration stage
+  > (survival split ×2, the multiplicative bonus coming to nothing, intervention saturating at 75–85%),
+  > **and every one of them was stopped before the final seed block was used.** `60000–61499` was never used.
+- This is a limitation **at the level of experimental design**, not a negative conclusion about the agent's
+  capability — **we never managed to ask the question at all.**
+
+### C4 ~~Positive feedback simultaneously reduces plasticity~~ — **deleted**
+- ⛔ **Deleted in full.** It was once written as "two sides of the same mechanism", which reads far too much like a highlight.
+- **Falsified by targeted ablation**: as drift goes 0 → 2.4, decisions flippable at Δ=3 go **41.1% → 38.0% → 44.2%**
+  (non-monotone, a range of ~3pp); the degree of polarisation in `material` is **independent of drift**
+  (already 93.8% at drift=0).
+- The correct statement (which may be written): **the resource bimodality encountered in 026 comes mainly from
+  the v3 resource dynamics themselves** (material is consumed only by build, at 3 per use, and shelter decays
+  monotonically at 0.35/tick), and is **essentially unrelated to the trait positive feedback that produces persistence**.
+
+### C5 The model's intended purpose
+- ⛔ No claim of simulating real personality formation
+- ✅ Write: a minimal apparatus for testing "whether experience can produce a behavioural difference that survives transplant"
+
+### C6 Architectural scope
+- v3 has **no online causal learning** — the agent cannot discover a new contingency by trial and error
+- Any wording of the form "the agent learned / understood / became aware of" is ⛔ **forbidden outright**
+- ✅ Write: "enters a new dynamic carrying its existing policy"
+
+---
+
+## Forbidden wordings (quick reference)
+
+| ⛔ Must not write | ✅ Write instead |
 |---|---|
-| 正反馈同时消灭了可塑性 | （删除；资源双峰与正反馈无关） |
-| generalization 失败 / 无法泛化 | v3 架构无法提供干净的 novel-contingency 测试接口 |
-| 目标层也存在持久差异 | （不作主张；参数集合上 48.7%） |
-| 地板全关后仍有残余效应 | 落在检出边界，预注册判据无法裁决 |
-| agent 学会 / 理解 / 意识到 | agent 带着既有策略进入新动力学 |
-| knowledge 是连续通道 | knowledge 强度近乎二值（0 或 0.98） |
-| 模型模拟人格形成 | 最小装置，检验经历 → 移植后差异 |
+| positive feedback also destroyed plasticity | (deleted; the resource bimodality is unrelated to the positive feedback) |
+| generalization failed / cannot generalize | the v3 architecture cannot provide a clean novel-contingency test interface |
+| the goal layer also shows a persistent difference | (no claim made; 48.7% across the parameter set) |
+| a residual effect remains with all floors off | on the detection boundary; the preregistered criterion cannot decide |
+| the agent learned / understood / became aware | the agent enters a new dynamic carrying its existing policy |
+| knowledge is a continuous channel | knowledge strength is nearly binary (0 or 0.98) |
+| the model simulates personality formation | a minimal apparatus testing experience → post-transplant difference |
 
 ---
 
-## 数字来源核对表
+## Cross-check table for the numbers
 
-| 数字 | 来源文件 | 模型 |
+| Number | Source file | Model |
 |---|---|---|
 | 1.142 / 1.134 / 1.102 / 1.046 | `final_confirm_result.txt` | v3_frozen |
 | 78.3% / 1.076 / ρ=+0.442 | `sweep_results_v3.csv` | v3_frozen |
-| 1.021 → 1.575 | `rule71_ablation` 输出 | v3_frozen |
-| 24.3% → 36.3% → 2.0% | 实验 3h `death_split` | v3 定版依据 |
-| 1.3%（anchor 内容） | 实验 024 `anchor_probe` | v3_frozen |
-| 80.2% / 72.2%（v2 稳健性） | `sweep_results.csv` | **v2 — 不得当作 v3 的证据** |
+| 1.021 → 1.575 | output of `rule71_ablation` | v3_frozen |
+| 24.3% → 36.3% → 2.0% | experiment 3h `death_split` | the basis for fixing v3 |
+| 1.3% (anchor content) | experiment 024 `anchor_probe` | v3_frozen |
+| 80.2% / 72.2% (v2 robustness) | `sweep_results.csv` | **v2 — must not be used as evidence about v3** |

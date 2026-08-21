@@ -1,6 +1,6 @@
-# 027 预注册 · 修订 01
+# 027 preregistration · amendment 01
 
-**创建于彩排之后、查看 final 种子块 60000–61499 之前。**
+**Created after the rehearsal and before inspecting the final seed block 60000–61499.**
 
 > Amendment created after rehearsal but before inspection of final seeds
 > 60000–61499. Rehearsal rich/poor contrasts had been observed. The SESOI
@@ -9,107 +9,115 @@
 > criterion is retained; this amendment adds a separate practical-
 > significance interpretation using a ±1 trial equivalence region.
 
-⚠ **原 `NOVEL_TASK_PREREGISTRATION.md` 一字不改**（它写明是一次性文件）。
-本文件是**透明的 pre-final amendment**，**不假装是原预注册的一部分**。
+⚠ **Not one word of the original `NOVEL_TASK_PREREGISTRATION.md` is changed** (it states that it
+is a one-shot document). This file is a **transparent pre-final amendment** and **does not
+pretend to be part of the original preregistration**.
 
 ---
 
-## A. 新增：SESOI = 1.0 trial，作为 ±1 practical-equivalence region
+## A. Added: SESOI = 1.0 trial, as a ±1 practical-equivalence region
 
-### 为什么需要
+### Why it is needed
 
-原预注册 §4 只写了「95% CI 不含 0」。在 N=1500 下：
+§4 of the original preregistration wrote only "the 95% CI excludes 0". At N=1500:
 
 ```
-pooled restricted latency（量程 0–36）：均值 18.04   SD 8.15
-配对差 SE ≈ 0.30  →  纯精度上 |Δ| ≈ 0.58 trial 就会"显著"
+pooled restricted latency (range 0–36): mean 18.04   SD 8.15
+SE of the paired difference ≈ 0.30  →  on precision alone, |Δ| ≈ 0.58 trials already comes out "significant"
 ```
 
-**0.58 trial 在 0–36 的量程上只有 1.6%。** 只看 CI 不含 0，
-可能把一个统计显著但功能上毫无意义的差异宣布成 027 成功。
+**0.58 trials is only 1.6% of the 0–36 range.** Reading only "the CI excludes 0" could declare a
+statistically significant but functionally meaningless difference to be a success for 027.
 
-### SESOI = 1.0 trial 的依据（**与 rich/poor 对比无关**）
+### The basis for SESOI = 1.0 trial (**unrelated to the rich/poor contrast**)
 
-- **1 trial 是 latency 的最小自然单位**（任务自身的尺度）
-- 相对 pooled mean 18.04 ≈ **5.5%**
-- 相对 pooled SD 8.15 ≈ **0.12 SD**
-- 明显高于 N=1500 下约 0.58 trial 的纯精度检出能力
+- **1 trial is the smallest natural unit of latency** (the task's own scale)
+- relative to the pooled mean of 18.04 it is ≈ **5.5%**
+- relative to the pooled SD of 8.15 it is ≈ **0.12 SD**
+- clearly above the ~0.58 trial detection capability that precision alone gives at N=1500
 
-### 三值判读（★取代原来的二值判读★）
+### Three-valued verdict (★replacing the original two-valued verdict★)
 
-| 情况 | 判读 |
+| Case | Verdict |
 |---|---|
-| 95% CI **包含 0** | **H2 不获支持** |
-| CI **排除 0**，但仍与 **[−1, +1]** 重叠 | **统计上存在 history effect，但功能意义未建立** |
-| CI **整体 > +1** 或 **整体 < −1** | **functionally meaningful reversal-transfer established** |
+| the 95% CI **contains 0** | **H2 unsupported** |
+| the CI **excludes 0** but still overlaps **[−1, +1]** | **a history effect exists statistically, but functional significance is not established** |
+| the CI lies **entirely > +1** or **entirely < −1** | **functionally meaningful reversal-transfer established** |
 
-⚠ **不采用**"CI 不含 0 且点估计 \|Δ\| ≥ 1.0"这种写法。
-反例：`Δ = 1.05, CI = [0.20, 1.90]` —— 点估计过线，但 CI 允许真值只有
-0.2 trial，**没有把握说它超过功能门槛**。用等价区间才干净。
+⚠ The formulation "the CI excludes 0 **and** the point estimate \|Δ\| ≥ 1.0" is **not used**.
+Counterexample: `Δ = 1.05, CI = [0.20, 1.90]` — the point estimate crosses the line, but the CI
+allows a true value of only 0.2 trials, so **there is no confidence that it exceeds the functional
+threshold**. An equivalence region is the clean way to say it.
 
-**原统计判据（CI 不含 0）保留**，本修订只是**另加**一层功能显著性解释。
+**The original statistical criterion (CI excludes 0) is retained**; this amendment only **adds** a
+layer of functional-significance interpretation.
 
 ---
 
-## B. 控制三 / 控制四的定性更正
+## B. Requalification of controls three / four
 
-### 撤回原来的说法
+### The original wording is withdrawn
 
-> ~~控制四：若主效应仍在 → 说明还有别的历史载体~~ ★撤回★
+> ~~Control four: if the main effect remains → there is another carrier of history~~ ★withdrawn★
 
-**这在当前任务下是构造上不可能发生的。** 历史进入任务的唯一路径是
+**Under the current task that is impossible by construction.** The only path by which history
+enters the task is
 
 ```
 history → curiosity / caution → novelty_style → beta_i
 ```
 
-所以「history-blind 关掉这个入口」与「trait-leveling 把入口两端拉平」，
-在"rich/poor 还能不能产生差异"这个问题上**构造等价**。
-彩排实测两者**都逐位为零**，正是这个原因 —— 不是"搜遍了载体只找到 traits"。
+so "history-blind switches that entrance off" and "trait-levelling equalises both ends of the
+entrance" are **equivalent by construction** on the question of whether rich/poor can still
+produce a difference. The rehearsal measured **both as exactly zero**, for exactly that reason —
+not because "we searched every carrier and found only traits".
 
-### 新定性：pathway-isolation / leakage controls
+### The new qualification: pathway-isolation / leakage controls
 
-两个测试**都保留**，因为它们检查**不同的实现层**：
+Both tests are **kept**, because they check **different implementation layers**:
 
-| 控制 | 检查什么 |
+| Control | What it checks |
 |---|---|
-| history-blind | NovelTask **内部**把历史通道关掉后，是否还漏信号 |
-| trait-leveling | 从 **agent state 侧**消除唯一输入差后，任务结果是否归零 |
+| history-blind | whether any signal still leaks once the history channel is switched off **inside** NovelTask |
+| trait-levelling | whether the task result goes to zero once the sole input difference is removed **on the agent-state side** |
 
-工程上不是重复测试；**科学证据上不能算两个独立的 negative control。**
+As engineering they are not duplicate tests; **as scientific evidence they cannot count as two
+independent negative controls.**
 
-### 可以说 / 不可以说
+### What may / may not be said
 
-- ✅ 若 main 有效而两个 pathway-isolation control 都归零：
-  **027 中观察到的 history effect，按设计是经由
-  curiosity/caution 定义的 novelty style 进入新任务的。**
-- ⛔ **不许说**："我们搜索了所有历史载体，发现只有 traits。"
-  实验**根本没给其他载体进入任务的机会**。
+- ✅ If main is effective and both pathway-isolation controls go to zero:
+  **the history effect observed in 027 entered the new task, as designed, via the novelty style
+  defined by curiosity/caution.**
+- ⛔ **Must not be said**: "we searched every carrier of history and found only traits."
+  The experiment **never gave any other carrier a chance to enter the task**.
 
 ---
 
-## C. 记录更正：彩排 attrition 数字
+## C. Correction to the record: the rehearsal attrition figures
 
-`final_027_rehearsal.txt` 是唯一权威记录：
+`final_027_rehearsal.txt` is the sole authoritative record:
 
 ```
 attrition rich=0.0000  poor=0.0367  keep=0.9633   n=289/300
 ```
 
-⚠ 对话中一度报成 "rich 3.33% / poor 4.00%" —— **那两个数字是错的**，
-是在输出被 `tail` 截断、未实际看到该行的情况下写出的。
-**不存在两份口径**：文件正确，口述错误，无 supersede 关系。
+⚠ At one point in conversation these were reported as "rich 3.33% / poor 4.00%" — **those two
+numbers are wrong**, written while the output was truncated by `tail` and that line had not
+actually been seen.
+**There are not two conventions**: the file is right, the spoken figures were wrong, and there is
+no supersede relationship.
 
-> ### ★ 规则 78：没有亲眼看到的数字，一个都不许写进报告 ★
-> 输出被 `tail` / `head` 截断时，**必须回去取那一行**，
-> 而不是填一个看起来合理的值。这类错误在别处几乎无法被发现 ——
-> 这次是靠日志对账抓出来的。
+> ### ★ Rule 78: not a single number may go into a report unless it was seen with one's own eyes ★
+> When output is truncated by `tail` / `head`, **go back and fetch that line** rather than filling
+> in a plausible-looking value. Errors of this kind are almost undetectable elsewhere — this one
+> was caught only by reconciling against the log.
 
 ---
 
-## D. 本修订**不改**的东西
+## D. What this amendment does **not** change
 
-`α = 0.05`、`β = 0.05`、`τ = 0.20`、reward probabilities、trial 数、
-reversal point、H1/H2 endpoint、截尾规则（None → 36）、有效性闸（90%）、
-统计程序（cluster bootstrap 10,000 + 配对符号置换 10,000）、
-closure rule（§8）—— **一律不动。**
+`α = 0.05`, `β = 0.05`, `τ = 0.20`, the reward probabilities, the number of trials, the reversal
+point, the H1/H2 endpoints, the censoring rule (None → 36), the validity gate (90%), the
+statistical procedure (cluster bootstrap 10,000 + paired sign permutation 10,000), and the
+closure rule (§8) — **all left untouched.**

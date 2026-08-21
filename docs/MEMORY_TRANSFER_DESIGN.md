@@ -1,287 +1,305 @@
-# MEMORY_TRANSFER_DESIGN —— 实验 029 设计草案
+# MEMORY_TRANSFER_DESIGN — experiment 029 design draft
 
-**状态：设计草案（DRAFT）· 2026-08-18 · 第 7 版 —— ★ 已升级为预注册，本文件转为历史设计记录 ★**
+**Status: DRAFT · 2026-08-18 · version 7 — ★ promoted to a preregistration; this file becomes a historical design record ★**
 
-> ### ✅ 预注册已写成：`MEMORY_TRANSFER029_PREREGISTRATION.md`
-> **本文件到此定格，转为"设计是怎么一步步长出来的"的历史记录。**
-> 从现在起以预注册为准；本文件不再是活文档。
-> （唯一待拍板处在预注册 §6.3：SHUFFLE 判据落在点估计还是 CI 上界。）
+> ### ✅ The preregistration has been written: `MEMORY_TRANSFER029_PREREGISTRATION.md`
+> **This file is frozen at this point and becomes the historical record of "how the design grew,
+> step by step".**
+> From now on the preregistration governs; this file is no longer a living document.
+> (The only open decision was §6.3 of the preregistration: whether the SHUFFLE criterion lands on
+> the point estimate or the CI upper bound.)
 
-> ⚠ **这不是预注册。**
-> 这个文件今天可以随便改、改多少次都行。
-> 预注册（`NOVEL_TASK029_PREREGISTRATION.md`）是**另一个文件**，
-> 等这里的问题全部拍板、且 group-blind 校准通过之后才写，
-> 写完就一个字不许动（承 027 / 028 的 closure rule）。
+> ⚠ **This is not a preregistration.**
+> This file may be edited freely today, as many times as needed.
+> The preregistration (`NOVEL_TASK029_PREREGISTRATION.md`) is a **different file**, written only
+> once everything here is settled and the group-blind calibration has passed, after which not one
+> word may be changed (following the closure rule of 027 / 028).
 
-**今天已经落地的**：② ③ ④ 从"待定"变成"已定草案"；探针跑了两版 ——
-v1 one-shot（SWAP dominance 未通过 → **该判据已撤回**）、
-v2 stateful（Directional SWAP check PASS）、v3 修 resolution 时序 bug（效果缩水、故事不变）；
-**手工 memory probe 阶段就此结束**，已开 `memory_acquisition_probe.py` 做真实
-Stable/Volatile 历史 —— 方向完全正确；yield 已由 **ANOMALY_AT=36** 修到 65.8%/73.2% 并**冻结**；
-λ 接口容量校准已跑（group-blind），**λ=1.00 与四个 capacity gate 正式冻结**；
-OWN/DELETE/SWAP/SHUFFLE rehearsal 已在开发种子上跑完（**SHUFFLE 塌缩、SWAP-XS 保留 96%**）。见 §⑥–§⑨。
+**What landed today**: ② ③ ④ moved from "open" to "settled draft"; the probe was run in two
+versions — v1 one-shot (the SWAP dominance criterion failed → **that criterion is withdrawn**),
+v2 stateful (Directional SWAP check PASS), v3 fixing the resolution timing bug (the effect shrank,
+the story is unchanged);
+**the hand-built memory probe stage ends here**, and `memory_acquisition_probe.py` has been opened
+to build real Stable/Volatile histories — the direction is entirely correct; yield has been fixed
+by **ANOMALY_AT=36** to 65.8%/73.2% and **frozen**;
+the λ interface-capacity calibration has been run (group-blind), and **λ=1.00 plus four capacity
+gates are formally frozen**; the OWN/DELETE/SWAP/SHUFFLE rehearsal has been completed on
+development seeds (**SHUFFLE collapses, SWAP-XS retains 96%**). See §⑥–§⑨.
 
 ---
 
-## ① 029 到底测什么？（已写死）
+## ① What does 029 actually measure? (fixed)
 
 > **Can structurally relevant past experience be retrieved and causally used
 > to adapt to a surface-novel problem?**
 >
-> 过去的经历如果与新问题在**底层结构**上相关，agent 能否**检索**并**利用**
-> 这些经历，来适应一个**表面上完全陌生**的问题？
+> If past experience is related to a new problem in its **underlying structure**, can the agent
+> **retrieve** and **use** that experience to adapt to a problem that is **superficially
+> completely unfamiliar**?
 
-### 与 025 / 027 / 028 的分工（明确切开）
+### Division of labour with 025 / 027 / 028 (cleanly separated)
 
-| 实验 | 问题 | 结果 |
+| Experiment | Question | Result |
 |---|---|---|
-| **025 / v3** | 过去能不能**留下**？ | ✓ 明显（1.142，参数集合 78.3% 同向） |
-| **027** | 留下的 personality 会**自动迁移**吗？ | 极弱（0.08 trial，低于功能门槛） |
-| **028** | 多读一些 personality history 能救吗？ | 没有（G ≈ 0，等预算下无增益） |
-| **★ 029 ★** | 过去的经验能否被**真正检索**并用于**类比**？ | ← 新问题 |
+| **025 / v3** | Can the past **persist**? | ✓ clearly (1.142, 78.3% of the parameter set in the same direction) |
+| **027** | Does the personality that persists **transfer automatically**? | extremely weakly (0.08 trials, below the functional threshold) |
+| **028** | Does reading more personality history rescue it? | no (G ≈ 0, no gain at equal budget) |
+| **★ 029 ★** | Can past experience be **genuinely retrieved** and used **by analogy**? | ← the new question |
 
-### 029 为什么不是 028 的续集
+### Why 029 is not a sequel to 028
 
-028 已经把"读得更宽"这条路走完了（G = −0.002，CI [−0.031, +0.023]，
-对接入符号稳健），而且 **027 A 在新 sampling block 上没有复制**
-（E_A = −0.039，CI 含 0，点估计减半）。
+028 has already walked the "read more widely" route to its end (G = −0.002, CI [−0.031, +0.023],
+robust to the sign of the wiring), and **027's A did not replicate on the new sampling block**
+(E_A = −0.039, CI containing 0, point estimate halved).
 
-所以 029 换掉的必须是**通路的类型**，不是带宽：
+So what 029 replaces must be the **type of pathway**, not the bandwidth:
 
 ```
-027 / 028   历史 → 我们替它读出的一个标量 → β → 探索加成
-029         历史 → 可寻址的条目 → agent 自己按相似度取用 → 决策
+027 / 028   history → one scalar we read out on its behalf → β → exploration bonus
+029         history → addressable entries → the agent draws on them by similarity → decision
 ```
 
-⚠ **如果 029 最后退化成"experimenter 挑一个更好的 readout"，
-它就是 028 的第三个臂，不该单独立项。**
+⚠ **If 029 ends up degenerating into "the experimenter picks a better readout", it is just a third
+arm of 028 and should not be a separate project.**
 
 ---
 
-## ② development history：★ 先不要碰 rich / poor ★（已定草案）
+## ② development history: ★ do not touch rich / poor yet ★ (settled draft)
 
-029 **不用** v3 的丰富/贫瘠世界。重新造一套非常干净的小型 learning history。
+029 **does not use** v3's rich/barren worlds. It builds a very clean small learning history from scratch.
 
 ### Stable history
 
-过去遇到**多个**问题，规则**从不反转**：
+Multiple problems in the past, and the rule **never reverses**:
 
 ```
-Problem 1     X 比 Y 好  →  一直如此
-Problem 2     ○ 比 △ 好  →  一直如此
-Problem 3     左 比 右 好 →  一直如此
+Problem 1     X beats Y  →  always so
+Problem 2     ○ beats △  →  always so
+Problem 3     left beats right →  always so
 ```
 
 ### Volatile history
 
-问题数量、reward magnitude、trial 数**完全相同**，但每个问题都出现 change point：
+The number of problems, the reward magnitudes and the trial counts are **exactly the same**, but
+every problem contains a change point:
 
 ```
-Problem 1     X 好  →  后来 Y 好
-Problem 2     ○ 好  →  后来 △ 好
-Problem 3     左 好 →  后来 右 好
+Problem 1     X good  →  later Y good
+Problem 2     ○ good  →  later △ good
+Problem 3     left good →  later right good
 ```
 
-### ★ 三条纪律 ★
+### ★ Three disciplines ★
 
-1. **stable / volatile 不是性格。** 它们只是让 agent 拥有**不同的经验库**。
-   （这正是与 027/028 的分界：那两个实验做的是 trait；029 做的是经验。）
-2. **所有具体符号都 counterbalance。** 学到的**不能**是
-   ~~"B 后来总会变好"~~，而必须是
-   **"过去有效的 relation 有时会失效"**。
-   只有抽象到 relation 这一层，以后才谈得上迁移。
-3. 两条历史的**数量、幅度、trial 数逐项相等** —— 唯一差异是有没有 change point。
-   （承规则 67 / 026：两个发育世界必须同等新颖。）
+1. **stable / volatile are not personality.** They merely give the agent a **different experience
+   store**. (This is exactly the boundary with 027/028: those two experiments worked on traits;
+   029 works on experience.)
+2. **Every concrete symbol is counterbalanced.** What is learned **must not** be
+   ~~"B always becomes better later"~~ but
+   **"a relation that used to work sometimes stops working"**.
+   Only at the level of relations can transfer be discussed at all.
+3. The two histories are **equal item by item in count, magnitude and trial number** — the only
+   difference is whether there is a change point.
+   (Following rule 67 / 026: the two developmental worlds must be equally novel.)
 
-⬜ 未定：problem 数（暂定 3）、每个问题的 trial 数、change point 的位置分布、
-   符号 counterbalance 的具体排布方案。
+⬜ Open: the number of problems (provisionally 3), the trial count per problem, the distribution of
+   change-point positions, and the exact counterbalancing layout of the symbols.
 
 ---
 
-## ③ 记忆到底是什么（已定草案）
+## ③ What memory actually is (settled draft)
 
-**不复用**现在的自传体结构：
+The current autobiographical structure is **not reused**:
 
 ```json
 {"event": ..., "day": ..., "importance": ..., "text": ...}
 ```
 
-它存的是"发生了什么"，适合 autobiographical memory，
-**不足以做 causal transfer** —— 它没存"什么关系起了作用"。
+It stores "what happened", which suits autobiographical memory but is
+**not enough for causal transfer** — it does not store "which relation mattered".
 
-029 单独建一个实验层结构：
+029 builds its own experiment-layer structure:
 
 ```
 Episode:
-    context               关系性情境标签
-    previous_expectation  当时对手上这个策略的预期
-    observation           实际观察到的回报
+    context               a relational context label
+    previous_expectation  what was expected of the strategy in hand at the time
+    observation           the return actually observed
     prediction_error      observation − previous_expectation
     action_relation       ★ "stay" / "switch" ★
-    outcome               采取该 action_relation 之后拿到的回报
+    outcome               the return obtained after taking that action_relation
 ```
 
-例：
+Example:
 
 ```
-旧选项过去一直好 → 连续收到异常低奖励 → stay   → 仍然失败
-连续异常低奖励                        → switch → 奖励恢复
+the old option had long been good → a run of anomalously low rewards → stay   → still failed
+a run of anomalously low rewards                                     → switch → the reward recovered
 ```
 
-### ★★ 最重要的一条：存 stay/switch，不存 A/B ★★
+### ★★ The single most important rule: store stay/switch, not A/B ★★
 
-存了 A/B，换一个新任务之后就没有任何可迁移性 —— 新任务里根本没有 A 和 B。
-**存关系才可能迁移。**
+Storing A/B leaves nothing transferable once the task changes — the new task has no A or B at all.
+**Only storing relations can transfer.**
 
-✅ 已实现为硬约束：`memory_transfer_probe.py` 的
-`Episode.__post_init__` + `_assert_relational_only()`，
-字段里出现任何选项身份直接报错。
+✅ Already implemented as a hard constraint: `Episode.__post_init__` +
+`_assert_relational_only()` in `memory_transfer_probe.py` raise immediately if any option identity
+appears in a field.
 
 ---
 
-## ④ 检索（第一版：一个 relational query，故意极简）（已定草案）
+## ④ Retrieval (first version: one relational query, deliberately minimal) (settled draft)
 
-第一版**不需要**"真正智能"的检索。只要一条关系查询：
-
-```
-当前状态：  手上这个策略过去一直很好  +  最近连续 prediction error
-                    ↓
-检索：      过去有没有出现过 "previously-good strategy + persistent surprise"
-                    ↓
-记忆返回：  那种情况下 stay 之后回报怎样、switch 之后回报怎样
-                    ↓
-evidence：  mᵢ = E[R | switch, similar past] − E[R | stay, similar past]
-                    ↓
-决策：      logit(switch) = base_learning + λ·mᵢ
-```
-
-query 不成立时 **m = 0，记忆不进入决策** —— 检索是**情境触发**的，这正是重点。
-
-### ★ 与 027 的本质差异 ★
+The first version **does not need** "genuinely intelligent" retrieval. One relational query suffices:
 
 ```
-027    traitᵢ → βᵢ                                      我们替它读一个标量
+current state:  the strategy in hand has long been good  +  a recent run of prediction errors
+                    ↓
+retrieval:      has "previously-good strategy + persistent surprise" ever occurred before
+                    ↓
+memory returns: what the return was after staying, and after switching, in that situation
+                    ↓
+evidence:       mᵢ = E[R | switch, similar past] − E[R | stay, similar past]
+                    ↓
+decision:       logit(switch) = base_learning + λ·mᵢ
+```
+
+When the query does not hold, **m = 0 and memory does not enter the decision** — retrieval is
+**context-triggered**, which is the whole point.
+
+### ★ The essential difference from 027 ★
+
+```
+027    traitᵢ → βᵢ                                      we read one scalar on its behalf
 029    current situation → retrieval → past outcomes → evidence → choice
 ```
 
-后者才是真的"**我现在遇到了这个情况，所以我想起以前类似的情况**"。
+Only the latter is really "**I am in this situation now, so I recall similar situations from before**".
 
-### ★ (a) stateful retrieval（v2 已实现）★
+### ★ (a) stateful retrieval (implemented in v2) ★
 
-v1 是 one-shot：想起过去 → 推一下这一刀 → 马上忘掉刚才想起来的东西。
-那是 priming，不是 memory-guided adaptation。改成状态机，
-**不用"固定保持 N trial"**（那会新增一个任意参数）：
-
-```
-NORMAL →（连续 persistent surprise ≥ SURPRISE_RUN_MIN 且手上策略过去很好）
-       → RETRIEVE：记下 suspect strategy
-       → ACTIVE：m 持续进入 working decision state
-ACTIVE →① Q[另一个] > Q[suspect]              "哦，看来真的变了"   → RESOLVED
-       →② 在 suspect 上连续 SURPRISE_RUN_MIN 次不再意外
-                                              "刚才只是偶然"      → RESOLVED
-```
-
-两个 resolution 条件**只用已有量**（Q、pe、`PE_THRESH`、`SURPRISE_RUN_MIN`），
-**零新增参数**；②与入场条件对称（进场要连续 3 次意外，出场也要连续 3 次不意外）。
-
-★ **ACTIVE 期间 m 作用于 suspect，不是作用于"switch 这个动作"** ★
+v1 was one-shot: recall the past → give this one decision a push → immediately forget what was
+just recalled. That is priming, not memory-guided adaptation. It is changed into a state machine,
+**without "holding for a fixed N trials"** (which would add an arbitrary parameter):
 
 ```
-logit(switch) += λ · m · s      s=+1 若 switch 是【离开】suspect
-                                s=−1 若 switch 是【回到】suspect
+NORMAL →(a run of persistent surprises ≥ SURPRISE_RUN_MIN with the strategy in hand long good)
+       → RETRIEVE: record the suspect strategy
+       → ACTIVE: m keeps entering the working decision state
+ACTIVE →① Q[the other] > Q[suspect]              "ah, it really did change"   → RESOLVED
+       →② SURPRISE_RUN_MIN consecutive non-surprises on the suspect
+                                                 "that was just chance"       → RESOLVED
 ```
 
-v1 每 trial 都把 `+λm` 加在 switch 上 —— 推成一次切换后，下一 trial 就变成
-"再换回去"，语义错误、会来回抖。新写法才是"**我怀疑规则变了**"，
-而这个怀疑会持续到被确认或被打消。
+Both resolution conditions **use only existing quantities** (Q, pe, `PE_THRESH`,
+`SURPRISE_RUN_MIN`) and add **zero new parameters**; ② is symmetric with the entry condition
+(entry needs 3 consecutive surprises, exit needs 3 consecutive non-surprises).
 
-⚠ `suspect` 是决策时的**工作变量**，不是 Episode 字段 —— 规则 85 不变。
+★ **While ACTIVE, m acts on the suspect, not on "the switch action"** ★
 
-### ★ 铁律（承 028）★
+```
+logit(switch) += λ · m · s      s=+1 if switching means **leaving** the suspect
+                                s=−1 if switching means **returning** to it
+```
 
-> **检索通道更强 ≠ 给历史更大权重。**
-> 029 同样要有**等预算**对照，不许靠调大 λ 赢。
-> 028 的 quantile mapping 是现成可复用的做法。
+v1 added `+λm` to switch on every trial — once that had pushed one switch through, the next trial
+turned it into "switch back again", which is semantically wrong and oscillates. The new form is
+what "**I suspect the rule changed**" means, and that suspicion persists until it is confirmed or
+dispelled.
 
-⚠ 但"等预算"**不等于**"等 exposure" —— 见规则 87（下面 §⑥）。
+⚠ `suspect` is a **working variable** at decision time, not an Episode field — rule 85 is unchanged.
 
-⬜ 未定：λ 的值（**今天只扫不选**）、
-   `GOOD_THRESH` / `PE_THRESH` / `SURPRISE_RUN_MIN` 三个阈值的正式值
-   （目前是 probe 旋钮，未校准，正式值必须走 group-blind 校准）。
+### ★ Iron rule (following 028) ★
+
+> **A stronger retrieval channel ≠ giving history more weight.**
+> 029 likewise needs an **equal-budget** control, and must not win by turning λ up.
+> 028's quantile mapping is an off-the-shelf method to reuse.
+
+⚠ But "equal budget" **does not mean** "equal exposure" — see rule 87 (§⑥ below).
+
+⬜ Open: the value of λ (**today it is only swept, not chosen**), and the official values of the
+   three thresholds `GOOD_THRESH` / `PE_THRESH` / `SURPRISE_RUN_MIN`
+   (currently probe knobs, uncalibrated; the official values must go through a group-blind calibration).
 
 ---
 
-## ⑤ 什么结果算 029 失败？怎么在跑之前就知道设计是干净的？
+## ⑤ What counts as a failure of 029? How do we know the design is clean before running it?
 
-**（草案，待拍板）**
+**(draft, pending decision)**
 
-### 三值判读（承规则 56 / 79）
+### Three-valued reading (following rules 56 / 79)
 
-| 情况 | 判读 |
+| Case | Verdict |
 |---|---|
-| CI 包含 0 | 没有证据表明结构相关经验被因果使用 |
-| CI > 0 但与 [0, SESOI] 重叠 | 检测到效应，但**低于功能门槛** |
-| CI 整体 > SESOI | functionally meaningful retrieval-conditioned adaptation |
+| the CI contains 0 | no evidence that structurally relevant experience is used causally |
+| the CI > 0 but overlaps [0, SESOI] | an effect is detected, but **below the functional threshold** |
+| the CI lies entirely > SESOI | functionally meaningful retrieval-conditioned adaptation |
 
-### 预先承认的失败模式
+### Failure modes admitted in advance
 
-1. **识别性探针不通过** → 机制根本没有能力影响 outcome，**不许跑 group comparison**。
-   ← v1 卡在这里；v2 已通过（见 §⑥）。
-2. **校准阶段找不到 group-blind 合格参数** → 判该设计不干净，按 026 封存。
-   **绝不放宽标准去救它。**
-3. **Stable 与 Volatile 都没有效应** → 阴性结果，照写。
-4. **有效应，但 memory-blind 消融不掉** → 通路未识别，不许声称"检索"。
+1. **The identifiability probe does not pass** → the mechanism has no capacity to affect the
+   outcome at all, and **no group comparison may be run**.
+   ← v1 got stuck here; v2 passed (see §⑥).
+2. **No group-blind passing parameters are found at the calibration stage** → the design is judged
+   unclean and closed as 026 was. **The standards are never relaxed to rescue it.**
+3. **Neither Stable nor Volatile shows an effect** → a negative result, written up as such.
+4. **There is an effect, but memory-blind cannot ablate it** → the pathway is not identified, and
+   "retrieval" may not be claimed.
 
-### ★ 跑之前就写死：029 阴性也有信息量 ★
+### ★ Fixed in writing before the run: a negative 029 is also informative ★
 
-核心命题现在是 **Persistent individuality ≠ automatically functional
-generalization.** 029 若也 ≈ 0，命题不变，只会加强为
-"即使给它一条**真正的 episodic 检索通道**，仍然……"。
+The core proposition is now **Persistent individuality ≠ automatically functional generalization.**
+If 029 also comes out ≈ 0, the proposition is unchanged and merely strengthened into
+"even when given a **genuine episodic retrieval channel**, still…".
 
-**这一段现在就写死，防止跑完之后为了拿阳性而回头改设计。**
+**This paragraph is fixed now, to prevent going back and changing the design afterwards in order
+to obtain a positive.**
 
-### 措辞纪律
+### Wording discipline
 
-- ⛔ 不许写 *analogical reasoning* / agent "理解了结构"
-- ⛔ 不许写 *generalized individuality*
-- ✅ 可写：**retrieval-conditioned adaptation to a surface-novel task**
+- ⛔ Must not write *analogical reasoning* / that the agent "understood the structure"
+- ⛔ Must not write *generalized individuality*
+- ✅ May write: **retrieval-conditioned adaptation to a surface-novel task**
 
-### ★ endpoint 结构（v4 定）★
+### ★ Endpoint structure (settled in v4) ★
 
 ```
-Primary candidate    ΔC = post-change cumulative errors（反转后 40 trial 选错次数）
-                     C_i = Σ_{t=40..79} 1(choice_t ≠ correct_t)   ΔC<0 = 记忆有帮助
-Secondary mechanistic  restricted switch latency / retrieval exposure /
-                     per-opportunity potency / ACTIVE duration / realized retrieval
+primary candidate      ΔC = post-change cumulative errors (wrong choices in the 40 trials after the reversal)
+                       C_i = Σ_{t=40..79} 1(choice_t ≠ correct_t)   ΔC<0 = memory helps
+secondary mechanistic  restricted switch latency / retrieval exposure /
+                       per-opportunity potency / ACTIVE duration / realized retrieval
 ```
 
-> **规则 89**：primary endpoint 不能与机制自身的活跃窗口构造性重叠。
-> `ACTIVE` 退出 ≈「Q 证明新策略更好」，latency ≈「新策略开始稳定占优」——
-> 天然绑在一起，所以 latency **降级为 secondary mechanistic**。
+> **Rule 89**: the primary endpoint must not overlap constructively with the mechanism's own
+> active window. `ACTIVE` exits at ≈ "Q proves the new strategy is better", and latency ≈ "the new
+> strategy begins to dominate stably" — they are naturally bound together, so latency is
+> **demoted to secondary mechanistic**.
 
-ΔC 的好处：窗口由任务事先固定 / 不读 ACTIVE 或 RESOLVED / 无 never-switch
-censoring / 所有 agent 都有 / 单位是 trial，好定 SESOI / 测的就是实际 functional cost。
+The advantages of ΔC: the window is fixed in advance by the task / it does not read ACTIVE or
+RESOLVED / there is no never-switch censoring / every agent has it / its unit is trials, which
+makes a SESOI easy to set / it measures the actual functional cost.
 
-⬜ 未定：SESOI 的单位与数值（今天**不定**）。
+⬜ Open: the unit and value of the SESOI (**not fixed today**).
 
 ---
 
-## ⑥ ★ 2026-08-18 识别性探针结果（v1 → v2）★
+## ⑥ ★ Identifiability probe results, 2026-08-18 (v1 → v2) ★
 
-程序**故意不叫** `experiment029.py`，叫 `memory_transfer_probe.py` ——
-今天只问一件事：**这条机制有没有能力影响 outcome。**
-底座 = 027 的任务，一个数没改；种子 = development 段 `0–399`；**80000–81499 没碰**。
+The program is **deliberately not called** `experiment029.py` but `memory_transfer_probe.py` —
+today it asks one thing only: **does this mechanism have any capacity to affect the outcome.**
+Substrate = 027's task, not one number changed; seeds = the development block `0–399`;
+**80000–81499 untouched**.
 
-### v1（one-shot retrieval）—— positive control 通过、SWAP dominance 未通过
+### v1 (one-shot retrieval) — the positive control passed, SWAP dominance did not
 
 ```
-工程自检   关系性约束 / 确定性 / memory-blind(λ=0)   全过
-正控制     λ=1：17.8% 轨迹改变，Δlatency −0.125，方向正确
-诊断       检索平均只在 0.69/80 个 trial 上进入决策；body 的 β 在 80/80 上
-           触发时 base p(switch) 中位数 0.208 → 决策没饱和，记忆有发挥空间
+engineering self-check   relational constraint / determinism / memory-blind(λ=0)   all pass
+positive control         λ=1: 17.8% of trajectories changed, Δlatency −0.125, direction correct
+diagnosis                retrieval enters the decision on only 0.69/80 trials on average; the body's β is on 80/80
+                         at firing, the median base p(switch) is 0.208 → the decision is not saturated and memory has room to act
 ```
 
-### ⛔ dominance criterion 正式撤回 ⛔
+### ⛔ The dominance criterion is formally withdrawn ⛔
 
 > Original SWAP dominance criterion `|memory| > |body|` failed at all tested λ,
 > after which inspection showed that the criterion compared an event-triggered
@@ -289,10 +307,11 @@ censoring / 所有 agent 都有 / 单位是 trial，好定 SESOI / 测的就是�
 > The dominance criterion was therefore **retired before any Stable/Volatile
 > outcome was observed**.
 
-**撤回理由不是"它没通过"，而是它测的不是我们想知道的东西。**
-v1 文件与结果**原封保留、不覆盖** —— 这条失败本身是方法学记录。
+**The reason for withdrawing it is not that it failed, but that it measures the wrong thing.**
+The v1 file and its results are **kept intact and not overwritten** — that failure is itself part
+of the methodological record.
 
-### 新 SWAP estimand
+### The new SWAP estimand
 
 ```
 M_C = L(Body C, Mem V) − L(Body C, Mem S)
@@ -300,185 +319,190 @@ M_K = L(Body K, Mem V) − L(Body K, Mem S)
 M   = (M_C + M_K)/2
 ```
 
-关心：① M_C / M_K 方向一致性 ② pooled M 是否在预注册方向
-③ 是否超过功能 SESOI（**今天不定**） ④ Body×Memory interaction
-**body effect 只作 robustness diagnostic，不再是闸门。**
+Of interest: ① whether M_C / M_K agree in direction ② whether pooled M is in the preregistered
+direction ③ whether it exceeds a functional SESOI (**not fixed today**) ④ the Body×Memory interaction.
+**The body effect is only a robustness diagnostic and is no longer a gate.**
 
-### ★ 规则 87（修正规则 86 的方向）★
+### ★ Rule 87 (correcting the direction of rule 86) ★
 
-> memory 与 personality **本来就不该有相同 exposure**：人格是一直存在的 prior，
-> 记忆应该**遇到相关情况时才被调用**。强行让 memory 80/80 在线，
-> 会毁掉本设计最重要的理论特征 —— **context-dependent retrieval**。
+> Memory and personality **should not have the same exposure in the first place**: personality is a
+> prior that is always present, while memory should be **invoked only when a relevant situation
+> arises**. Forcing memory to be online 80/80 would destroy the most important theoretical feature
+> of this design — **context-dependent retrieval**.
 >
-> 对 event-triggered 机制，**不能直接拿 endpoint effect 与 always-on 机制比大小**；
-> 必须把 **exposure** 与 **per-opportunity influence** 分开报告。
+> For an event-triggered mechanism, **an endpoint effect must not be compared in size directly
+> against an always-on mechanism**; **exposure** and **per-opportunity influence** must be reported
+> separately.
 
-### ★ 规则 88：potential vs realized retrieval ★
+### ★ Rule 88: potential vs realized retrieval ★
 
-> `fired` 本身受前面 choice sequence 影响（cautious body 更容易连续 stay 三次）
-> —— 触发次数本身就是 task dynamics 的产物。
+> `fired` is itself affected by the preceding choice sequence (a cautious body stays three times in
+> a row more easily) — the firing count is itself a product of task dynamics.
 > ```
-> potential   在 memory-blind（λ=0）轨迹上定义 → 机制 exposure
-> realized    memory-enabled 轨迹上实际发生   → 结果的一部分
+> potential   defined on the memory-blind (λ=0) trajectory → mechanism exposure
+> realized    what happens on the memory-enabled trajectory → part of the outcome
 > ```
-> ⛔ 绝对不许只分析"成功想起了记忆"的 agent —— survivor conditioning。
-> 已写成断言：所有汇总必须用全部 400 个种子。
+> ⛔ It is absolutely forbidden to analyse only the agents that "successfully recalled a memory" —
+> survivor conditioning. Written as an assertion: every summary must use all 400 seeds.
 
-### v2（stateful retrieval）—— 阈值/任务/种子一个没动
-
-```
-① ② EXPOSURE        eligible 种子   potential   realized(λ=1)
-   v1 one-shot          45.0%         0.75         0.69
-   v2 stateful          45.0%         7.18         6.96      ← 9.6×
-   仍是 event-triggered（7.2/80），没有被拉成 80/80。这是对的。
-
-③ POTENCY（λ=0 冻结 decision state 上反事实换记忆）
-                     机会数   base p 中位数   饱和   mean|Δp| (λ=1)
-   v1 one-shot         300       0.208       0.0%      0.2205
-   v2 stateful        2873       0.400       0.0%      0.2807
-   → v1 的 per-opportunity potency 本来就不低。v1 缺的是 exposure，不是 potency。
-
-④ 新 SWAP        M_C      M_K   pooled M      95% CI（描述性）   方向一致  interaction
-   v1  λ=1     −0.125   −0.083    −0.104   [−0.410, +0.215]      是      −0.042
-   v2  λ=0.25  −0.875   −0.900    −0.887   [−1.343, −0.471]      是      +0.025
-   v2  λ=1     −4.058   −3.920    −3.989   [−4.785, −3.231]      是      −0.138
-   v2  λ=4     −9.607   −9.710    −9.659   [−10.815, −8.549]     是      +0.103
-   ★ Directional SWAP check: PASS ★（两套机制、所有 λ 全部同号）
-   interaction 相对 M 极小 → memory 不依赖某一种特定 body 才能工作
-   CI 是描述性的（seed cluster bootstrap，n_boot=10000，分析种子 8181）；
-   今天不定 SESOI，不做功能意义判读。
-
-⑤ DOWNSTREAM（只作 consequence）  轨迹改变   Δlatency   Δ反转后正确率
-   v1  λ=1                          17.8%     −0.125      +0.0029
-   v2  λ=1                          43.2%     −4.058      +0.0535
-   v2  λ=4                          45.0%     −9.607      +0.1688
-   ⚑ λ=4 时 45.0% 恰好等于 eligible 种子比例 —— 上限是 eligibility，符合构造。
-```
-
-> ### ★ 探针阶段结论 ★
-> **v1 的问题确实是"retrieved evidence 没有形成持续的 decision state"，
-> 不是 λ 不够。** 阈值、任务、种子一个没动，只把检索改成 stateful，
-> pooled M 就从 −0.10 走到 **−3.99 trial**（λ=1，38×）。
-
-### ⚠ 风险方向已经翻转（留给校准）
+### v2 (stateful retrieval) — not one threshold, task or seed changed
 
 ```
-机制现在可能【太强】：λ=4 时 −9.7 trial，而 latency 量程只有 0–36。
-手工记忆处在【最大可能对比度】（m_S=−0.667，m_V=+0.667）。
-真实 Stable/Volatile 历史产生的 |m| 会小得多。
-→ −4 trial 是【最大记忆对比度下的上界】，不是预期效应量。
+① ② EXPOSURE        eligible seeds   potential   realized(λ=1)
+   v1 one-shot          45.0%           0.75         0.69
+   v2 stateful          45.0%           7.18         6.96      ← 9.6×
+   still event-triggered (7.2/80), not stretched to 80/80. That is correct.
+
+③ POTENCY (counterfactually swapping memory on decision states frozen at λ=0)
+                     opportunities   median base p   saturated   mean|Δp| (λ=1)
+   v1 one-shot            300           0.208          0.0%         0.2205
+   v2 stateful           2873           0.400          0.0%         0.2807
+   → v1's per-opportunity potency was never low. What v1 lacked was exposure, not potency.
+
+④ new SWAP       M_C      M_K   pooled M    95% CI (descriptive)  same direction  interaction
+   v1  λ=1     −0.125   −0.083    −0.104   [−0.410, +0.215]           yes          −0.042
+   v2  λ=0.25  −0.875   −0.900    −0.887   [−1.343, −0.471]           yes          +0.025
+   v2  λ=1     −4.058   −3.920    −3.989   [−4.785, −3.231]           yes          −0.138
+   v2  λ=4     −9.607   −9.710    −9.659   [−10.815, −8.549]          yes          +0.103
+   ★ Directional SWAP check: PASS ★ (both mechanisms, every λ, all the same sign)
+   the interaction is tiny relative to M → memory does not depend on one particular body to work
+   the CIs are descriptive (seed cluster bootstrap, n_boot=10000, analysis seed 8181);
+   no SESOI is fixed today and no functional-significance reading is made.
+
+⑤ DOWNSTREAM (consequences only)  trajectory changed   Δlatency   Δpost-reversal accuracy
+   v1  λ=1                              17.8%           −0.125            +0.0029
+   v2  λ=1                              43.2%           −4.058            +0.0535
+   v2  λ=4                              45.0%           −9.607            +0.1688
+   ⚑ at λ=4 the 45.0% exactly equals the share of eligible seeds — the ceiling is eligibility, as constructed.
 ```
 
-⚠ 另一条要盯住：**ACTIVE 窗口与 latency 终点在构造上重叠**
-（怀疑大致在切换成功时解除）。做强结论前需要一个**不由同一窗口定义的终点**。
+> ### ★ Conclusion of the probe stage ★
+> **v1's problem really was "the retrieved evidence never formed a persistent decision state",
+> not that λ was too small.** Without changing one threshold, task or seed, and only making
+> retrieval stateful, pooled M went from −0.10 to **−3.99 trials** (λ=1, a factor of 38).
 
-### 仍然不是 029 scientific success
+### ⚠ The direction of risk has flipped (left to the calibration)
 
-记忆是手工造的、λ 没冻结、Stable/Volatile 根本还没跑。
+```
+The mechanism may now be **too strong**: −9.7 trials at λ=4, while latency has a range of only 0–36.
+The hand-built memory sits at the **maximum possible contrast** (m_S=−0.667, m_V=+0.667).
+Real Stable/Volatile histories will produce a much smaller |m|.
+→ −4 trials is **an upper bound at maximum memory contrast**, not an expected effect size.
+```
+
+⚠ One more thing to watch: **the ACTIVE window and the latency endpoint overlap by construction**
+(the suspicion is lifted roughly when the switch succeeds). Before any strong conclusion, an
+endpoint **not defined by that same window** is needed.
+
+### Still not 029 scientific success
+
+The memories are hand-built, λ is not frozen, and Stable/Volatile have not been run at all.
 
 ---
 
-## ⑦ ★ acquisition 阶段（2026-08-18 起）★
+## ⑦ ★ The acquisition stage (from 2026-08-18) ★
 
-**手工 memory probe 阶段结束。下一步不是校准 λ。**
-在不知道真实 Stable/Volatile 到底产生 m = 0.03 还是 0.30 之前，
-争论 λ 取 .25 还是 1 没有科学意义。正式顺序：
-
-```
-修 resolution bug → 锁 independent endpoint → 造真实 Stable/Volatile histories
-→ 让 history 自己生成 Episode → 观察真实 memory evidence 分布 → 最后才校准 λ
-→ acquisition+memory+novel task 接起来，做 DELETE / SWAP / SHUFFLE rehearsal
-→ 全部冻结后才写 029 preregistration、SESOI 和 fresh final seeds
-```
-
-### 设计：两边都经历 surprise
+**The hand-built memory probe stage is over. The next step is not calibrating λ.**
+Before we know whether real Stable/Volatile histories produce m = 0.03 or 0.30, arguing over
+λ = .25 versus 1 is scientifically meaningless. The formal order is:
 
 ```
-t <  20     原策略 p_high、另一个 p_low        ← 两条件相同
-t 20–27     ★两个都掉到 p_low★                ← 两条件【逐位相同】
-t ≥  28     Stable：原策略恢复 / Volatile：另一个变好
+fix the resolution bug → lock an independent endpoint → build real Stable/Volatile histories
+→ let history generate the Episodes itself → observe the real memory-evidence distribution → and only then calibrate λ
+→ wire acquisition+memory+novel task together and run the DELETE / SWAP / SHUFFLE rehearsal
+→ only once everything is frozen, write the 029 preregistration, the SESOI and fresh final seeds
 ```
 
-**光看异常本身分不出身处哪个世界**，差异只在"这次异常意味着什么"。
-（已核 100 种子 ×3 问题：t<28 逐位相同。）
-
-### 结果：方向完全正确
+### The design: both sides experience surprise
 
 ```
-             n(可定义 m)   mean m     SD      中位数     m>0 比例
-Stable            94      −0.3783  0.3410   −0.4000       8.5%
-Volatile          96      +0.5257  0.2240   +0.5000     100.0%
-分离度 +0.9040   手工版 +1.3333   → 真实经历达到手工版的 67.8%
+t <  20     the original strategy p_high, the other p_low   ← identical in both conditions
+t 20–27     ★both drop to p_low★                            ← **bit-identical** in both conditions
+t ≥  28     Stable: the original recovers / Volatile: the other becomes good
 ```
 
-matching：① 总 trial 数 ② 总 reward opportunity ④ first-good side **逐位相等**；
-③ episode 数 2.88 vs 3.67（行为产物，报告）。
+**The anomaly alone cannot tell you which world you are in**; the difference lies only in "what
+this anomaly meant". (Verified on 100 seeds × 3 problems: bit-identical for t<28.)
 
-### ⚠ 卡点：yield 只有 24%
+### The result: the direction is entirely correct
+
+```
+             n (m definable)   mean m     SD      median     share m>0
+Stable            94          −0.3783   0.3410   −0.4000        8.5%
+Volatile          96          +0.5257   0.2240   +0.5000      100.0%
+separation +0.9040   hand-built +1.3333   → real experience reaches 67.8% of the hand-built version
+```
+
+matching: ① total trials ② total reward opportunity ④ first-good side are **bit-equal**;
+③ episode count 2.88 vs 3.67 (a behavioural product; reported).
+
+### ⚠ The bottleneck: yield is only 24%
 
 ```
 episode completeness   Stable 23.5%   Volatile 24.0%
-→ 约 3/4 的 agent 发育结束时【根本没有可用记忆】
-yield 诊断（每 problem）：异常起点 Q≥.60 只有 57.8%；曾达成 stay-run≥3 为 57–77%；
-                        两者同时 17.2%
+→ about 3/4 of agents finish development with **no usable memory at all**
+yield diagnosis (per problem): Q≥.60 at the anomaly onset is only 57.8%; ever reaching a stay-run≥3 is 57–77%;
+                        both at once, 17.2%
 ```
 
-> **规则 90**：入场条件的两半在构造上互相拆台 —— 要求"策略仍被信任（Q≥.60）"
-> 且"连续三次失望"，但每次失望都在压 Q。**卡的是前一半** →
-> 该动的是**异常前的经验量**，不是 surprise 那一半。
-> ⛔ 绝不许用"只分析长出了记忆的 agent"绕过（规则 88）。
+> **Rule 90**: the two halves of the entry condition undermine each other by construction — it
+> requires "the strategy is still trusted (Q≥.60)" **and** "three consecutive disappointments",
+> while every disappointment pushes Q down. **The binding half is the first one** → what should
+> change is **the amount of experience before the anomaly**, not the surprise half.
+> ⛔ Getting around it by "analysing only the agents that grew a memory" is absolutely forbidden (rule 88).
 
-### caveat：realized reward 无法匹配
+### caveat: realized reward cannot be matched
 
-Volatile 总收益更低（73.19 vs 82.99），因为 change point 后要重新学。
-opportunity 已逐位匹配；realized reward 要匹配就等于取消 manipulation 本身。
-**记录、不修。**
+Volatile's total return is lower (73.19 vs 82.99), because it has to relearn after the change
+point. Opportunity is already matched bit for bit; matching realized reward would amount to
+cancelling the manipulation itself. **Record it, do not fix it.**
 
-### 本阶段只许看上游
+### Only upstream quantities may be inspected at this stage
 
 ```
-✅ episode 数 / surprise 数 / stay-switch 数 / reward marginal / m 分布 /
+✅ episode count / surprise count / stay-switch counts / reward marginals / the m distribution /
    completeness / manipulation check / matching diagnostics
-⛔ novel-task latency  ⛔ post-change errors  ⛔ Stable vs Volatile transfer effect
+⛔ novel-task latency  ⛔ post-change errors  ⛔ the Stable vs Volatile transfer effect
 ```
-**代码里也没有这些量。** 这样才保留调 acquisition 的自由，
-而不会开始围着 final outcome 调设计。
+**The code does not contain those quantities either.** That is what preserves the freedom to
+adjust acquisition without starting to tune the design around the final outcome.
 
-### λ 最后怎么定
+### How λ will finally be fixed
 
-等真实 m 分布出来后，用 **不看 transfer outcome** 的办法：
-拿真实 acquisition memory 在 burned development seeds 上的 empirical |m|，
-只做 **frozen-state counterfactual potency** `Δp_t(λ)`（probe3 已写好这套 pipeline），
-按 **不饱和 / 有实质但不过强 / memory 保持 event-triggered** 去冻结 λ。
+Once the real m distribution is available, use a method that **does not look at the transfer
+outcome**: take the empirical |m| of the real acquisition memory on burned development seeds,
+compute only the **frozen-state counterfactual potency** `Δp_t(λ)` (probe3 already has this
+pipeline), and freeze λ by **not saturated / substantial but not excessive / memory stays
+event-triggered**.
 
-> **λ 是按接口容量定的，不是按"Stable/Volatile 最后谁赢得漂亮"定的。**
+> **λ is fixed by interface capacity, not by "who ends up looking better, Stable or Volatile".**
 
 ---
 
-## ⑧ ★ acquisition 冻结 + λ 接口容量校准（2026-08-18）★
+## ⑧ ★ Acquisition frozen + λ interface-capacity calibration (2026-08-18) ★
 
-### 冻结的 acquisition candidate
-
-```
-ANOMALY_AT  = 36   （原 20；只加 anomaly【前】的学习长度）
-ANOMALY_LEN =  8   （不变）
-T_PROBLEM   = 66   （anomaly 后仍为 22，与原来相同）
-GOOD_THRESH / PE_THRESH / SURPRISE_RUN_MIN / problem 数  ★一律不动★
-```
-
-纯上游 sweep（未接 novel task）显示：**增加 pre-anomaly experience 主要修 yield，
-几乎不改 memory contrast** —— 干净的 engineering correction。
-选 36 是 **elbow**（20→36 换 +42/+49pp；36→40 只再换 3–4pp），
-**不是**挑 separation 最大的点。
+### The frozen acquisition candidate
 
 ```
-pre-anomaly   Stable comp.   Volatile comp.   complete-only 分离度
-    20           23.5%           24.0%            +0.904
-★   36 ★         65.8%           73.3%            +0.894
-    40           69.5%           76.8%            +0.884
+ANOMALY_AT  = 36   (was 20; only the learning length **before** the anomaly is increased)
+ANOMALY_LEN =  8   (unchanged)
+T_PROBLEM   = 66   (still 22 after the anomaly, as before)
+GOOD_THRESH / PE_THRESH / SURPRISE_RUN_MIN / the number of problems  ★all untouched★
 ```
 
-### ★ 规则 91：memory availability 本身就是发育结果 ★
+A pure upstream sweep (with no novel task attached) shows that **increasing pre-anomaly experience
+mainly fixes yield and barely changes the memory contrast** — a clean engineering correction.
+36 is chosen as the **elbow** (20→36 buys +42/+49pp; 36→40 buys only another 3–4pp),
+**not** as the point of maximum separation.
+
+```
+pre-anomaly   Stable comp.   Volatile comp.   complete-only separation
+    20           23.5%           24.0%              +0.904
+★   36 ★         65.8%           73.3%              +0.894
+    40           69.5%           76.8%              +0.884
+```
+
+### ★ Rule 91: memory availability is itself a developmental outcome ★
 
 > Memory availability is itself a developmental outcome. Do not condition
 > transfer or calibration on successful memory formation. Report the extensive
@@ -486,180 +510,191 @@ pre-anomaly   Stable comp.   Volatile comp.   complete-only 分离度
 > primary analyses use the full predefined population.
 
 ```
-            extensive P[m 可用]   intensive mean(m|可用)   全体 mean m   全体 median
-Stable            65.8%                 −0.4099            −0.2695       −0.2440
-Volatile          73.2%                 +0.4842            +0.3546       +0.4099
+            extensive P[m usable]   intensive mean(m|usable)   overall mean m   overall median
+Stable            65.8%                    −0.4099                −0.2695          −0.2440
+Volatile          73.2%                    +0.4842                +0.3546          +0.4099
 
-population 分离度（含 m=0）= +0.6241  ★真值★
-complete-only 分离度        = +0.8940  ⚠ 夸大（手工版 +1.3333）
+population separation (m=0 included) = +0.6241  ★the true value★
+complete-only separation             = +0.8940  ⚠ inflated (hand-built +1.3333)
 ```
 
-- yield 不相等（65.8% vs 73.2%）**不修** —— 强行配平 = 修改 post-treatment mediator。
-- 未来把 memory effect 拆成 **extensive margin**（有没有形成可用 relational memory）
-  与 **intensive margin**（形成了的话方向多大），由 SWAP / DELETE / SHUFFLE 检验因果。
-- realized reward（117.24 vs 103.42）同样**不修**：补平它 = 取消 volatility 的成本。
-  该匹配的是 trial opportunity / reward schedule 机会量 / first-good identity /
-  pre-anomaly observations / task length —— 这些已逐位相等。
+- The unequal yield (65.8% vs 73.2%) is **not fixed** — forcing it to match = modifying a
+  post-treatment mediator.
+- In future the memory effect will be split into an **extensive margin** (whether a usable
+  relational memory formed at all) and an **intensive margin** (how large its direction is once
+  formed), with causality tested by SWAP / DELETE / SHUFFLE.
+- Realized reward (117.24 vs 103.42) is likewise **not fixed**: equalising it = cancelling the cost
+  of volatility. What should be matched is trial opportunity / the reward-schedule opportunity /
+  first-good identity / pre-anomaly observations / task length — and those are already bit-equal.
 
-### λ 接口容量校准（group-blind，结构性保证）
-
-```
-pooled_empirical_m()  两 condition 汇入同一池 → ★含 m=0★ → 排序（摧毁分组对应）
-输入 n=800  mean +0.0426  |m| 中位数 0.3571  ★m=0 占 31.2%★
-Δp 口径 = 相对"没有记忆"的反事实；states 取自 λ=0 memory-blind 轨迹（2708 个）
-```
+### λ interface-capacity calibration (group-blind, structurally guaranteed)
 
 ```
-   λ    median|Δp|   推后饱和   P(翻转偏好)   exposure     三判据
- 0.25     0.0182       0.0%        3.2%      6.80/80    ✗②（微不足道）
- 0.50     0.0363       0.0%        6.6%      6.71/80    ✓✓✓
- 1.00     0.0717       0.0%       13.4%      6.73/80    ✓✓✓
- 2.00     0.1354       0.6%       24.8%      6.86/80    ✓✓✓（flip 踩在边上）
- 4.00     0.2250      12.7%       33.5%      7.35/80    ✗①✗②
+pooled_empirical_m()  both conditions poured into one pool → ★m=0 included★ → sorted (destroying the grouping correspondence)
+input n=800  mean +0.0426  median |m| 0.3571  ★m=0 share 31.2%★
+the Δp convention = against the "no memory" counterfactual; the states come from the λ=0 memory-blind trajectory (2708 of them)
 ```
 
-**合格带 λ ∈ {0.5, 1, 2}；建议 λ = 1.00**（带中心，两侧都不贴边）。
-⚠ 三条判据的**数值阈值也待拍板**（当前是本文件的读数口径，非预注册值）。
+```
+   λ    median|Δp|   saturated after push   P(preference flip)   exposure    three criteria
+ 0.25     0.0182            0.0%                   3.2%          6.80/80    ✗② (negligible)
+ 0.50     0.0363            0.0%                   6.6%          6.71/80    ✓✓✓
+ 1.00     0.0717            0.0%                  13.4%          6.73/80    ✓✓✓
+ 2.00     0.1354            0.6%                  24.8%          6.86/80    ✓✓✓ (flip right on the edge)
+ 4.00     0.2250           12.7%                  33.5%          7.35/80    ✗①✗②
+```
 
-> **λ 是按接口容量定的，不是按"Stable/Volatile 最后谁赢得漂亮"定的。**
-> 校准模块里 condition label 在输入处即被丢弃，物理上算不出 group 差异。
+**The passing band is λ ∈ {0.5, 1, 2}; the recommendation is λ = 1.00** (the centre of the band,
+close to neither edge).
+⚠ The **numeric thresholds of the three criteria are also pending a decision** (they are currently
+this file's reading conventions, not preregistered values).
+
+> **λ is fixed by interface capacity, not by "who ends up looking better, Stable or Volatile".**
+> Inside the calibration module the condition label is discarded at the input, so a group
+> difference is physically incomputable.
 
 ---
 
-## ⑨ ★ λ 冻结 + rehearsal（2026-08-18）★
+## ⑨ ★ λ frozen + rehearsal (2026-08-18) ★
 
-### 冻结（不再因任何 Stable/Volatile outcome 改动）
+### Frozen (never to be changed for any Stable/Volatile outcome)
 
 ```
 SATURATION_MAX = 0.05   MEDIAN_ABS_DP_MIN = 0.02
 PREF_FLIP_MAX  = 0.25   ACTIVE_EXPOSURE_MAX = 20 / 80
 MEMORY_LAMBDA  = 1.00
-exposure gate 用 ★max(E[m10],E[m50],E[m90])★，不用 mean
+the exposure gate uses ★max(E[m10],E[m50],E[m90])★, not the mean
 ```
 
-四个数是 **engineering admissibility gates，不是 significance thresholds**。
-用 max 是因为 event-triggeredness 不该允许"某一种 memory sign 已接近常驻、
-却被另外两种平均掉"（λ=1 的 max exposure 只有 6.95/80，判定不变）。
+These four are **engineering admissibility gates, not significance thresholds**.
+The max is used because event-triggeredness must not allow "one memory sign is nearly always on
+but gets averaged away by the other two" (at λ=1 the max exposure is only 6.95/80, so the verdict
+is unchanged).
 
-> ### ★ 规则 92：selection rule 必须连"怎么选的"一起写死 ★
+> ### ★ Rule 92: the selection rule must be fixed in writing, including "how it was selected" ★
 > Lambda was calibrated without condition labels or downstream transfer
 > outcomes. Values were required to satisfy prespecified interface-capacity
 > constraints on saturation, median probability shift, preference reversal,
 > and retrieval exposure. Among admissible values, the log-scale midpoint of
 > the admissible range was selected.
 >
-> 合格带 {0.5,1,2}，`1.0 = √(0.5×2)` 是 log 尺度中心 ——
-> 选"距离上下失效方向最远的"，不是"potency 最大的"。代码里有断言。
+> The passing band is {0.5,1,2}, and `1.0 = √(0.5×2)` is its log-scale centre —
+> picking the value furthest from both failure directions, not the one with the largest potency.
+> The code carries an assertion.
 
-### rehearsal（开发种子 0–399，非 FINAL）
+### The rehearsal (development seeds 0–399, not FINAL)
 
 ```
-臂          ΔC = C(V) − C(S)     95% CI（描述性）      相对 OWN
-OWN            -0.927        [-1.202, -0.677]          1.00
-DELETE         +0.000        [+0.000, +0.000]          0.00   ← 恒等
-SWAP           +0.927        [+0.680, +1.202]         -1.00   ← 恒等
-SHUFFLE        +0.087        [-0.068, +0.242]         -0.09   ★塌缩
-SWAP-XS        -0.890        [-1.140, -0.660]          0.96   ★保留
+arm          ΔC = C(V) − C(S)     95% CI (descriptive)    relative to OWN
+OWN               -0.927        [-1.202, -0.677]              1.00
+DELETE            +0.000        [+0.000, +0.000]              0.00   ← an identity
+SWAP              +0.927        [+0.680, +1.202]             -1.00   ← an identity
+SHUFFLE           +0.087        [-0.068, +0.242]             -0.09   ★collapses
+SWAP-XS           -0.890        [-1.140, -0.660]              0.96   ★retained
 ```
 
-> ### ★ 规则 93：只有一条通路时，DELETE / SWAP 退化为断言，不是证据 ★
-> body 常数 + 发育史只经记忆进入任务 → 同种子两 condition 只差记忆，
-> 于是 `DELETE ≡ 0`、`SWAP ≡ −OWN` 在**构造上必然成立**。
-> 它们证明的是"**没有第二条泄漏通路**"，不是"记忆有因果作用"。
+> ### ★ Rule 93: with only one pathway, DELETE / SWAP degenerate into assertions, not evidence ★
+> With a constant body and the developmental history entering the task only through memory, the two
+> conditions of one seed differ only in memory, so `DELETE ≡ 0` and `SWAP ≡ −OWN` hold
+> **by construction**.
+> What they prove is "**there is no second leakage pathway**", not "memory has a causal effect".
 >
-> **要让 SWAP 成为非平凡检验，发育史必须还携带记忆以外的东西**
-> （例如 027/028 的 trait 通路）。← ★ 这是真正 029 待拍板的第一件事 ★
+> **To make SWAP a non-trivial test, the developmental history would have to carry something
+> besides memory** (for example 027/028's trait pathway).
+> ← ★ This is the first thing 029 genuinely has to decide ★
 
-真正有信息量的两个控制都符合预期：
-**SHUFFLE**（保留 episode 数 / stay-switch 条数 / outcome 边际，只打乱
-action↔outcome 关系）→ ΔC 塌到 OWN 的 −9.4%，CI 跨 0
-→ **效应来自关系结构，不是 marginal statistics**；
-**SWAP-XS**（跨种子重新配对）→ 保留 96%
-→ **效应由记忆内容携带**，不靠发育-测试共享种子的耦合。
+The two genuinely informative controls both behave as expected:
+**SHUFFLE** (preserving the episode count / the stay-switch counts / the outcome marginals, and
+shuffling only the action↔outcome relation) → ΔC collapses to −9.4% of OWN with a CI spanning 0
+→ **the effect comes from the relational structure, not from marginal statistics**;
+**SWAP-XS** (re-pairing across seeds) → retains 96%
+→ **the effect is carried by memory content**, not by the coupling of development and test sharing
+a seed.
 
-### ⚠ extensive margin 的两个定义不要混用
-
-```
-usable（m ≠ 0）          Stable 64.2%   Volatile 73.2%
-complete（两侧都有条目）  Stable 65.75%  Volatile 73.25%
-```
-差在 6 个 Stable agent（1.5%）两侧都有条目但均值恰好相等 → m=0。**报哪个就一直报哪个。**
-
-### 还差什么才能写预注册
+### ⚠ Do not mix the two definitions of the extensive margin
 
 ```
-① 发育史是否还要携带 trait 通路（否则 SWAP 永远是恒等式）—— 规则 93
-② SESOI（ΔC 单位是 trial，现在 OWN ≈ 0.93）
-③ fresh final seeds（80000–81499 仍干净）
+usable (m ≠ 0)            Stable 64.2%   Volatile 73.2%
+complete (entries on both sides)  Stable 65.75%  Volatile 73.25%
+```
+The difference is 6 Stable agents (1.5%) that have entries on both sides but whose means happen to
+be exactly equal → m=0. **Whichever is reported, report the same one throughout.**
+
+### What is still missing before the preregistration can be written
+
+```
+① whether the developmental history should also carry a trait pathway (otherwise SWAP is forever an identity) — rule 93
+② the SESOI (ΔC is measured in trials, and OWN is currently ≈ 0.93)
+③ fresh final seeds (80000–81499 is still clean)
 ④ MEMORY_TRANSFER029_PREREGISTRATION.md
 ```
 
 ---
 
-## 附：种子账本
+## Appendix: seed ledger
 
 ```
-0–1499          development（★ 今天的 probe 用 0–399 ★）
-10000–11499     021 留出集 / 028 transport rehearsal
-20000–21499     022 预注册段 / 027 + 028 group-blind calibration
+0–1499          development (★ today's probes use 0–399 ★)
+10000–11499     021 holdout set / 028 transport rehearsal
+20000–21499     022 preregistration block / 027 + 028 group-blind calibration
 50000–51499     v3 persistence FINAL
 60000–61499     027 novel-task FINAL
 70000–71499     028 breadth FINAL
-80000–81499     ★ 029 FINAL 预留 ★  ← 已核实：全库从未作为种子出现
+80000–81499     ★ reserved for 029 FINAL ★  ← verified: never appears as a seed anywhere in the repository
 ```
 
-⬜ 未定：029 的 calibration / rehearsal 用哪一段（**不得**动 80000 段）。
+⬜ Open: which block 029's calibration / rehearsal will use (**the 80000 block must not be touched**).
 
 ---
 
-## 附：今天暂时不做的事（写下来防止手滑）
+## Appendix: things deliberately not done today (written down to prevent slips)
 
 ```
-⛔ 定 029 final seeds          ⛔ 写 preregistration
-⛔ 定 SESOI                    ⛔ 决定 λ 最终值
-⛔ 用新 final block            ⛔ 把 memory 直接加进 sim.py
-⛔ 上 LLM / embedding          ⛔ episodic + semantic + abstraction 三套同时上
-⛔ 看 Stable vs Volatile 的正式差异
-⛔ (b) 放宽 SURPRISE_RUN_MIN    ⛔ (d) 多 change-point 任务
+⛔ fixing 029's final seeds     ⛔ writing the preregistration
+⛔ fixing the SESOI             ⛔ deciding λ's final value
+⛔ using a new final block      ⛔ adding memory directly into sim.py
+⛔ bringing in an LLM / embeddings   ⛔ turning on episodic + semantic + abstraction at once
+⛔ looking at the formal Stable vs Volatile difference
+⛔ (b) relaxing SURPRISE_RUN_MIN     ⛔ (d) a multi-change-point task
 ```
 
-**(b) 为什么不做**：v1 已证明触发时决策没饱和（base p=0.208），
-不是"想起来太晚"。3→2 只是让记忆更早出现，**没解决"一出现就被清掉"**——
-那是治数量，不是治机制。
-**(d) 为什么不做**：一次 reversal 变三次，exposure 自然变多，
-结果变强时分不清是"机制修好了"还是"同一个弱 one-shot 效应重复三遍"。
-(d) 该在单 change-point 上把机制搞对之后再做，那时它是
-**dose-of-opportunity robustness test**。
+**Why (b) is not done**: v1 already showed the decision is not saturated when retrieval fires
+(base p=0.208), so it is not "remembered too late". Going 3→2 only makes memory appear earlier and
+**does not fix "cleared as soon as it appears"** — that treats the quantity, not the mechanism.
+**Why (d) is not done**: turning one reversal into three naturally increases exposure, and if the
+result strengthens we cannot tell "the mechanism was fixed" from "the same weak one-shot effect
+repeated three times". (d) belongs after the mechanism is right on a single change point, at which
+point it becomes a **dose-of-opportunity robustness test**.
 
-我们现在还在问：**这条机制本身有没有可识别性？**
-和 026 当时一样，先证明"实验有能力测到它声称测的东西"。
+What we are still asking is: **is this mechanism identifiable at all?**
+As in 026, first prove that "the experiment is able to measure what it claims to measure".
 
 ---
 
-## 附：待办
+## Appendix: to-do
 
-- [x] ② development history 换成 stable / volatile（不碰 rich/poor）
-- [x] ③ 029 自己的 Episode 结构（存 stay/switch，不存 A/B）
-- [x] ④ 极简 relational retrieval + `logit(switch)=base+λm`
-- [x] ⑥ positive control + SWAP test 跑出来
-- [x] **(c) SWAP 判读口径** —— dominance 撤回，改 M_C/M_K/pooled M + 方向一致性
-- [x] **(a) stateful retrieval** —— RETRIEVE → ACTIVE → RESOLVED，零新增参数
-- [x] exposure × potency 分解（规则 87）+ potential/realized 分离（规则 88）
-- [ ] ② 的 problem 数 / trial 数 / change point 分布 / counterbalance 排布
-- [ ] 三个阈值的 group-blind 校准方案
-- [ ] ⑤ SESOI 的单位与数值
-- [ ] calibration 种子段
+- [x] ② swap the developmental history to stable / volatile (leaving rich/poor alone)
+- [x] ③ 029's own Episode structure (storing stay/switch, not A/B)
+- [x] ④ minimal relational retrieval + `logit(switch)=base+λm`
+- [x] ⑥ positive control + SWAP test run
+- [x] **(c) the SWAP reading convention** — dominance withdrawn, replaced by M_C/M_K/pooled M + directional consistency
+- [x] **(a) stateful retrieval** — RETRIEVE → ACTIVE → RESOLVED, with zero new parameters
+- [x] the exposure × potency decomposition (rule 87) + the potential/realized separation (rule 88)
+- [ ] ②'s problem count / trial count / change-point distribution / counterbalancing layout
+- [ ] a group-blind calibration scheme for the three thresholds
+- [ ] ⑤ the unit and value of the SESOI
+- [ ] the calibration seed block
 
 ---
 
-## 版本记录
+## Version history
 
-| 版本 | 日期 | 改了什么 |
+| Version | Date | What changed |
 |---|---|---|
-| v1 | 2026-08-18 | 初稿。① 写死；②–⑤ 为草案，全部待拍板 |
-| v2 | 2026-08-18 | ② 改为 stable/volatile（不碰 rich/poor）；③ 定 Episode 结构；④ 定极简 retrieval + 决策规则；新增 ⑥ 探针结果：**positive control 通过、SWAP 未通过**，诊断为 exposure 不对称 |
-| v7 | 2026-08-18 | **不加 trait 通路**（规则 93 最终版：不能为了让控制非平凡而增加第二条发育通路）；`SWAP-XS` 改名 **XSEED-DONOR**；extensive margin 正式选 **completeness**（规则 94：m=0 是有意义的零证据，不是"没有记忆"）；**SESOI = 1.0 post-change error** + 三档判读；SHUFFLE 冻结为 **retention ratio R**（判据 A/B 待拍板，实测 R=0.094，CI [0.005, 0.261]）；**FINAL 80000–81499 N=1500 冻结**；预注册写成 → 本文件定格 |
-| v6 | 2026-08-18 | **λ=1.00 与四个 capacity gate 正式冻结**（exposure gate 改用 max）；**规则 92** selection rule 写死（合格带 log 中心，附断言）；跑完 OWN/DELETE/SWAP/SHUFFLE rehearsal：OWN ΔC=−0.927、**SHUFFLE 塌到 −9.4%**、**SWAP-XS 保留 96%**；**规则 93** —— 单通路下 DELETE/SWAP 是代数恒等式，只能当断言；非平凡 SWAP 需要发育史再带一条通路 |
-| v5 | 2026-08-18 | 冻结 acquisition candidate（ANOMALY_AT=36/LEN=8/T=66，只加 pre-anomaly 学习长度，yield 24%→66–73%）；**规则 91** extensive/intensive margin 分开报、primary 用全体人群（population 分离度 +0.624，complete-only +0.894 会夸大）；yield 与 realized reward 的不匹配**均不修**；跑完 group-blind λ 接口容量校准，合格带 λ∈{0.5,1,2}，建议 λ=1 |
-| v4 | 2026-08-18 | 修 resolution 时序 bug（v3，效果缩水故事不变，旧结果保留）；**规则 89** latency 降级、ΔC 定为 primary candidate；新建 `memory_acquisition_probe.py`：真实 Stable/Volatile 长出的 m 方向正确、分离度达手工版 67.8%，但 **completeness 只有 24%（规则 90）**；正式顺序改为"先 acquisition，最后才校准 λ" |
-| v3 | 2026-08-18 | (c) **dominance 判据撤回**，换成 M_C/M_K/pooled M；规则 86 方向修正 → **规则 87**（exposure × potency 分开报告）；新增**规则 88**（potential vs realized retrieval，禁 survivor conditioning）；(a) **stateful retrieval** 实现并跑通：**Directional SWAP check PASS**，pooled M −0.10 → −3.99；风险方向翻转为"机制可能太强" |
+| v1 | 2026-08-18 | First draft. ① fixed; ②–⑤ drafts, all pending decision |
+| v2 | 2026-08-18 | ② changed to stable/volatile (leaving rich/poor alone); ③ Episode structure fixed; ④ minimal retrieval + decision rule fixed; added ⑥ probe results: **positive control passed, SWAP did not**, diagnosed as asymmetric exposure |
+| v7 | 2026-08-18 | **No trait pathway added** (rule 93 final form: a second developmental pathway must not be added merely to make a control non-trivial); `SWAP-XS` renamed **XSEED-DONOR**; the extensive margin formally set to **completeness** (rule 94: m=0 is meaningful zero evidence, not "no memory"); **SESOI = 1.0 post-change error** + the three-way reading; SHUFFLE frozen as the **retention ratio R** (criterion A/B pending, measured R=0.094, CI [0.005, 0.261]); **FINAL 80000–81499 N=1500 frozen**; the preregistration written → this file frozen |
+| v6 | 2026-08-18 | **λ=1.00 and the four capacity gates formally frozen** (the exposure gate switched to max); **rule 92**, the selection rule fixed in writing (the log centre of the passing band, with an assertion); ran the OWN/DELETE/SWAP/SHUFFLE rehearsal: OWN ΔC=−0.927, **SHUFFLE collapsed to −9.4%**, **SWAP-XS retained 96%**; **rule 93** — with a single pathway, DELETE/SWAP are algebraic identities and can only serve as assertions; a non-trivial SWAP would require the developmental history to carry a second pathway |
+| v5 | 2026-08-18 | Froze the acquisition candidate (ANOMALY_AT=36/LEN=8/T=66, adding only pre-anomaly learning length, yield 24%→66–73%); **rule 91**, extensive/intensive margins reported separately with the primary using the whole population (population separation +0.624, complete-only +0.894 would inflate it); the mismatches in yield and realized reward are **both left unfixed**; ran the group-blind λ interface-capacity calibration, passing band λ∈{0.5,1,2}, recommendation λ=1 |
+| v4 | 2026-08-18 | Fixed the resolution timing bug (v3; the effect shrank, the story unchanged, old results kept); **rule 89**, latency demoted and ΔC set as the primary candidate; created `memory_acquisition_probe.py`: the m grown by real Stable/Volatile histories points the right way and reaches 67.8% of the hand-built separation, but **completeness is only 24% (rule 90)**; the formal order changed to "acquisition first, calibrate λ last" |
+| v3 | 2026-08-18 | (c) **the dominance criterion withdrawn**, replaced by M_C/M_K/pooled M; the direction of rule 86 corrected → **rule 87** (exposure × potency reported separately); added **rule 88** (potential vs realized retrieval, survivor conditioning forbidden); (a) **stateful retrieval** implemented and working: **Directional SWAP check PASS**, pooled M −0.10 → −3.99; the direction of risk flipped to "the mechanism may be too strong" |

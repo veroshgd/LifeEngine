@@ -1,6 +1,6 @@
-# 028 预注册 · 修订 01
+# 028 preregistration · amendment 01
 
-**创建于形状彩排之后、打开 final 种子块 70000–71499 之前。**
+**Created after the shape rehearsal and before opening the final seed block 70000–71499.**
 
 > Amendment created after the shape rehearsal (seeds 10000–10299, n=286)
 > but before inspection of final seeds 70000–71499. Rehearsal breadth
@@ -10,51 +10,52 @@
 > G value. No gate threshold, arm definition, frozen transform, endpoint,
 > SESOI, or inference method is changed.
 
-⚠ 原 `NOVEL_TASK028_PREREGISTRATION.md` **一字不改**。
-本文件是**透明的 pre-final amendment**，不假装是原预注册的一部分。
+⚠ **Not one word of the original `NOVEL_TASK028_PREREGISTRATION.md` is changed.**
+This file is a **transparent pre-final amendment** and does not pretend to be part of the
+original preregistration.
 
 ---
 
-## A. 新增：validity gates 的样本量限定
+## A. Added: a sample-size qualification for the validity gates
 
-### 条文
+### The clause
 
-> **Validity gates 以 N = 1500 的 confirmatory run 为准。
-> 小于该规模的彩排只验证代码路径、指标口径与量级；
-> 其 gate 结果【不构成】对 frozen transform 的判定。**
+> **The validity gates are defined for the N = 1500 confirmatory run.
+> A rehearsal smaller than that verifies only the code path, the metric conventions and the order
+> of magnitude; its gate results **do not constitute** a verdict on the frozen transform.**
 
-### 依据（与观察到的 G 无关）
+### The basis (unrelated to the observed G)
 
-gate 统计量 `|μ_j − μ_A| / SD_A` 本身带抽样噪声。
-两个均值算在**同一批 agent** 上，共 `M = 2 × n_pairs` 个 agent-instance，
-所以配对差均值的抽样 SE 约为
+The gate statistic `|μ_j − μ_A| / SD_A` itself carries sampling noise.
+The two means are computed on **the same batch of agents**, `M = 2 × n_pairs` agent-instances in
+total, so the sampling SE of the paired-difference mean is about
 
 ```
 SE( |Δμ| / SD_A )  ≈  √(2 / M)
 ```
 
-| 阶段 | n_pairs | M | SE | 门槛 10% 相当于 |
+| Stage | n_pairs | M | SE | the 10% threshold equals |
 |---|---|---|---|---|
-| 形状彩排 | 286 | 572 | ≈ 5.9% | **< 2 SE** |
+| shape rehearsal | 286 | 572 | ≈ 5.9% | **< 2 SE** |
 | FINAL | ≈ 1400 | ≈ 2800 | ≈ 2.7% | **≈ 3.7 SE** |
 
-**在彩排规模上，10% 的门槛不到 2 个 SE —— 它基本是在检验噪声。**
+**At rehearsal scale the 10% threshold is under 2 SE — it is essentially testing noise.**
 
-**独立的经验锚点**：`transport028.py` 在 **n=2944**（seeds 10000–11499）上
-用同一个 frozen transform 测得最大 `|Δμ|/SD_A = 3.2%`、`|ΔSD|/SD_A = 2.4%`，
-与 final 规模的预期一致。而形状彩排（n=286）测得 Bp 的 `|Δμ|/SD_A = 10.4%`
-——**两者的差别来自样本量，不是 transform 的 transport error**。
+**An independent empirical anchor**: on **n=2944** (seeds 10000–11499), `transport028.py` measured
+the same frozen transform at a largest `|Δμ|/SD_A = 3.2%` and `|ΔSD|/SD_A = 2.4%`, consistent with
+what is expected at final scale. The shape rehearsal (n=286) measured Bp at `|Δμ|/SD_A = 10.4%` —
+**the difference between the two comes from sample size, not from transport error in the transform**.
 
-### 不改的东西
+### What is not changed
 
-`support ≤ 2%`、`boundary ≤ 2%`、`|Δμ|,|ΔSD| ≤ 10% × SD_A`
-这四个阈值**一律不动**。它们是在看到 transport 实测（n=2944）之后、
-针对 **N=1500 的 confirmatory run** 冻结的。
+The four thresholds `support ≤ 2%`, `boundary ≤ 2%`, `|Δμ|,|ΔSD| ≤ 10% × SD_A` are **left
+untouched**. They were frozen after the transport measurements (n=2944) had been seen, and were
+set for the **N=1500 confirmatory run**.
 
-### 分层失败处理不变
+### The layered failure handling is unchanged
 
-C± 任一失败 → primary G invalid；B± 失败 → 仅 secondary invalid；
-A 无 mapping transport gate。失败措辞仍为：
+Either C± failing → primary G invalid; B± failing → secondary invalid only;
+A has no mapping transport gate. The failure wording is still:
 
 > Frozen coupling normalization did not transport adequately to the
 > confirmatory population; breadth contrast is not cleanly interpretable
@@ -62,31 +63,32 @@ A 无 mapping transport gate。失败措辞仍为：
 
 ---
 
-## B. runner 的对应改动（只影响打印，不影响判定逻辑）
+## B. The corresponding runner change (affects printing only, not the decision logic)
 
-`final_028.py` 在 `N < 1500` 时打印一行 **NON-BINDING** 提示，
-说明该次 gate 结果不构成对 frozen transform 的判定。
-**final 运行（N=1500）不受影响，gate 照常具约束力。**
+When `N < 1500`, `final_028.py` prints a **NON-BINDING** line explaining that the gate results of
+that run do not constitute a verdict on the frozen transform.
+**The final run (N=1500) is unaffected and the gates remain binding as before.**
 
 ---
 
-## C. 记录：形状彩排的 gate 实测（seeds 10000–10299，n=286）
+## C. Record: the gates as measured in the shape rehearsal (seeds 10000–10299, n=286)
 
 ```
-臂       越界     边界质量   |Δμ|/SD_A  |ΔSD|/SD_A  support  budget
-Bp      0.00%    0.00%      10.4%       6.4%        ✓        ✗
-Bm      0.00%    0.00%       7.3%       4.1%        ✓        ✓
-Cp      0.17%    0.17%       5.1%       3.5%        ✓        ✓
-Cm      0.00%    0.00%       2.0%       2.0%        ✓        ✓
+arm  out of range  boundary mass  |Δμ|/SD_A  |ΔSD|/SD_A  support  budget
+Bp      0.00%        0.00%          10.4%       6.4%        ✓        ✗
+Bm      0.00%        0.00%           7.3%       4.1%        ✓        ✓
+Cp      0.17%        0.17%           5.1%       3.5%        ✓        ✓
+Cm      0.00%        0.00%           2.0%       2.0%        ✓        ✓
 
 primary (C±) ✓ valid      secondary (B±) ✗ invalid
 ```
 
-support gate 全部通过且余量巨大（最坏 0.17%，门槛 2%）。
-唯一失败的是 Bp 的 budget gate，超门槛 **0.4 个百分点**，
-按 §A 属于**彩排规模下的噪声**，**不构成对 frozen transform 的判定**。
+Every support gate passes with an enormous margin (worst case 0.17% against a 2% threshold).
+The only failure is Bp's budget gate, exceeding the threshold by **0.4 percentage points**, which
+under §A is **noise at rehearsal scale** and **does not constitute a verdict on the frozen transform**.
 
-> ### ★ 规则 82：判据必须绑定它被设计时所针对的样本量 ★
-> 一个为 N=1500 设计的阈值，放到 n=286 上会变成"检验噪声"。
-> 预注册写阈值时，**必须同时写明它在什么规模下有效**，
-> 否则小样本彩排会给出无意义的红灯（或更糟：无意义的绿灯）。
+> ### ★ Rule 82: a criterion must be bound to the sample size it was designed for ★
+> A threshold designed for N=1500 becomes "a test of noise" when applied at n=286.
+> When a preregistration states a threshold, **it must also state the scale at which that
+> threshold is valid**, or a small-sample rehearsal will produce a meaningless red light
+> (or worse: a meaningless green one).
