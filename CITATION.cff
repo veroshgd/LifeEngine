@@ -26,6 +26,7 @@ authors:
   - family-names: Qin
     given-names: Yinan
     affiliation: "Independent Researcher"
+    orcid: "https://orcid.org/0009-0005-4448-3969"
 keywords:
   - artificial life
   - agent-based modeling
@@ -58,3 +59,4 @@ preferred-citation:
     - family-names: Qin
       given-names: Yinan
       affiliation: "Independent Researcher"
+      orcid: "https://orcid.org/0009-0005-4448-3969"
