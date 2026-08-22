@@ -110,6 +110,33 @@ def main() -> int:
         print(f"  [{'PASS' if bad == 0 else 'FAIL'}] {directory}: {ok} verified, {bad} failed")
     print()
 
+    print("run-time anchors (digests recorded on the original machine)")
+    print("  these are independent: they were written into the lock files at run")
+    print("  time, so agreement cannot be produced by regenerating a manifest")
+    lock029 = (ROOT / "final_029_STARTED.lock").read_text(encoding="utf-8")
+    lock_mods = dict(re.findall(r"module (\S+) ([0-9a-f]+)", lock029))
+    n_ok = 0
+    for name, want in sorted(lock_mods.items()):
+        got = sha256(ROOT / name)[:len(want)]
+        if got == want:
+            n_ok += 1
+        else:
+            print(f"  [FAIL] {name}: lock {want} vs disk {got}")
+    ok = n_ok == len(lock_mods) and len(lock_mods) == 6
+    results.append(ok)
+    print(f"  [{'PASS' if ok else 'FAIL'}] 029 lock vs frozen runtime modules: "
+          f"{n_ok}/{len(lock_mods)} identical")
+
+    m = re.search(r"prereg_sha256 ([0-9a-f]+)", lock029)
+    check("029 lock vs preregistration digest", m.group(1),
+          sha256(ROOT / "docs" / "MEMORY_TRANSFER029_PREREGISTRATION.md"), results)
+
+    lock028 = (ROOT / "final_028_STARTED.lock").read_text(encoding="utf-8")
+    want028 = re.search(r"interface_sha=([0-9a-f]+)", lock028).group(1)
+    iface_data = json.loads((ROOT / "interface028_frozen.json").read_text(encoding="utf-8"))
+    check("028 lock vs frozen interface digest", want028, iface_data["sha256"], results)
+    print()
+
     print("frozen interface (Experiment 028)")
     iface = ROOT / "interface028_frozen.json"
     data = json.loads(iface.read_text(encoding="utf-8"))

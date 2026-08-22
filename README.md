@@ -91,6 +91,8 @@ memory_transfer_rehearsal.py             OWN/DELETE/SWAP/SHUFFLE rehearsal
 final_029.py                             the 029 FINAL runner (seed guard + one-shot lock)
 *_result.txt                             the persisted results of each experiment
 tests/                                   self-checks and regressions
+tools/verify_provenance.py               path-independent digest verification
+tools/replay_paper_results.py            guarded replay of confirmatory numbers
 docs/                                    preregistrations, design evolution, the full experiment ledger
 ```
 
@@ -98,7 +100,7 @@ docs/                                    preregistrations, design evolution, the
 
 | File | Contents |
 |---|---|
-| [`REPRODUCE.md`](REPRODUCE.md) | Three levels of reproduction: self-check / smoke test / full reproduction |
+| [`REPRODUCE.md`](REPRODUCE.md) | Three levels of reproduction, the **seed ledger**, and the rules on what must never be re-run |
 | [`CLAIMS.md`](CLAIMS.md) | The evidence grade of each claim + **the table of forbidden wordings** |
 | [`ODD.md`](ODD.md) | The standard ODD model description |
 | [`docs/MEMORY_TRANSFER029_PREREGISTRATION.md`](docs/MEMORY_TRANSFER029_PREREGISTRATION.md) | The 029 preregistration (its sha256 is what `final_029.py` verifies) |
@@ -118,10 +120,21 @@ pytest                            # < 1 minute; all green means the environment 
 All it needs is **Python 3.10+ and the standard library**. For a full reproduction see
 [`REPRODUCE.md`](REPRODUCE.md).
 
-⚠ `final_029.py --final` **permanently burns** the seed block `80000–81499`, and that
-experiment **has already been run** (`final_029_STARTED.lock` exists, and the runner refuses
-to run again). To see how it behaves, use `--rehearse`, which runs a full-size rehearsal on
-an already-burned development block.
+⚠ **Every confirmatory seed block in this project is burned; no `final_*.py --final`
+runner may be run again.** 027, 028 and 029 refuse by themselves. `final_confirm.py` (025)
+does **not** — passing it `--final` silently overwrites the paper's primary result file.
+
+To reproduce the paper's numbers, use the guarded replay harness rather than the runners:
+
+```bash
+python tools/replay_paper_results.py --list
+python tools/replay_paper_results.py 025 --n 100    # quick directional check
+```
+
+It hashes every protected artifact, refuses to pass `--final`, preserves the files the
+runner would overwrite, and fails loudly if a single byte moved. See
+[`REPRODUCE.md`](REPRODUCE.md) for the full seed ledger and the Level ③ procedure.
+Never delete a `*_STARTED.lock`: staying behind after a crash is precisely its job.
 
 ⚠ `PREREG_PATH` in `final_029.py` points at a vault path on the author's own machine, so after
 cloning it reports "cannot find the preregistration". That is the historical state at the time
@@ -133,11 +146,19 @@ sha256(docs/MEMORY_TRANSFER029_PREREGISTRATION.md)
   = 29e45930a07f2649c7958fdc0cd20a389005ca43e93287b9f69e2ccdcf867145
 ```
 
-> ⚠ **Note for this English branch.** Translating the sources changes their bytes, so every
-> sha256 in this branch differs from the Chinese `main`. The `SHA256SUMS.txt` manifests and the
-> `FROZEN_MODULES` / `PREREG_SHA256` constants have been regenerated so that the integrity
-> gates still pass *within this branch*; the hashes recorded inside historical result and lock
-> files are left untouched, because they document the runs as they actually happened.
+> ⚠ **Note for this English branch.** **No source file was translated, and no hash was
+> regenerated.** Only Markdown documentation was translated, and no Markdown file except
+> `docs/MEMORY_TRANSFER029_PREREGISTRATION.md` is referenced by any hash — that one is left in
+> the original Chinese precisely because it is. Every `.py` file in this repository, in both
+> frozen directories and at the root, still carries its original Chinese comments and its
+> original bytes.
+>
+> This is verifiable without trusting the claim. `final_029_STARTED.lock` was written on the
+> original machine at the instant the 029 FINAL run began, and it records the digest of each
+> frozen runtime module and of the preregistration. Those recorded values equal the
+> `FROZEN_MODULES` / `PREREG_SHA256` constants in `final_029.py` *and* the digests of the files
+> as shipped. The same holds for `interface028_frozen.json` against `final_028_STARTED.lock`.
+> See "What the integrity gates do and do not prove" below.
 
 ## Language and integrity policy
 
@@ -155,6 +176,49 @@ Source comments are **not** translated. Translating a comment changes the file's
 which invalidates the manifests and severs the correspondence with the confirmatory runs.
 This is the failure mode described in Appendix F, Rule 19 of the paper: a regenerated
 manifest makes the integrity check pass silently while proving nothing.
+
+## License
+
+| Material | License |
+|---|---|
+| Source code (`*.py`) | [Apache-2.0](LICENSE) |
+| Documentation, preregistrations, result records, data (`*.md`, `*.txt`, `*.csv`, `*.json`, `*.lock`) | [CC BY 4.0](LICENSE-DOCS.md) |
+
+Copyright 2026 Yinan Qin. See [`NOTICE`](NOTICE) for the integrity conditions
+that apply to the hash-gated artifacts — in short, Apache-2.0 §4(b) requires
+modified files to say so, and for the frozen artifacts that requirement is the
+whole point.
+
+Machine-readable citation metadata is in [`CITATION.cff`](CITATION.cff).
+
+## What the integrity gates do and do not prove
+
+Not every artifact in this package is anchored the same way, and the difference matters. Two
+distinct things are being checked, and only one of them is independent evidence.
+
+**Independently anchored.** These have a digest recorded *outside* the file that carries them,
+written at run time on the original machine, before this package existed. Agreement here cannot
+be manufactured by regenerating a manifest.
+
+| Artifact | Independent record | Status |
+|---|---|---|
+| the six frozen runtime modules | `final_029_STARTED.lock`, written before the first 029 acquisition trajectory | 6/6 identical |
+| `docs/MEMORY_TRANSFER029_PREREGISTRATION.md` | same lock (`prereg_sha256`) | identical |
+| `interface028_frozen.json` (content digest) | `final_028_STARTED.lock` and `final_028_result.txt` | identical |
+
+**Self-consistent only.** `v2_frozen/SHA256SUMS.txt` and `v3_frozen/SHA256SUMS.txt` are checked
+against the files they list. That proves the directories have not been disturbed *relative to
+their own manifests*, but a manifest regenerated together with its files would also pass. There
+is no run-time digest of those directories recorded anywhere outside them, so this is a weaker
+guarantee than the table above, and it is described here as such rather than folded in with it.
+The supporting circumstantial fact is that all 58 files in the two directories still carry their
+original untranslated Chinese comments, so no translation event that would have required
+regeneration ever took place.
+
+This is the distinction drawn as rule 19 in Appendix F of the paper: a regenerated manifest
+makes an integrity check pass silently while proving nothing. It applies to this repository too,
+and the honest answer is that it applies to the frozen directories and not to the three rows
+above.
 
 To verify the chain from a fresh clone:
 

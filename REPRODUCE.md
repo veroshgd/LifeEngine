@@ -66,50 +66,139 @@ confirmatory runs. Exit code 0 means every artifact matches.
 
 | Level | Command | Time | What it proves |
 |---|---|---|---|
-| **① self-check / regression** | `pytest` | < 1 minute | frozen integrity, model provenance, mechanism layer, determinism |
-| **② small-scale smoke test** | see below | ~15 minutes | the **direction** of the core results reproduces |
-| **③ full reproduction** | see below | ~4 hours | the **specific numbers** in the paper |
+| **① self-check / regression** | `pytest` | < 1 min | frozen integrity, model provenance, mechanism layer, determinism |
+| **② small-scale smoke test** | see below | ~15 min | the **direction** of the core results reproduces |
+| **③ full replay** | `tools/replay_paper_results.py` | 1--6 h per experiment | the **specific numbers** in the paper |
+
+---
+
+### ⛔ Read this before Level ③
+
+**Every confirmatory seed block in this project is burned. None of the
+`final_*.py --final` runners may be run again.** See the seed ledger below for
+which blocks are burned and why that is permanent.
+
+Three of the four runners defend themselves: `final_027.py` refuses once its
+result file exists, `final_028.py` holds a one-shot lock, and `final_029.py`
+creates `final_029_STARTED.lock` before the first acquisition trajectory and
+refuses thereafter. **`final_confirm.py` (Experiment 025) has no such guard.**
+Passing it `--final` opens `final_confirm_result.txt` in write mode and silently
+overwrites the paper's primary confirmatory result. Earlier revisions of this
+file listed that command under "full reproduction". It was wrong and is
+withdrawn; do not run it.
+
+Never delete a `*_STARTED.lock`. A lock is not a nuisance file to be cleared
+after a crash — its whole purpose is to stay behind after a crash. Deleting one
+converts a burned block back into an apparently clean holdout, which is the
+single fastest way to destroy the confirmatory standing of this work.
 
 ### ① Self-check / regression
 
 ```bash
 pytest
+python tools/verify_provenance.py
 ```
 
-Verifies the SHA256 of `v2_frozen/` and `v3_frozen/`; asserts that the model really is imported
-from `v3_frozen` with `MODEL_VERSION == "v3"` and `COND_RECOVER_AT == 65.0`; uses an **AST
-comparison** to confirm that the only executable v2 → v3 difference is still that one constant;
-runs the 6 mechanism-layer self-checks; verifies the rule 72 window regression; and verifies
+`pytest` verifies the SHA-256 of `v2_frozen/` and `v3_frozen/`; asserts the model
+really is imported from `v3_frozen` with `MODEL_VERSION == "v3"` and
+`COND_RECOVER_AT == 65.0`; uses an **AST comparison** to confirm that the only
+executable v2 → v3 difference is still that one constant; runs the 6
+mechanism-layer self-checks; verifies the rule 72 window regression; and verifies
 that two runs of the same seed are bit-identical.
+
+`tools/verify_provenance.py` independently recomputes every frozen digest without
+executing or modifying the historical runners.
 
 ### ② Small-scale smoke test (direction, not numbers)
 
 ```bash
 python novel_situation.py                        # the 8 mechanism-layer self-checks
-python final_confirm.py --check                  # the frozen-verification gate
-python final_confirm.py --seed0 20000 --n 200    # the main analysis pipeline (small N)
-python rule71_ablation.py --seeds 50 --workers 4 # the causal direction of TRAIT_DRIFT
+python final_confirm.py --check                  # the frozen-verification gate only
+python final_confirm.py --seed0 0 --n 200        # development seeds, safe to repeat
+python rule71_ablation.py --seeds 50 --workers 4 # causal direction of TRAIT_DRIFT
 ```
 
-⚠ At small N the point estimate is biased upward (rule 34: the ratio estimator is inflated at
-small N), so **read the direction only**.
+⚠ At small N the point estimate is biased upward (rule 34: the ratio estimator is
+inflated at small N), so **read the direction only**.
 
-### ③ Full reproduction (the paper's numbers)
+Note that `--seed0 0` is used here deliberately: block `0–1499` is development
+seed space and carries no confirmatory standing, so repeating it costs nothing.
+
+### ③ Full replay of the paper's numbers
+
+Use the replay harness. Do not invoke the runners directly.
 
 ```bash
-# Final confirmation (preregistered, seeds 50000–51499, run once)  ~1.5 hours
-python final_confirm.py --final
+python tools/replay_paper_results.py --list          # what can be replayed
+python tools/replay_paper_results.py 025 --n 100     # quick directional check
+python tools/replay_paper_results.py 025             # full block, hours
+python tools/replay_paper_results.py 027
+python tools/replay_paper_results.py 028
+python tools/replay_paper_results.py 029
+```
 
-# v3 parameter robustness  500 configs × 300 seeds  ~45 minutes
+**How replay can be exact without re-burning anything.** In all four runners,
+`--final` selects only three things: the seed block, the banner text, and the
+output filename. The simulation is byte-identical either way. So the harness
+passes the burned seeds *explicitly in non-final mode* — same model, same seeds,
+same numbers, different output file.
+
+Around that, the harness supplies the protection the runners lack:
+
+1. hashes every protected artifact before starting;
+2. refuses to pass `--final` to anything, unconditionally;
+3. backs up the scratch output file the runner is about to overwrite;
+4. runs the experiment;
+5. moves the fresh output into `replay_out/` and restores the backup;
+6. re-hashes everything and **fails loudly if one byte moved**.
+
+Step 6 is the point of the tool. If it ever reports a changed artifact, treat the
+working tree as contaminated and re-clone before doing anything else. The
+detector has been mutation-tested: appending one line to
+`final_confirm_result.txt` between the two scans makes it report the file as
+CHANGED and return failure.
+
+`replay_out/` is gitignored. Compare its contents against the recorded result
+file named in the harness output.
+
+| Replay | Seeds | Recorded result to compare against | Rough time |
+|---|---|---|---|
+| `025` | 50,000–51,499 | `final_confirm_result.txt` | ~1.5 h |
+| `027` | 60,000–61,499 | `final_027_result.txt` | ~1 h |
+| `028` | 70,000–71,499 | `final_028_result.txt` | ~1 h |
+| `029` | `--rehearse`, full size on a burned development block | `final_029_result.txt` | ~1.5 h |
+
+Experiment 029 is replayed through `final_029.py --rehearse` rather than by
+re-simulating 80,000–81,499. The rehearsal is full-size and exercises the same
+five arms, acquisition pipeline, interface transport and analysis path; what it
+cannot do is regenerate the confirmatory block itself, because that block is
+burned and its lock is permanent.
+
+To check only the integrity scan, without running any simulation:
+
+```bash
+python tools/replay_paper_results.py --verify-only
+python tools/replay_paper_results.py 025 --dry-run
+```
+
+### Other analyses reported in the paper
+
+These are not one-shot confirmations and may be re-run freely:
+
+```bash
+# v3 parameter robustness  500 configs x 300 seeds  ~45 min
 python param_sweep.py --configs 500 --seeds 300 --out sweep_results_v3.csv
 python sweep_report.py sweep_results_v3.csv
 
-# v2→v3 same-seed revalidation (experiment 023 §7)  ~40 minutes
+# v2 -> v3 same-seed revalidation (experiment 023, paper section 7)  ~40 min
 python v3_revalidate.py
 
-# Rule 71 causal ablation  ~20 minutes
+# rule 71 causal ablation  ~20 min
 python rule71_ablation.py --seeds 300
 ```
+
+⚠ `param_sweep.py` writes `sweep_results_v3.csv` in place. That file is cited by
+the paper; redirect with `--out` if you want to keep the original.
 
 ---
 
@@ -132,13 +221,35 @@ python rule71_ablation.py --seeds 300
 
 ## Seed ledger (which blocks are burned)
 
-| Block | Use | Still usable as a holdout |
+A block is **burned** the moment information relevant to the research question is
+first generated from it — not when the primary outcome is first computed. Once
+burned it can never again be described as unseen holdout or confirmatory data.
+
+| Block | Use | Status |
 |---|---|---|
-| `0–1499` | development | ✗ |
-| `10000–11499` | 021 holdout set (inspected many times) | ✗ |
-| `20000–21499` | 022 preregistration block / all group-blind calibration | ✗ |
-| `50000–51499` | **final confirmation, used once** | ✗ |
-| `60000–61499` | once reserved for the 026 final — **026 was closed and it was never used** | ✓ clean |
+| `0–1499` | model development, 21 iterations, later dry runs; 029 probes / calibration / rehearsal used `0–399` | 🔥 burned |
+| `10000–11499` | 021 holdout set; 028 transport rehearsal; **029 full-shape rehearsal** | 🔥 burned |
+| `20000–21499` | 022 preregistration block; 027 and 028 group-blind calibration | 🔥 burned |
+| `50000–51499` | **Experiment 025 — persistence FINAL** | 🔥 burned, executed once |
+| `60000–61499` | **Experiment 027 — new-task transfer through a narrow trait interface FINAL** | 🔥 burned, executed once |
+| `70000–71499` | **Experiment 028 — widened trait readout at fixed coupling budget FINAL** | 🔥 burned, executed once |
+| `80000–81499` | **Experiment 029 — relational-memory transfer FINAL** | 🔥 burned, executed once |
+
+**No clean confirmatory block remains.** Any future confirmatory experiment must
+open a new, previously unused block and record it here before the first run.
+
+This table is authoritative and matches Appendix C.2 of the paper and the
+`ledger:` header written into `final_029_result.txt`. If any other document in
+this repository disagrees with it, this table is correct and the other document
+is stale.
+
+> **Correction.** Earlier revisions of this file listed `60000–61499` as
+> "✓ clean — once reserved for the 026 final, never used", and omitted
+> `70000–71499` and `80000–81499` entirely. That was wrong: 026 was closed as a
+> negative result, but the block was subsequently consumed by the 027 final
+> confirmation, as recorded in the header of `final_027_result.txt`. The error is
+> noted rather than quietly deleted, because a ledger that silently revises its
+> own history is worth nothing.
 
 ---
 
@@ -148,7 +259,8 @@ python rule71_ablation.py --seeds 300
 v2_frozen/     the v2 frozen snapshot (COND_RECOVER_AT = 30) + SHA256SUMS.txt
 v3_frozen/     the v3 frozen snapshot (COND_RECOVER_AT = 65) + SHA256SUMS.txt  ★the paper's model★
 tests/         the pytest self-check
-tools/         path-independent provenance verifier (not part of any frozen manifest)
+tools/         provenance verifier + replay harness (not part of any frozen manifest)
+replay_out/    replay harness output (gitignored, created on demand)
 FINAL_PREREGISTRATION.md      the full preregistration (including amendment A)
 NOVEL_SITUATION_DESIGN.md     the 026 design (closed)
 ```
